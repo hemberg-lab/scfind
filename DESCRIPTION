@@ -1,0 +1,38 @@
+Package: scfind
+Type: Package
+Title: A tool for searching of single cell RNA-seq data using gene lists
+Version: 0.99.1
+Author: Vladimir Kiselev
+Maintainer: Vladimir Kiselev <vladimir.yu.kiselev@gmail.com>
+Authors@R: c(person("Vladimir", "Kiselev",
+             email = "vladimir.yu.kiselev@gmail.com",
+             role=c("cre", "aut")),
+             person("Martin", "Hemberg",
+             role=c("aut")))
+Description: Please add description here.
+License: GPL-3
+Imports:
+    Biobase,
+    SingleCellExperiment,
+    SummarizedExperiment,
+    BiocGenerics,
+    S4Vectors,
+    proxy,
+    utils,
+    methods,
+    stats,
+    Rcpp(>= 0.12.12)
+LinkingTo: Rcpp
+Depends: R(>= 3.4)
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 6.0.1
+Suggests: knitr,
+    rmarkdown
+VignetteBuilder: knitr
+biocViews: SingleCell, Software, RNASeq, Transcriptomics, 
+            DataRepresentation, Transcription, Sequencing,
+            GeneExpression
+NeedsCompilation: no
+URL: https://github.com/hemberg-lab/scfind
+BugReports: https://support.bioconductor.org/t/scfind/
