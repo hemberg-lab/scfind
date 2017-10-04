@@ -69,11 +69,11 @@ findCellType.data.frame <- function(gene_index, gene_list) {
         stop("The gene_list must be a character vector!")
     }
     
-    p0 <- colSums(gene_index) / nrow(gene_index)
+    p0 <- colSums(gene_index)/nrow(gene_index)
     
     if (length(gene_list[!gene_list %in% rownames(gene_index)]) != 0) {
         warning(paste0("Genes: ", paste(gene_list[!gene_list %in% rownames(gene_index)], collapse = ", "), 
-                       " were exluded from search since they are not present in the Gene Index!"))
+            " were exluded from search since they are not present in the Gene Index!"))
         gene_list <- gene_list[gene_list %in% rownames(gene_index)]
     }
     
@@ -82,7 +82,7 @@ findCellType.data.frame <- function(gene_index, gene_list) {
     }
     
     gene_index <- gene_index[gene_list, ]
-    lambda <- 2 * log(apply(gene_index, 2, prod) / p0^(nrow(gene_index)))
+    lambda <- 2 * log(apply(gene_index, 2, prod)/p0^(nrow(gene_index)))
     lambda[is.na(lambda)] <- NA
     lambda[is.infinite(lambda)] <- NA
     p_values <- pchisq(lambda, length(gene_list), lower.tail = F)
@@ -109,6 +109,8 @@ setMethod("findCellType", "data.frame", findCellType.data.frame)
 #' @importFrom hash hash
 #' @importFrom bit as.bit
 #' @importFrom SingleCellExperiment logcounts
+#' @importFrom SummarizedExperiment colData
+#' @import Rcpp
 buildCellIndex.SCESet <- function(object, cell_type_column) {
     if (is.null(object)) {
         stop("Please define a object using the `object` parameter!")
@@ -123,8 +125,9 @@ buildCellIndex.SCESet <- function(object, cell_type_column) {
     gene_exprs <- gene_exprs[filter, ]
     inds <- lapply(apply(gene_exprs, 1, which), as.numeric)
     p0 <- NULL
-    for(ct in unique(colData(object)[[cell_type_column]])) {
-        p0 <- c(p0, sum(gene_exprs[, colData(object)[[cell_type_column]] == ct])/(nrow(gene_exprs)*length(which(colData(object)[[cell_type_column]] == ct))))
+    for (ct in unique(colData(object)[[cell_type_column]])) {
+        p0 <- c(p0, sum(gene_exprs[, colData(object)[[cell_type_column]] == ct])/(nrow(gene_exprs) * 
+            length(which(colData(object)[[cell_type_column]] == ct))))
     }
     names(p0) <- unique(colData(object)[[cell_type_column]])
     f_symbs <- rowData(object)$feature_symbol[filter]
@@ -153,24 +156,25 @@ setMethod("buildCellIndex", "SingleCellExperiment", buildCellIndex.SCESet)
 #'
 #' @return a `list` containing calculated gene index
 #' @useDynLib scfind
+#' @import Rcpp
 findCell.SCESet <- function(input, genelist) {
     inds <- list()
     for (i in genelist) {
-        tmp <- eliasFanoDecoding(as.numeric(input$index[[i]]$H), 
-                                 as.numeric(input$index[[i]]$L), input$index[[i]]$l)
+        tmp <- eliasFanoDecoding(as.numeric(input$index[[i]]$H), as.numeric(input$index[[i]]$L), 
+            input$index[[i]]$l)
         inds[[i]] <- tmp
     }
-    common_exprs_cells <- data.frame(cell_id = Reduce(intersect, inds), cell_type = input$cell_types[Reduce(intersect, inds)])
-    cell_types_p <- sapply(
-        sapply(inds, function(x){factor(input$cell_types[x], 
-               levels = unique(input$cell_types))}),
-        table)/as.vector(table(factor(input$cell_types, levels = unique(input$cell_types))))
+    common_exprs_cells <- data.frame(cell_id = Reduce(intersect, inds), cell_type = input$cell_types[Reduce(intersect, 
+        inds)])
+    cell_types_p <- sapply(sapply(inds, function(x) {
+        factor(input$cell_types[x], levels = unique(input$cell_types))
+    }), table)/as.vector(table(factor(input$cell_types, levels = unique(input$cell_types))))
     
     # log-likelihood with chi-squared distribution
-    lambda <- 2 * log(apply(cell_types_p, 1, prod) / (input$p0)^(length(genelist)))
+    lambda <- 2 * log(apply(cell_types_p, 1, prod)/(input$p0)^(length(genelist)))
     lambda[is.na(lambda)] <- NA
     lambda[is.infinite(lambda)] <- NA
-    p_values <- pchisq(lambda, length(genelist), lower.tail = F)
+    p_values <- pchisq(lambda, length(genelist), lower.tail = FALSE)
     return(list(p_values = p_values, common_exprs_cells = common_exprs_cells))
 }
 

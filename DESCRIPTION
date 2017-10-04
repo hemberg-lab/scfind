@@ -1,7 +1,7 @@
 Package: scfind
 Type: Package
 Title: A search tool for single cell RNA-seq data by gene lists
-Version: 0.99.1
+Version: 0.99.2
 Author: Vladimir Kiselev
 Maintainer: Vladimir Kiselev <vladimir.yu.kiselev@gmail.com>
 Authors@R: c(person("Vladimir", "Kiselev",
@@ -19,13 +19,8 @@ Description: Recently a very large collection of single-cell RNA-seq (scRNA-seq)
              genes is expressed.
 License: GPL-3
 Imports:
-    Biobase,
     SingleCellExperiment,
     SummarizedExperiment,
-    BiocGenerics,
-    S4Vectors,
-    proxy,
-    utils,
     methods,
     stats,
     bit,

@@ -36,10 +36,10 @@ counts(sce) <- normcounts(sce)
 logcounts(sce) <- log2(normcounts(sce) + 1)
 # use gene names as feature symbols
 rowData(sce)$feature_symbol <- rownames(sce)
-isSpike(sce, "ERCC") <- grepl("^ERCC-", rownames(sce))
+isSpike(sce, 'ERCC') <- grepl('^ERCC-', rownames(sce))
 # remove features with duplicated names
 sce <- sce[!duplicated(rownames(sce)), ]
 index <- buildCellTypeIndex(sce)
-res <- findCellType(index, gene_list = c("SOX6", "SNAI3"))
+res <- findCellType(index, gene_list = c('SOX6', 'SNAI3'))
 
 }
