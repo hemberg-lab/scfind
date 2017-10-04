@@ -16,39 +16,36 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// eliasFanoCodingCpp
-Rcpp::List eliasFanoCodingCpp(NumericVector ids, int l);
-RcppExport SEXP _scfind_eliasFanoCodingCpp(SEXP idsSEXP, SEXP lSEXP) {
+// eliasFanoCoding
+List eliasFanoCoding(List inds_list, NumericVector l);
+RcppExport SEXP _scfind_eliasFanoCoding(SEXP inds_listSEXP, SEXP lSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< NumericVector >::type ids(idsSEXP);
-    Rcpp::traits::input_parameter< int >::type l(lSEXP);
-    rcpp_result_gen = Rcpp::wrap(eliasFanoCodingCpp(ids, l));
+    Rcpp::traits::input_parameter< List >::type inds_list(inds_listSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type l(lSEXP);
+    rcpp_result_gen = Rcpp::wrap(eliasFanoCoding(inds_list, l));
     return rcpp_result_gen;
 END_RCPP
 }
-// eliasFanoDecodingCpp
-NumericVector eliasFanoDecodingCpp(LogicalVector H, LogicalVector L, int m, int l, int ih, int il);
-RcppExport SEXP _scfind_eliasFanoDecodingCpp(SEXP HSEXP, SEXP LSEXP, SEXP mSEXP, SEXP lSEXP, SEXP ihSEXP, SEXP ilSEXP) {
+// eliasFanoDecoding
+NumericVector eliasFanoDecoding(LogicalVector H, LogicalVector L, int l);
+RcppExport SEXP _scfind_eliasFanoDecoding(SEXP HSEXP, SEXP LSEXP, SEXP lSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< LogicalVector >::type H(HSEXP);
     Rcpp::traits::input_parameter< LogicalVector >::type L(LSEXP);
-    Rcpp::traits::input_parameter< int >::type m(mSEXP);
     Rcpp::traits::input_parameter< int >::type l(lSEXP);
-    Rcpp::traits::input_parameter< int >::type ih(ihSEXP);
-    Rcpp::traits::input_parameter< int >::type il(ilSEXP);
-    rcpp_result_gen = Rcpp::wrap(eliasFanoDecodingCpp(H, L, m, l, ih, il));
+    rcpp_result_gen = Rcpp::wrap(eliasFanoDecoding(H, L, l));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
     {"_scfind_int2bin", (DL_FUNC) &_scfind_int2bin, 1},
-    {"_scfind_eliasFanoCodingCpp", (DL_FUNC) &_scfind_eliasFanoCodingCpp, 2},
-    {"_scfind_eliasFanoDecodingCpp", (DL_FUNC) &_scfind_eliasFanoDecodingCpp, 6},
+    {"_scfind_eliasFanoCoding", (DL_FUNC) &_scfind_eliasFanoCoding, 2},
+    {"_scfind_eliasFanoDecoding", (DL_FUNC) &_scfind_eliasFanoDecoding, 3},
     {NULL, NULL, 0}
 };
 

@@ -5,11 +5,11 @@ int2bin <- function(n) {
     .Call('_scfind_int2bin', PACKAGE = 'scfind', n)
 }
 
-eliasFanoCodingCpp <- function(ids, l) {
-    .Call('_scfind_eliasFanoCodingCpp', PACKAGE = 'scfind', ids, l)
+eliasFanoCoding <- function(inds_list, l) {
+    .Call('_scfind_eliasFanoCoding', PACKAGE = 'scfind', inds_list, l)
 }
 
-eliasFanoDecodingCpp <- function(H, L, m, l, ih, il) {
-    .Call('_scfind_eliasFanoDecodingCpp', PACKAGE = 'scfind', H, L, m, l, ih, il)
+eliasFanoDecoding <- function(H, L, l) {
+    .Call('_scfind_eliasFanoDecoding', PACKAGE = 'scfind', H, L, l)
 }
 
