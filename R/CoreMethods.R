@@ -85,7 +85,7 @@ findCellType.data.frame <- function(gene_index, gene_list) {
     lambda <- 2 * log(apply(gene_index, 2, prod)/p0^(nrow(gene_index)))
     lambda[is.na(lambda)] <- NA
     lambda[is.infinite(lambda)] <- NA
-    p_values <- pchisq(lambda, length(gene_list), lower.tail = F)
+    p_values <- pchisq(lambda, length(gene_list), lower.tail = FALSE)
     return(p_values)
 }
 
