@@ -124,11 +124,10 @@ buildCellIndex.SCESet <- function(object, cell_type_column) {
     l <- l[filter]
     gene_exprs <- gene_exprs[filter, ]
     inds <- lapply(apply(gene_exprs, 1, which), as.numeric)
-    p0 <- NULL
-    for (ct in unique(colData(object)[[cell_type_column]])) {
-        p0 <- c(p0, sum(gene_exprs[, colData(object)[[cell_type_column]] == ct])/(nrow(gene_exprs) * 
-            length(which(colData(object)[[cell_type_column]] == ct))))
-    }
+    p0 <- vapply(unique(colData(object)[[cell_type_column]]), function(ct) {
+        sum(gene_exprs[, colData(object)[[cell_type_column]] == ct])/
+        (nrow(gene_exprs) * length(which(colData(object)[[cell_type_column]] == ct)))
+    }, numeric(1))
     names(p0) <- unique(colData(object)[[cell_type_column]])
     f_symbs <- rowData(object)$feature_symbol[filter]
     rownames(gene_exprs) <- f_symbs
@@ -158,6 +157,18 @@ setMethod("buildCellIndex", "SingleCellExperiment", buildCellIndex.SCESet)
 #' @useDynLib scfind
 #' @import Rcpp
 findCell.SCESet <- function(input, genelist) {
+    if (is.null(input)) {
+        stop("Please define an input parameter!")
+    }
+    if (is.null(genelist)) {
+        stop("Please define a list of genes using the `genelist` parameter!")
+    }
+    if (!"list" %in% is(input)) {
+        stop("The gene_index must be a list!")
+    }
+    if (!"character" %in% is(genelist)) {
+        stop("The genelist must be a character vector!")
+    }
     inds <- list()
     for (i in genelist) {
         tmp <- eliasFanoDecoding(as.numeric(input$index[[i]]$H), as.numeric(input$index[[i]]$L), 

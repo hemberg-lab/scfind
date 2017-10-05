@@ -68,11 +68,19 @@ The calculation above shows that a list of genes containing `SOX6` and `SNAI3` i
 
 # Cell Search
 
+If one is more interested in finding out in which cells all the genes from your
+gene list are expressed than you can build a cell index instead of a
+cell type index. `buildCellIndex` function should be used for building the index
+and `findCell` for searching the index:
 ```{r}
 geneIndex <- buildCellIndex(sce)
 res <- findCell(geneIndex, c("SOX6", "SNAI3"))
-barplot(-log10(res$p_values), ylab = "-log10(pval)", las = 2)
 res$common_exprs_cells
+```
+
+Cell search reports the p-values corresponding to cell types as well:
+```{r}
+barplot(-log10(res$p_values), ylab = "-log10(pval)", las = 2)
 ```
 
 # sessionInfo()
