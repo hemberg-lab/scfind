@@ -179,7 +179,7 @@ findCell.SCESet <- function(input, genelist) {
         inds)])
     cell_types_p <- sapply(sapply(inds, function(x) {
         factor(input$cell_types[x], levels = unique(input$cell_types))
-    }), table)/as.vector(table(factor(input$cell_types, levels = unique(input$cell_types))))
+    }, simplify = FALSE), table)/as.vector(table(factor(input$cell_types, levels = unique(input$cell_types))))
     
     # log-likelihood with chi-squared distribution
     lambda <- 2 * log(apply(cell_types_p, 1, prod)/(input$p0)^(length(genelist)))
