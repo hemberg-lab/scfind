@@ -76,6 +76,7 @@ setGeneric("buildCellIndex", signature = "object", function(object = NULL, cell_
 #' index <- buildCellIndex(sce)
 #' res <- findCell(index, genelist = c('SOX6', 'SNAI3'))
 #' 
-setGeneric("findCell", signature = "input", function(input = NULL, genelist = NULL) {
+setGeneric("findCell", signature = "input", function(input = NULL, genelist = NULL,
+                                                     statistics = "G") {
     standardGeneric("findCell")
 })

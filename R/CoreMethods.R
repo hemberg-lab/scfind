@@ -150,13 +150,15 @@ setMethod("buildCellIndex", "SingleCellExperiment", buildCellIndex.SCESet)
 #' @param input object of SingleCellExperiment class
 #' @param genelist column name in the colData slot of the object SingleCellExperiment 
 #' containing the cell classification information
+#' @param statistics defines statistics to be used to calculate log-likelihood.
+#' 'G' is the default. The second option is 'chisq'.
 #' 
 #' @name findCell
 #'
 #' @return a `list` containing calculated gene index
 #' @useDynLib scfind
 #' @import Rcpp
-findCell.SCESet <- function(input, genelist) {
+findCell.SCESet <- function(input, genelist, statistics) {
     if (is.null(input)) {
         stop("Please define an input parameter!")
     }
@@ -181,8 +183,11 @@ findCell.SCESet <- function(input, genelist) {
         factor(input$cell_types[x], levels = unique(input$cell_types))
     }, simplify = FALSE), table)/as.vector(table(factor(input$cell_types, levels = unique(input$cell_types))))
     
-    # log-likelihood with chi-squared distribution
-    lambda <- 2 * log(apply(cell_types_p, 1, prod)/(input$p0)^(length(genelist)))
+    if(statistics == "G") {
+        lambda <- 2 * apply(cell_types_p * log(cell_types_p / input$p0), 1, sum)
+    } else {
+        lambda <- 2 * apply(log(cell_types_p / input$p0), 1, sum)
+    }
     lambda[is.na(lambda)] <- NA
     lambda[is.infinite(lambda)] <- NA
     p_values <- pchisq(lambda, length(genelist), lower.tail = FALSE)

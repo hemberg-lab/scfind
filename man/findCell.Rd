@@ -9,17 +9,20 @@
 \alias{findCell}
 \title{Find cells associated with a given gene list}
 \usage{
-findCell(input = NULL, genelist = NULL)
+findCell(input = NULL, genelist = NULL, statistics = "G")
 
-findCell.SCESet(input, genelist)
+findCell.SCESet(input, genelist, statistics)
 
-\S4method{findCell}{list}(input = NULL, genelist = NULL)
+\S4method{findCell}{list}(input = NULL, genelist = NULL, statistics = "G")
 }
 \arguments{
 \item{input}{object of SingleCellExperiment class}
 
 \item{genelist}{column name in the colData slot of the object SingleCellExperiment 
 containing the cell classification information}
+
+\item{statistics}{defines statistics to be used to calculate log-likelihood.
+'G' is the default. The second option is 'chisq'.}
 }
 \value{
 a `list` containing calculated gene index
