@@ -5,22 +5,24 @@
 \alias{buildCellTypeIndex}
 \alias{buildCellTypeIndex}
 \alias{buildCellTypeIndex.SCESet}
-\alias{buildCellTypeIndex,SingleCellExperiment-method}
+\alias{buildCellTypeIndex,SingleCellExperiment,ANY,character,character-method}
 \alias{buildCellTypeIndex}
 \title{Build a cell type Index}
 \usage{
-buildCellTypeIndex(object = NULL, cell_type_column = "cell_type1")
+buildCellTypeIndex(sce, dataset.name = "", assay.name = "logcounts",
+  cell.type.label = "cell_type1")
 
-buildCellTypeIndex.SCESet(object, cell_type_column)
+buildCellTypeIndex.SCESet(sce, dataset.name, assay.name, cell.type.label)
 
-\S4method{buildCellTypeIndex}{SingleCellExperiment}(object = NULL,
-  cell_type_column = "cell_type1")
+
+  \S4method{buildCellTypeIndex}{SingleCellExperiment,ANY,character,character}(sce,
+  dataset.name = "", assay.name = "logcounts",
+  cell.type.label = "cell_type1")
 }
 \arguments{
-\item{object}{object of SingleCellExperiment class}
+\item{sce}{object of SingleCellExperiment class}
 
-\item{cell_type_column}{column name in the colData slot of the object SingleCellExperiment 
-containing the cell classification information}
+\item{dataset.name}{name of the dataset that will be prepended in each cell_type}
 }
 \value{
 a `data.frame` containing calculated gene index
@@ -29,17 +31,6 @@ a `data.frame` containing calculated gene index
 Calculates a fraction of expressed cells per gene per cell type
 }
 \examples{
-library(SingleCellExperiment)
-sce <- SingleCellExperiment(assays = list(normcounts = as.matrix(yan)), colData = ann)
-# this is needed to calculate dropout rate for feature selection
-# important: normcounts have the same zeros as raw counts (fpkm)
-counts(sce) <- normcounts(sce)
-logcounts(sce) <- log2(normcounts(sce) + 1)
-# use gene names as feature symbols
-rowData(sce)$feature_symbol <- rownames(sce)
-isSpike(sce, 'ERCC') <- grepl('^ERCC-', rownames(sce))
-# remove features with duplicated names
-sce <- sce[!duplicated(rownames(sce)), ]
-index <- buildCellTypeIndex(sce)
+TODO
 
 }

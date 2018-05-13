@@ -4,15 +4,12 @@
 #include <algorithm>
 #include <cmath>
 
+#include "typedefs.h"
 // the bits used for the encoding
 #define BITS 32
 
-class FPNode;
-class Pattern;
 
 using namespace Rcpp;
-
-typedef LogicalVector BoolVec;
 
 typedef std::pair<unsigned short, std::bitset<BITS> > BitSet32;
 
