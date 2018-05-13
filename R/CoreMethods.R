@@ -2,44 +2,188 @@
 #' 
 #' Calculates a fraction of expressed cells per gene per cell type
 #'
-#' @param object object of SingleCellExperiment class
-#' @param cell_type_column column name in the colData slot of the object SingleCellExperiment 
-#' containing the cell classification information
+#' @param sce object of SingleCellExperiment class
+#' @param dataset.name name of the dataset that will be prepended in each cell_type
 #' 
 #' @name buildCellTypeIndex
 #'
 #' @return a `data.frame` containing calculated gene index
 #'
-#' @importFrom SummarizedExperiment rowData colData colData<-
-#' @importFrom SingleCellExperiment logcounts
-#' @importFrom dplyr group_by summarise %>%
-#' @importFrom reshape2 melt dcast
-buildCellTypeIndex.SCESet <- function(object, cell_type_column) {
-    if (is.null(object)) {
-        stop("Please define a object using the `object` parameter!")
+#' @importFrom hash hash
+#' @importFrom bit as.bit
+buildCellTypeIndex.SCESet <- function(sce, dataset.name = '', assay.name = 'logcounts')
+{
+
+    if(grepl(dataset.name,'.'))
+    {
+        error("The dataset name should not contain any dots")
     }
-    if (is.null(colData(object)[[cell_type_column]])) {
-        stop("Please define a correct `cell_type_column` in the `colData` slot!")
-    }
-    gene <- cell_class <- exprs <- NULL
-    object_local <- logcounts(object) > 0
-    rownames(object_local) <- rowData(object)$feature_symbol
-    colnames(object_local) <- colData(object)[[cell_type_column]]
     
-    # calculate median feature expression in every cell class of object
-    object_local <- reshape2::melt(object_local)
-    colnames(object_local) <- c("gene", "cell_class", "exprs")
-    object_local <- object_local %>% group_by(gene, cell_class) %>% summarise(gene_exprs_prob = sum(exprs)/length(exprs))
-    object_local <- reshape2::dcast(object_local, gene ~ cell_class, value.var = "gene_exprs_prob")
-    rownames(object_local) <- object_local$gene
-    object_local <- object_local[, 2:ncol(object_local), drop = FALSE]
-    return(object_local)
+    print(paste("Reading", dataset.name))
+    d <- sce
+    cell.types.all <- as.factor(colData(d)$cell_type1)
+    cell.types <- levels(cell.types.all)
+    new.cell.types <- hash(keys = cell.types, values = paste0(dataset.name, '.', cell.types))
+    genenames <- unique(rowData(d)$feature_symbol)
+    
+    if (length(cell.types) > 0)
+    {
+        non.zero.cell.types <- c()
+        object <- hash()
+        ## print(paste("Found", length(cell.types), "clusters on", ncol(sce), "cells"))
+        if( ! assay.name %in% names(assays(sce)))
+        {
+            error(paste('Assay name', assay.name, 'not found in the SingleCellExperiment'))
+        }
+        exprs <- "[["(d@assays$data, assay.name)
+        ## Check if we have a sparse represantation
+        if(is.matrix(exprs))
+        {
+            ## Cast the matrix, expensive operation
+            exprs <- as.matrix(exprs)
+        }
+        genes.nonzero <- which(rowSums(exprs) > 0)
+        if(length(genes.nonzero) == 0)
+        {
+            return(hash())
+        }
+        
+        print(paste0("Non zero genes ", length(genes.nonzero) ))
+        for (cell.type in cell.types) {
+            inds.cell <- which(cell.type == cell.types.all)
+            if(length(inds.cell) < 2)
+            {
+                ## print(paste('Skipping', cell.type))
+                next
+            }
+            non.zero.cell.types <- c(non.zero.cell.types, cell.type)
+            print(paste("Indexing", cell.type," to ", new.cell.types[[cell.type]], " with ", length(inds.cell), " cells."))
+            ## Calculate the baseline probability that a gene will be expressed in a cell
+            object[new.cell.types[[cell.type]]] <- hash(
+                keys = genenames[genes.nonzero],
+                values = apply(exprs[genes.nonzero, inds.cell], 1,
+                               function (x)
+                               {
+                                   ef.gene <- eliasFanoCodingCpp(x)
+                                   if(length(ef.gene) == 0){
+                                       return(ef.gene)
+                                   }
+                                   return(list(
+                                       H = as.bit(ef.gene$H),
+                                       L = as.bit(ef.gene$L),
+                                       l = ef.gene$l
+                                   ))
+                               }))
+            
+              }
+    }
+    
+    message('Finalizing index...')
+    index.value.model <- hash()
+    for (cell.type in non.zero.cell.types)
+    {
+        index.value.model[[ as.character(new.cell.types[[cell.type]]) ]] <- list()
+    }
+    
+    new.obj <- hash()
+    for( gene in genenames)
+    {
+        new.obj[[gene]] <- index.value.model
+    }
+
+
+    for (cell.type in non.zero.cell.types)
+    {
+        new.cell.type <- new.cell.types[[cell.type]]
+        for (gene in keys(object[[new.cell.type]]))
+        {
+            ## This if clause has to be consistent with the Rcpp side
+            if (length(object[[new.cell.type]][[gene]]) != 0)
+            {
+                new.obj[[gene]][[new.cell.type]] <- object[[new.cell.type]][[gene]]
+            }
+        }
+    }
+
+
+    object <- list(index = new.obj, datasets = c(dataset.name))
+
+    
+    return(object)
 }
 
 #' @rdname buildCellTypeIndex
 #' @aliases buildCellTypeIndex
 #' @importFrom SingleCellExperiment SingleCellExperiment
 setMethod("buildCellTypeIndex", "SingleCellExperiment", buildCellTypeIndex.SCESet)
+
+
+#' Merges external index to existing object
+#'
+#' @param object the root scfind object
+#' @param new.object external scfind object to be merged
+#'
+#' @name mergeIndex
+#' @return the new extended object
+#' 
+merge.dataset.from.object <- function(object, new.object)
+{
+    common.datasets <- intersect(new.object$datasets, object$datasets)
+    
+    if(len(common.datasets))
+    {
+        warning("Common dataset names exist, undefined merging behavior, please fix this...")
+    }
+    
+    object$index <- mergeDataset(object$index, new.object)
+    object$datasets <- c(object$datasets, new.object$datasets)
+    return(object)
+}
+
+#' Merges another sce object
+#'
+#' @param object the root scfind object
+#' @name mergeSingleCellExperiment
+#' @return the new object with the sce object merged
+merge.dataset.from.sce <- function(object, sce, dataset.name)
+{
+    object.to.merge <- buildCellTypeIndex(sce, dataset.name)
+    return(mergeIndex(object, object.to.merge))
+}
+
+
+#' Retrieves all relative celltypes with their correspodent cell matches
+#'
+#' @param object an scfind object
+#' @param gene an scfind object
+#'
+#' @name queryGene
+#'
+#' @return
+query.gene <- function(object, gene)
+{
+    efdb <- object$index
+    if(is.null(efdb[[gene]]))
+    {
+        warning(paste('Requested gene', gene, 'not available in the index'))
+        return(hash())
+    }
+    else
+    {
+        return(hash(keys = keys(efdb[[gene]]),
+                    values = lapply(keys(efdb[[gene]]),
+                                    FUN = function(cell.type)
+                                    {   
+                                        v <- efdb[[gene]][[cell.type]]
+                                        return(
+                                            eliasFanoDecodingCpp(
+                                                as.logical(v$H),
+                                                as.logical(v$L),
+                                                v$l))
+                                    })))
+    }
+}
+
 
 #' Find cell types associated with a given gene list
 #' 
