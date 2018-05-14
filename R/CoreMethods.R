@@ -49,15 +49,31 @@ buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name, cell.type.l
         if(!is.matrix(exprs))
         {
             ## Cast the matrix, expensive operation
-            exprs <- as.matrix(exprs)
+            ## Normalize on the fly if we do not have normalized counts
+            if( assay.name != 'logcounts')
+            {
+                exprs <- log2(as.matrix(exprs) + 1)
+            }
+            else
+            {
+                exprs <- as.matrix(exprs)
+            }
         }
+
+        
+        ## Normalize by sequencing depth
+        exprs <- exprs / (rowSums(exprs) + 1)         ## Check for zero cells dirty hack ( avoid dividing by zero )
+        ## Normalize by dropout rate
+        exprs <- exprs * 10^((sum(exprs > 0)/10000) + 5)
         genes.nonzero <- which(rowSums(exprs) > 0)
+        
         if(length(genes.nonzero) == 0)
         {
             return(hash())
         }
         
-        print(paste0("Non zero genes ", length(genes.nonzero) ))
+        message(paste(ncol(sce), "cells with", length(genes.nonzero), "non zero genes" ))
+        
         for (cell.type in cell.types) {
             inds.cell <- which(cell.type == cell.types.all)
             if(length(inds.cell) < 2)
@@ -66,7 +82,7 @@ buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name, cell.type.l
                 next
             }
             non.zero.cell.types <- c(non.zero.cell.types, cell.type)
-            print(paste("Indexing", cell.type," to ", new.cell.types[[cell.type]], " with ", length(inds.cell), " cells."))
+            message(paste("\tIndexing", cell.type, "to", new.cell.types[[cell.type]], " with ", length(inds.cell), " cells."))
             ## Calculate the baseline probability that a gene will be expressed in a cell
             object[new.cell.types[[cell.type]]] <- hash(
                 keys = genenames[genes.nonzero],
@@ -87,7 +103,7 @@ buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name, cell.type.l
               }
     }
     
-    message('Finalizing index...')
+    message(paste('Finalizing', dataset.name, ' index...'))
     index.value.model <- hash()
     for (cell.type in non.zero.cell.types)
     {
