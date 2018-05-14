@@ -42,7 +42,7 @@ buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name, cell.type.l
         }
         else
         {
-            message(paste("Generating index for", dataset.name, "with '", assay.name, "' assay"))
+            message(paste("Generating index for", dataset.name, "from '", assay.name, "' assay"))
         }
         exprs <- "[["(sce@assays$data, assay.name)
         ## Check if we have a sparse represantation
@@ -82,7 +82,7 @@ buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name, cell.type.l
                 next
             }
             non.zero.cell.types <- c(non.zero.cell.types, cell.type)
-            message(paste("\tIndexing", cell.type, "to", new.cell.types[[cell.type]], " with ", length(inds.cell), " cells."))
+            message(paste("\tIndexing", cell.type, "as", new.cell.types[[cell.type]], " with ", length(inds.cell), " cells."))
             ## Calculate the baseline probability that a gene will be expressed in a cell
             object[new.cell.types[[cell.type]]] <- hash(
                 keys = genenames[genes.nonzero],
