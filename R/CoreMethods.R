@@ -9,9 +9,13 @@
 #'
 #' @return a `data.frame` containing calculated gene index
 #'
-#' @importFrom SingleCellExperiment assays colData
+#' @importFrom SingleCellExperiment SingleCellExperiment
 #' @importFrom hash hash
 #' @importFrom bit as.bit
+#' 
+#' @importFrom Rcpp sourceCpp
+#' @useDynLib scfind
+#' 
 buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name, cell.type.label)
 {
 
@@ -38,7 +42,7 @@ buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name, cell.type.l
         }
         exprs <- "[["(d@assays$data, assay.name)
         ## Check if we have a sparse represantation
-        if(is.matrix(exprs))
+        if(!is.matrix(exprs))
         {
             ## Cast the matrix, expensive operation
             exprs <- as.matrix(exprs)
@@ -114,9 +118,7 @@ buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name, cell.type.l
 #' @rdname buildCellTypeIndex
 #' @aliases buildCellTypeIndex
 setMethod("buildCellTypeIndex",
-          signature(sce = "SingleCellExperiment",
-                    assay.name = "character",
-                    cell.type.label = "character"),
+          signature(sce = "SingleCellExperiment"),
           buildCellTypeIndex.SCESet)
 
 
@@ -132,6 +134,7 @@ merge.dataset.from.object <- function(object, new.object)
 {
     common.datasets <- intersect(new.object@datasets, object@datasets)
     
+    message(paste('Merging', new.object@datasets))
     if(len(common.datasets) != 0)
     {
         warning("Common dataset names exist, undefined merging behavior, please fix this...")
@@ -176,6 +179,9 @@ setMethod("mergeSCE",
 #'
 #' @name queryGene
 #'
+#' @importFrom Rcpp sourceCpp
+#' @useDynLib scfind
+#' 
 #' @return nada
 query.gene <- function(object, gene)
 {
@@ -217,7 +223,7 @@ setMethod("queryGene", signature(object = "SCFind", gene = "character"), query.g
 #'
 #' @return a named numeric vector containing p-values
 #'
-#' @importFrom hash hash keys [[
+#' @importFrom hash hash keys
 #' @importFrom stats pchisq
 #' @importFrom methods is
 findCellTypes.geneList <- function(object, gene.list)

@@ -49,6 +49,7 @@ cell.type.union.operator <-  function(hash.index1, hash.index2, operator.functio
 #' Applies the intersect operator on the cell types and on the cells
 #' that participate on common cell.types
 #'
+#' @name and
 #' @param hash.index1 result index to be intersected with hash.index2
 #' @param hash.index2 result index to be intersected with hash.index1
 #'
@@ -61,6 +62,7 @@ and.operator <- function(hash.index1, hash.index2)
 
 #' Applies the union operator on two result data structures
 #'
+#' @name or
 #' @param hash.index1 result index to be unionized with hash.index2
 #' @param hash.index2 result index to be unionized with hash.index1
 #'
@@ -72,6 +74,7 @@ or.operator <- function(hash.index1, hash.index2)
 
 #' Remove cells that have some specific gene hits that we do not want in our list
 #'
+#' @name not
 #' @param hash.index the result index that cell types will be filtered
 #' @param hash.diff the cell types to be removed in case there is an overlap
 #'
@@ -79,34 +82,6 @@ or.operator <- function(hash.index1, hash.index2)
 not.operator <-  function(hash.index, hash.diff)
 {
     return(operator(hash.index, hash.diff, union, setdiff))
-}
-
-#' Prototype function to read the mouse cell atlas
-readMCA <- function()
-{
-    filenames <- list.files('/nfs/team218/MCA')
-    file.paths <- paste0('/nfs/team218/MCA/', filenames)
-    i <- 1
-    efdb <- NULL
-    for ( rds.path in file.paths)
-    {
-        print(rds.path)
-        sce <- readRDS(rds.path)
-        efdb.part <- parseDataset(sce , gsub("_.*", "", filenames[i]), assay.name = 'counts')
-        if(is.null(efdb))
-        {
-            efdb <- efdb.part
-        }
-        else
-        {
-            efdb <- mergeDatasets(efdb, efdb.part)
-            print(paste("DB size:",object_size(efdb)))
-            ## return(efdb)
-        }
-        i <- i + 1
-    }
-
-    return(efdb)
 }
 
 #' merge two elias fano indices

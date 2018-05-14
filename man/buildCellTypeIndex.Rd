@@ -5,7 +5,7 @@
 \alias{buildCellTypeIndex}
 \alias{buildCellTypeIndex}
 \alias{buildCellTypeIndex.SCESet}
-\alias{buildCellTypeIndex,SingleCellExperiment,ANY,character,character-method}
+\alias{buildCellTypeIndex,SingleCellExperiment-method}
 \alias{buildCellTypeIndex}
 \title{Build a cell type Index}
 \usage{
@@ -14,10 +14,8 @@ buildCellTypeIndex(sce, dataset.name = "", assay.name = "logcounts",
 
 buildCellTypeIndex.SCESet(sce, dataset.name, assay.name, cell.type.label)
 
-
-  \S4method{buildCellTypeIndex}{SingleCellExperiment,ANY,character,character}(sce,
-  dataset.name = "", assay.name = "logcounts",
-  cell.type.label = "cell_type1")
+\S4method{buildCellTypeIndex}{SingleCellExperiment}(sce, dataset.name = "",
+  assay.name = "logcounts", cell.type.label = "cell_type1")
 }
 \arguments{
 \item{sce}{object of SingleCellExperiment class}

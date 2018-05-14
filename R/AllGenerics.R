@@ -1,8 +1,7 @@
 
 #' The scfind main class object
-#' @importFrom hash hash
 #' @export
-setClass("SCFind", representation( index = "hash", dataset = "character"))
+setClass("SCFind", representation(index = "hash", datasets = "character"))
 
 #' @examples TODO
 #' 
@@ -18,13 +17,13 @@ setGeneric(name = "buildCellTypeIndex",
 
 
 #' 
-#' @examples
+#' @examples TODO
 #' @export 
 setGeneric(name = "mergeDataset", def = function(object, new.object) {
     standardGeneric("mergeDataset")
 })
  
-#' @examples
+#' @examples TODO
 #' @export 
 setGeneric(name = "mergeSCE", def = function(object, sce, dataset.name) {
     standardGeneric("mergeSCE")
@@ -33,7 +32,7 @@ setGeneric(name = "mergeSCE", def = function(object, sce, dataset.name) {
 
 #' @export
 #' 
-#' @examples
+#' @examples TODO
 #' 
 setGeneric(name = "queryGene", def = function(object, gene) {
     standardGeneric("queryGene")

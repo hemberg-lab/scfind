@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <cmath>
 
-#include "typedefs.h"
+#include "scfind_types.h"
 // the bits used for the encoding
 #define BITS 32
 
