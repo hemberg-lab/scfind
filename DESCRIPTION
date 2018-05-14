@@ -1,13 +1,16 @@
 Package: scfind
 Type: Package
 Title: A search tool for single cell RNA-seq data by gene lists
-Version: 0.99.6
+Version: 1.0.0
 Author: Vladimir Kiselev
-Maintainer: Vladimir Kiselev <vladimir.yu.kiselev@gmail.com>
+Maintainer: Nikolaos Patikas <nik.patik@gmail.com>
 Authors@R: c(person("Vladimir", "Kiselev",
              email = "vladimir.yu.kiselev@gmail.com",
              role=c("cre", "aut")),
              person("Martin", "Hemberg",
+             role=c("aut")),
+             person("Nikolaos","Patikas",
+             email = "nik.patik@gmail.com",
              role=c("aut")))
 Description: Recently a very large collection of single-cell RNA-seq (scRNA-seq) datasets 
              has been generated and publicly released. For the collection to be 
@@ -19,23 +22,14 @@ Description: Recently a very large collection of single-cell RNA-seq (scRNA-seq)
              genes is expressed.
 License: GPL-3
 Imports:
-    SingleCellExperiment,
-    SummarizedExperiment,
-    methods,
-    stats,
-    bit,
-    dplyr,
-    hash,
-    reshape2,
-    Rcpp(>= 0.12.12)
+    SingleCellExperiment, bit, hash, Rcpp
 LinkingTo: Rcpp
 Depends: R(>= 3.4)
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 6.0.1
 Suggests: knitr,
-    rmarkdown,
-    testthat
+    rmarkdown
 VignetteBuilder: knitr
 biocViews: SingleCell, Software, RNASeq, Transcriptomics, 
             DataRepresentation, Transcription, Sequencing,
