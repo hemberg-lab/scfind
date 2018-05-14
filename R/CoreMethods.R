@@ -25,7 +25,7 @@ buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name, cell.type.l
         error("The dataset name should not contain any dots")
     }
     
-    print(paste("Reading", dataset.name))
+    
     cell.types.all <- as.factor("[["(colData(sce), cell.type.label))
     cell.types <- levels(cell.types.all)
     new.cell.types <- hash(keys = cell.types, values = paste0(dataset.name, '.', cell.types))
@@ -42,7 +42,7 @@ buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name, cell.type.l
         }
         else
         {
-            message(paste("Generating index with", assay.name))
+            message(paste("Generating index for", dataset.name, "from '", assay.name, "' assay"))
         }
         exprs <- "[["(sce@assays$data, assay.name)
         ## Check if we have a sparse represantation
@@ -62,7 +62,7 @@ buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name, cell.type.l
 
         
         ## Normalize by sequencing depth
-        exprs <- exprs / (rowSums(exprs) + 1)         ## Check for zero cells dirty hack ( avoid dividing by zero )
+        exprs <- exprs / (colSums(exprs) + 1)         ## Check for zero cells dirty hack ( avoid dividing by zero )
         ## Normalize by dropout rate
         exprs <- exprs * 10^((sum(exprs > 0)/10000) + 5)
         genes.nonzero <- which(rowSums(exprs) > 0)
@@ -82,7 +82,7 @@ buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name, cell.type.l
                 next
             }
             non.zero.cell.types <- c(non.zero.cell.types, cell.type)
-            message(paste("\tIndexing", cell.type, "to", new.cell.types[[cell.type]], " with ", length(inds.cell), " cells."))
+            message(paste("\tIndexing", cell.type, "as", new.cell.types[[cell.type]], " with ", length(inds.cell), " cells."))
             ## Calculate the baseline probability that a gene will be expressed in a cell
             object[new.cell.types[[cell.type]]] <- hash(
                 keys = genenames[genes.nonzero],
