@@ -9,7 +9,8 @@
 #'
 #' @return a `data.frame` containing calculated gene index
 #'
-#' @importFrom SingleCellExperiment SingleCellExperiment
+#' @importFrom SingleCellExperiment SingleCellExperiment assays
+#' @importFrom SummarizedExperiment rowData rowData<- colData colData<- assayNames assays
 #' @importFrom hash hash
 #' @importFrom bit as.bit
 #' 
@@ -25,22 +26,25 @@ buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name, cell.type.l
     }
     
     print(paste("Reading", dataset.name))
-    d <- sce
     cell.types.all <- as.factor("[["(colData(sce), cell.type.label))
     cell.types <- levels(cell.types.all)
     new.cell.types <- hash(keys = cell.types, values = paste0(dataset.name, '.', cell.types))
-    genenames <- unique(rowData(d)$feature_symbol)
+    genenames <- unique(rowData(sce)$feature_symbol)
     
     if (length(cell.types) > 0)
     {
         non.zero.cell.types <- c()
         object <- hash()
         ## print(paste("Found", length(cell.types), "clusters on", ncol(sce), "cells"))
-        if( ! assay.name %in% names(assays(sce)))
+        if( ! assay.name %in% assayNames(sce))
         {
             error(paste('Assay name', assay.name, 'not found in the SingleCellExperiment'))
         }
-        exprs <- "[["(d@assays$data, assay.name)
+        else
+        {
+            message(paste("Generating index with", assay.name))
+        }
+        exprs <- "[["(sce@assays$data, assay.name)
         ## Check if we have a sparse represantation
         if(!is.matrix(exprs))
         {
