@@ -60,11 +60,12 @@ buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name, cell.type.l
             }
         }
 
-        
-        ## Normalize by sequencing depth
-        exprs <- exprs / (colSums(exprs) + 1)        ## Check for zero cells dirty hack ( avoid dividing by zero )
         ## Normalize by dropout rate per cell
         dropouts <- apply(exprs , 2, function(cell.vector) sum(cell.vector > 0))
+        message(paste("mean dropout rate", mean(dropouts)))
+        ## Normalize by sequencing depth
+        exprs <- exprs / (colSums(exprs) + 1)        ## Check for zero cells dirty hack ( avoid dividing by zero )
+
         dropouts <- 10^((dropouts/10000) + 5)
         exprs <- exprs * dropouts
         genes.nonzero <- which(rowSums(exprs) > 0)
