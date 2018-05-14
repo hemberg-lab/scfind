@@ -34,7 +34,7 @@ buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name, cell.type.l
     if (length(cell.types) > 0)
     {
         non.zero.cell.types <- c()
-        object <- hash()
+        index <- hash()
         ## print(paste("Found", length(cell.types), "clusters on", ncol(sce), "cells"))
         if( ! assay.name %in% assayNames(sce))
         {
@@ -62,14 +62,17 @@ buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name, cell.type.l
 
         
         ## Normalize by sequencing depth
-        exprs <- exprs / (colSums(exprs) + 1)         ## Check for zero cells dirty hack ( avoid dividing by zero )
-        ## Normalize by dropout rate
-        exprs <- exprs * 10^((sum(exprs > 0)/10000) + 5)
+        exprs <- exprs / (colSums(exprs) + 1)        ## Check for zero cells dirty hack ( avoid dividing by zero )
+        ## Normalize by dropout rate per cell
+        dropouts <- apply(exprs , 2, function(cell.vector) sum(cell.vector > 0))
+        dropouts <- 10^((dropouts/10000) + 5)
+        exprs <- exprs * dropouts
         genes.nonzero <- which(rowSums(exprs) > 0)
         
         if(length(genes.nonzero) == 0)
         {
-            return(hash())
+
+            return(new("SCFind", index = hash(), datasets = dataset.name))
         }
         
         message(paste(ncol(sce), "cells with", length(genes.nonzero), "non zero genes" ))
@@ -84,7 +87,7 @@ buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name, cell.type.l
             non.zero.cell.types <- c(non.zero.cell.types, cell.type)
             message(paste("\tIndexing", cell.type, "as", new.cell.types[[cell.type]], " with ", length(inds.cell), " cells."))
             ## Calculate the baseline probability that a gene will be expressed in a cell
-            object[new.cell.types[[cell.type]]] <- hash(
+            index[new.cell.types[[cell.type]]] <- hash(
                 keys = genenames[genes.nonzero],
                 values = apply(exprs[genes.nonzero, inds.cell], 1,
                                function (x)
@@ -103,7 +106,7 @@ buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name, cell.type.l
               }
     }
     
-    message(paste('Finalizing', dataset.name, ' index...'))
+    message(paste('Finalizing', dataset.name, 'index...'))
     index.value.model <- hash()
     for (cell.type in non.zero.cell.types)
     {
@@ -120,18 +123,18 @@ buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name, cell.type.l
     for (cell.type in non.zero.cell.types)
     {
         new.cell.type <- new.cell.types[[cell.type]]
-        for (gene in keys(object[[new.cell.type]]))
+        for (gene in keys(index[[new.cell.type]]))
         {
             ## This if clause has to be consistent with the Rcpp side
-            if (length(object[[new.cell.type]][[gene]]) != 0)
+            if (length(index[[new.cell.type]][[gene]]) != 0)
             {
-                new.obj[[gene]][[new.cell.type]] <- object[[new.cell.type]][[gene]]
+                new.obj[[gene]][[new.cell.type]] <- index[[new.cell.type]][[gene]]
             }
         }
     }
 
 
-    index <- new("SCFind", index = new.obj, datasets = c(dataset.name))
+    index <- new("SCFind", index = new.obj, datasets = dataset.name)
     return(index)
 }
 
