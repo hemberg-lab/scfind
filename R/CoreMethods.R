@@ -9,7 +9,7 @@
 #'
 #' @return a `data.frame` containing calculated gene index
 #'
-#' @importFrom SingleCellExperiment SingleCellExperiment assays
+#' @importFrom SingleCellExperiment SingleCellExperiment
 #' @importFrom SummarizedExperiment rowData rowData<- colData colData<- assayNames assays
 #' @importFrom hash hash
 #' @importFrom bit as.bit
