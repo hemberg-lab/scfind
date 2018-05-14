@@ -88,6 +88,8 @@ not.operator <-  function(hash.index, hash.diff)
 #'
 #' @param efdb.root the root index
 #' @param efdb the index to be merged
+#'
+#' @importFrom hash values keys
 #' 
 mergeIndices <- function(efdb.root, efdb)
 {

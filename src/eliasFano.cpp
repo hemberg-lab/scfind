@@ -67,7 +67,7 @@ Rcpp::List intersect_cells(Rcpp::List a, Rcpp::List b)
 
 
 // [[Rcpp::export]]
-Rcpp::List eliasFanoCodingCpp(const IntegerVector& expression_vector) {
+Rcpp::List eliasFanoCodingCpp(const NumericVector& expression_vector) {
   
   
   

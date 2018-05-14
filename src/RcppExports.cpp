@@ -31,12 +31,12 @@ BEGIN_RCPP
 END_RCPP
 }
 // eliasFanoCodingCpp
-Rcpp::List eliasFanoCodingCpp(const IntegerVector& expression_vector);
+Rcpp::List eliasFanoCodingCpp(const NumericVector& expression_vector);
 RcppExport SEXP _scfind_eliasFanoCodingCpp(SEXP expression_vectorSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const IntegerVector& >::type expression_vector(expression_vectorSEXP);
+    Rcpp::traits::input_parameter< const NumericVector& >::type expression_vector(expression_vectorSEXP);
     rcpp_result_gen = Rcpp::wrap(eliasFanoCodingCpp(expression_vector));
     return rcpp_result_gen;
 END_RCPP
