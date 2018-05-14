@@ -155,7 +155,7 @@ merge.dataset.from.object <- function(object, new.object)
     common.datasets <- intersect(new.object@datasets, object@datasets)
     
     message(paste('Merging', new.object@datasets))
-    if(len(common.datasets) != 0)
+    if(length(common.datasets) != 0)
     {
         warning("Common dataset names exist, undefined merging behavior, please fix this...")
     }
