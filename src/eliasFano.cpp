@@ -42,7 +42,7 @@ BitSet32 int2bin(unsigned int id)
 BoolVec quantizeCpp(IntegerVector ids, int n)
 {
   BoolVec tf(n * ids.size(), false);
-  auto tf_iter = tf.begin();
+  BoolVec::iterator tf_iter = tf.begin();
   // Quantize each of the values to n bits 
   for (size_t i = 0; i < ids.size(); i++)
   {
@@ -75,10 +75,10 @@ Rcpp::List eliasFanoCodingCpp(const NumericVector& expression_vector) {
   
   int i = 0;
   
-  for(auto const& expr: expression_vector)
+  for(NumericVector::const_iterator expr = expression_vector.begin(); expr != expression_vector.end(); ++expr)
   {
     i++; 
-    if (expr > 0)
+    if (*expr > 0)
     {
       sparse_index.push_back(i);
     }
@@ -97,10 +97,10 @@ Rcpp::List eliasFanoCodingCpp(const NumericVector& expression_vector) {
   BoolVec L(l*ids.size(), false);
   std::vector<bool> H;
 
-  auto l_iter = L.begin();
-  for (auto const& expr : ids)
+  BoolVec::iterator l_iter = L.begin();
+  for (std::vector<int>::iterator expr = ids.begin(); expr != ids.end(); ++expr)
   {
-    auto c = int2bin_bounded(expr, l);
+    auto c = int2bin_bounded(*expr, l);
     
     for( int i = 0; i < l; i++, ++l_iter)
     {
@@ -109,7 +109,7 @@ Rcpp::List eliasFanoCodingCpp(const NumericVector& expression_vector) {
     // L.insert(L.end(), c.begin(), c.begin() + l); //append the lower bits to L
     
     //Use a unary code for the high bits
-    unsigned int upper_bits = (expr >> l);
+    unsigned int upper_bits = (*expr >> l);
     unsigned int m =  H.size() + upper_bits - prev_indexH + 1;
     prev_indexH = upper_bits;
     H.resize(m, false);
@@ -129,11 +129,11 @@ NumericVector eliasFanoDecodingCpp(BoolVec H, BoolVec L, int l)
   unsigned int H_i = 0;
   auto prev_it = H.begin() - 1;
   int i = 0;
-  for (auto true_it = std::find(H.begin(), H.end(), true); 
+  for (BoolVec::iterator true_it = std::find(H.begin(), H.end(), true); 
        true_it != H.end() && i < ids.size(); 
        true_it = std::find(true_it + 1, H.end(), true), ++i)
   {
-    auto offset  = std::distance(prev_it, true_it);
+    size_t offset  = std::distance(prev_it, true_it);
     prev_it = true_it;
     H_i += offset - 1;
     int id = H_i << l;
