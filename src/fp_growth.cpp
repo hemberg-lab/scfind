@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <utility>
 
-#include "fptree.hpp"
+#include "fp_growth.hpp"
 
 
 FPNode::FPNode(const Item& item, const std::shared_ptr<FPNode>& parent) :

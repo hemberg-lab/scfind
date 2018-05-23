@@ -1,9 +1,10 @@
-#' Build a cell type Index
+#' Builds an scfind index from a SingleCellExperiment object
 #' 
-#' Calculates a fraction of expressed cells per gene per cell type
 #'
 #' @param sce object of SingleCellExperiment class
 #' @param dataset.name name of the dataset that will be prepended in each cell_type
+#' @param assay.name name of the SingleCellExperiment assay that will be considered for the generation of the index
+#' @param cell.type.label the cell.type metadata of the colData SingleCellExperiment that will be used for the index
 #' 
 #' @name buildCellTypeIndex
 #'
@@ -11,7 +12,7 @@
 #'
 #' @importFrom SingleCellExperiment SingleCellExperiment
 #' @importFrom SummarizedExperiment rowData rowData<- colData colData<- assayNames assays
-#' @importFrom hash hash
+#' @importFrom hash hash copy
 #' @importFrom bit as.bit
 #' 
 #' @importFrom Rcpp sourceCpp
@@ -117,7 +118,7 @@ buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name, cell.type.l
     new.obj <- hash()
     for( gene in genenames)
     {
-        new.obj[[gene]] <- index.value.model
+        new.obj[[gene]] <- hash()#copy(index.value.model)
     }
 
 
@@ -175,7 +176,7 @@ setMethod("mergeDataset",
                     new.object = "SCFind"),
           merge.dataset.from.object)
 
-#' Merges another sce object
+#' Merges a SingleCellExperiment object into the SCFind index
 #'
 #' @param object the root scfind object
 #' @param sce
@@ -278,7 +279,7 @@ findCellTypes.geneList <- function(object, gene.list)
         query.results <- and.operator(query.results, gene.results[[gene]])
         existing.cell.types <- keys(query.results)
         genes.queried <- c(genes.queried, gene)
-        message(paste("Genes queried (", cat(genes.queried),") with", length(existing.cell.types)))
+        message(paste("Genes queried (", writeLines(unlist(lapply(genes.queried, paste, collapse=" "))),") with", length(existing.cell.types)))
         if(length(existing.cell.types) == 0)
         {
             warning("Empty set, breaking operation")

@@ -7,7 +7,7 @@
 \alias{buildCellTypeIndex.SCESet}
 \alias{buildCellTypeIndex,SingleCellExperiment-method}
 \alias{buildCellTypeIndex}
-\title{Build a cell type Index}
+\title{Builds an scfind index from a SingleCellExperiment object}
 \usage{
 buildCellTypeIndex(sce, dataset.name = "", assay.name = "logcounts",
   cell.type.label = "cell_type1")
@@ -21,12 +21,16 @@ buildCellTypeIndex.SCESet(sce, dataset.name, assay.name, cell.type.label)
 \item{sce}{object of SingleCellExperiment class}
 
 \item{dataset.name}{name of the dataset that will be prepended in each cell_type}
+
+\item{assay.name}{name of the SingleCellExperiment assay that will be considered for the generation of the index}
+
+\item{cell.type.label}{the cell.type metadata of the colData SingleCellExperiment that will be used for the index}
 }
 \value{
 a `data.frame` containing calculated gene index
 }
 \description{
-Calculates a fraction of expressed cells per gene per cell type
+Builds an scfind index from a SingleCellExperiment object
 }
 \examples{
 TODO

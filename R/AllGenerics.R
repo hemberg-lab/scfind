@@ -58,3 +58,9 @@ setGeneric(name = "queryGene", def = function(object, gene) {
 setGeneric(name = "findCellTypes", function(object, gene.list) {
     standardGeneric("findCellTypes")
 })
+
+
+#' @export
+setGeneric(name = "scfind_interactive", function(object) {
+    standardGeneric("scfind_interactive")
+})

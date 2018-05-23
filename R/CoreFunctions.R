@@ -1,11 +1,10 @@
-
-
-
 #' Gets two list of gene hits results, intersects the cell.types and applies an operator
 #' on the common cell types cell list
-#' 
-cell.type.intersect.operator <-  function(hash.index1, hash.index2, operator.function)
-{    cell.types <- intersect(keys(hash.index1), keys(hash.index2))
+#'
+#' @return nothing
+cell.type.intersect.operator <- function(hash.index1, hash.index2, operator.function)
+{
+    cell.types <- intersect(keys(hash.index1), keys(hash.index2))
     if (length(cell.types) == 0)
     {
         message('No cell types found')
@@ -21,6 +20,7 @@ cell.type.intersect.operator <-  function(hash.index1, hash.index2, operator.fun
         return(return.set)
     }
 }
+
 #' Gets two list of gene hits results, merges cell.types and applies an operator
 #' on the common cell types cell list
 #'  
@@ -56,7 +56,7 @@ cell.type.union.operator <-  function(hash.index1, hash.index2, operator.functio
 #' @return the intersected set
 and.operator <- function(hash.index1, hash.index2)
 {
-    return(operator(hash.index1, hash.index2, intersect, intersect))
+    return(cell.type.intersect.operator(hash.index1, hash.index2, intersect))
 }
 
 
@@ -69,7 +69,7 @@ and.operator <- function(hash.index1, hash.index2)
 #' @return the unionized set
 or.operator <- function(hash.index1, hash.index2)
 {
-    return(operator(hash.index1, hash.index2, union, union))
+    return(cell.type.union.operator(hash.index1, hash.index2, union, union))
 }
 
 #' Remove cells that have some specific gene hits that we do not want in our list
@@ -81,7 +81,7 @@ or.operator <- function(hash.index1, hash.index2)
 #' @return an new filtered index
 not.operator <-  function(hash.index, hash.diff)
 {
-    return(operator(hash.index, hash.diff, union, setdiff))
+    return(cell.type.union.operator(hash.index, hash.diff, setdiff))
 }
 
 #' merge two elias fano indices
@@ -108,5 +108,14 @@ mergeIndices <- function(efdb.root, efdb)
         efdb.root[[gene]][keys(efdb[[gene]])] <- values(efdb[[gene]], simplify = F)
     }
     return(efdb.root)
+    
+}
+
+
+contigency.table <- function(query.results)
+{
+    data <- as.data.frame(lapply(values(query.results), length))
+    names(data) <-  keys(query.results)
+    return(data)
     
 }
