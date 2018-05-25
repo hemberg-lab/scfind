@@ -1,4 +1,9 @@
-#include <Rcpp.h>
+//#include <Rcpp.h>
 
 
-typedef Rcpp::LogicalVector BoolVec;
+
+
+
+
+
+
