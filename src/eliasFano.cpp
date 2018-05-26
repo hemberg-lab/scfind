@@ -1,17 +1,18 @@
-//#include <Rcpp.h>
+#include <Rcpp.h>
 #include <iostream>
 #include <bitset>
 #include <algorithm>
 #include <cmath>
-#include <RcppArmadillo.h>
+// #include <RcppArmadillo.h>
+
 // [[Rcpp::depends(RcppArmadillo)]]
 
 #include "scfind_types.h"
+
+
 // the bits used for the encoding
 #define BITS 32
 
-
-using namespace Rcpp;
 
 typedef std::pair<unsigned short, std::bitset<BITS> > BitSet32;
 typedef std::vector<bool> BoolVec;
@@ -43,7 +44,8 @@ BitSet32 int2bin(unsigned int id)
 }
 
 
-
+class EliasFanoDB;
+RCPP_EXPOSED_CLASS(EliasFanoDB)
 
 
 class EliasFanoDB
@@ -123,7 +125,7 @@ class EliasFanoDB
     return ef_data.size() - 1;
   }
 
-  std::vector<int> eliasFanoDecodingCpp(const EliasFano& ef)
+  std::vector<int> eliasFanoDecoding(const EliasFano& ef)
   {
     
     std::vector<int> ids(ef.L.size() / ef.l);
@@ -156,6 +158,8 @@ class EliasFanoDB
 
 
  public:
+
+  // constructor
   EliasFanoDB(): global_indices(false), warnings(0)
   {
     
@@ -193,7 +197,7 @@ class EliasFanoDB
      
     for(unsigned int gene_row = 0; gene_row < gene_matrix.nrow(); ++gene_row)
     {
-      const Rcpp::NumericVector& expression_vector = gene_matrix(gene_row, _);
+      const Rcpp::NumericVector& expression_vector = gene_matrix(gene_row, Rcpp::_);
       std::deque<int> sparse_index;
       int i = 0;
       for (Rcpp::NumericVector::const_iterator expr = expression_vector.begin(); expr != expression_vector.end(); ++expr)
@@ -211,11 +215,27 @@ class EliasFanoDB
     std::cerr << "Total Warnings: "<<warnings << std::endl;
   }
 
-  Rcpp::List queryAllGenes(const Rcpp::CharacterVector& gene_names)
+  Rcpp::List queryGenes(const Rcpp::CharacterVector& gene_names)
   {
     //std::map<std::string,std::vector<int>>
     //if(){}
 
+    Rcpp::List t;
+   
+    for(int i = 0; i < gene_names.size(); i++)
+    {
+      
+      std::string gene_name = Rcpp::as<std::string>(gene_names[i]);
+      t.add(Rcpp::wrap(gene_names[i]), Rcpp::List::create());
+      auto gene_meta = metadata[gene_name];
+      
+      for(auto const& dat : gene_meta)
+      {
+        std::vector<int> ids = eliasFanoDecoding(*(dat.second));
+        t[gene_names[i]].add(Rcpp::wrap(dat.first),Rcpp::wrap(ids));
+      }
+    }
+    return t;
   }
 
   Rcpp::List queryMarkerGenes(const Rcpp::CharacterVector& gene_names)
@@ -228,14 +248,12 @@ class EliasFanoDB
 };
 
 
-using namespace Rcpp;
-RCPP_EXPOSED_CLASS(EliasFanoDB)
-RCPP_MODULE(EliasFanoClass){
-  class_<EliasFanoDB>("EliasFanoDB")
-    .constructor("Initializes object")
-    // .method("indexSparseMatrix", &EliasFanoDB::encodeSparseMatrix, "Encodes sparse Matrix")
-    .method("indexMatrix", &EliasFanoDB::encodeMatrix, "Encodes regular Matrix");
-    }
+RCPP_MODULE(EliasFanoDB)
+{
+  Rcpp::class_<EliasFanoDB>("EliasFanoDB")
+    .constructor()
+    .method("indexMatrix", &EliasFanoDB::encodeMatrix);
+}
 
 
 

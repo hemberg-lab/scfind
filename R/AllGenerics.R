@@ -1,7 +1,7 @@
 
 #' The scfind main class object
 #' @export
-setClass("SCFind", representation(index = "hash", datasets = "character"))
+setClass("SCFind", representation(index = "Rcpp_EliasFanoDB", datasets = "character"))
 
 #' @examples TODO
 #' 

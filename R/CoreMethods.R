@@ -16,7 +16,7 @@
 #' @importFrom bit as.bit
 #' 
 #' @importFrom Rcpp sourceCpp
-#' @useDynLib scfind
+#' @useDynLib scfind 
 #' 
 buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name, cell.type.label)
 {
@@ -59,7 +59,7 @@ buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name, cell.type.l
         ##     {
         ##         exprs <- as.matrix(exprs)
         ##     }
-        ## }
+        ## }p
 
         ## Normalize by dropout rate per cell
         ## dropouts <- apply(exprs , 2, function(cell.vector) sum(cell.vector > 0))
@@ -78,7 +78,9 @@ buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name, cell.type.l
         ## }
         
 ##        message(paste(ncol(sce), "cells with", length(genes.nonzero), "non zero genes" ))
-        ef <- EliasFanoDB$new()
+
+        loadModule('EliasFanoDB')
+        ef <- new(EliasFanoDB)
         for (cell.type in cell.types) {
             inds.cell <- which(cell.type == cell.types.all)
             if(length(inds.cell) < 2)
@@ -91,11 +93,11 @@ buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name, cell.type.l
             cell.type.exp <- exprs[,inds.cell]
             if(is.matrix(exprs))
             {
-                ef$encodeMatrix(new.cell.types[[cell.type]], cell.type.exp)
+                ef$indexMatrix(new.cell.types[[cell.type]], cell.type.exp)
             }
             else
             {
-                ef$encodeMatrix(new.cell.types[[cell.type]], as.matrix(cell.type.exp))
+                ef$indexMatrix(new.cell.types[[cell.type]], as.matrix(cell.type.exp))
             }
             ## Calculate the baseline probability that a gene will be expressed in a cell
             ## index[new.cell.types[[cell.type]]] <- hash(
@@ -182,6 +184,7 @@ merge.dataset.from.object <- function(object, new.object)
     object@datasets <- c(object@datasets, new.object@datasets)
     return(object)
 }
+
 #' @rdname mergeDataset
 #' @aliases mergeDataset
 setMethod("mergeDataset",
@@ -223,7 +226,9 @@ setMethod("mergeSCE",
 #' @return nada
 query.gene <- function(object, gene)
 {
-    efdb <- object@index
+    
+    
+    return(object@index$query(gene))
     if(is.null(efdb[[gene]]))
     {
         warning(paste('Requested gene', gene, 'not available in the index'))

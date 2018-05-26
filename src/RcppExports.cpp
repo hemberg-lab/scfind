@@ -8,10 +8,10 @@
 using namespace Rcpp;
 
 
-RcppExport SEXP _rcpp_module_boot_EliasFanoClass();
+RcppExport SEXP _rcpp_module_boot_EliasFanoDB();
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_rcpp_module_boot_EliasFanoClass", (DL_FUNC) &_rcpp_module_boot_EliasFanoClass, 0},
+    {"_rcpp_module_boot_EliasFanoDB", (DL_FUNC) &_rcpp_module_boot_EliasFanoDB, 0},
     {NULL, NULL, 0}
 };
 
