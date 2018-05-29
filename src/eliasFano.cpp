@@ -2,6 +2,8 @@
 #include <iostream>
 #include <bitset>
 #include <algorithm>
+#include <iterator>
+#include <set>
 #include <cmath>
 // #include <RcppArmadillo.h>
 
@@ -258,7 +260,6 @@ class EliasFanoDB
 
         std::vector<int> ids = eliasFanoDecoding(*(dat.second));
         cell_types[dat.first] = Rcpp::wrap(ids);
-        std::cout << "Cell type " << dat.first <<" with " << ids.size() << " hits" << std::endl;
       }
       t[gene_name] = cell_types;
       // t.names() = gene_names;
@@ -289,6 +290,80 @@ class EliasFanoDB
       }
     }
     return bytes;
+  }
+
+
+  // And query
+  Rcpp::List findCellTypes(const Rcpp::CharacterVector& gene_names)
+  {
+    
+    std::map<std::string, std::set<std::string> > cell_types;
+    std::vector<std::string> genes;
+    for (Rcpp::CharacterVector::const_iterator it = gene_names.begin(); it != gene_names.end(); ++it)
+    {
+      std::string gene_name = Rcpp::as<std::string>(*it);
+      bool empty_set = false;
+      // check if gene exists in the database
+      auto db_it = metadata.find(gene_name);
+      if ( db_it == metadata.end())
+      {
+        std::cout << gene_name << " is ignored, not found in the index"<< std::endl;
+        continue;
+      }
+
+      // iterate cell type
+      for (auto const& ct_it : db_it->second)
+      {
+        if(cell_types.find(ct_it.first) == cell_types.end())
+        {
+          cell_types[ct_it.first] = std::set<std::string>();
+        }
+        cell_types[ct_it.first].insert(gene_name);
+      }
+      genes.push_back(gene_name);
+      
+    }
+    
+    std::cout << "Proceeding with "<< cell_types.size() << " cell types " << std::endl;
+//    for ( auto ct : cell_types)
+//    {
+//      std::cout << ct.first << ", " << ct.second.size() << std::endl;
+//    }
+    std::cout << std::endl;
+    Rcpp::List t;
+    
+    for (auto const& ct : cell_types)
+    {
+      // TODO(fix) empty case?
+      bool empty_set = false;
+      if (ct.second.size() != genes.size())
+      {
+        continue;
+      }
+      std::vector<int> ef = eliasFanoDecoding(*(metadata[*(ct.second.begin())][ct.first]));
+      std::set<int> int_cells(ef.begin(), ef.end());
+      for (auto const& g : ct.second)
+      {
+        auto cells = eliasFanoDecoding(*(metadata[g][ct.first]));
+        std::set<int> new_set;
+        std::set_intersection(int_cells.begin(), int_cells.end(), cells.begin(), cells.end(), std::inserter(new_set, new_set.begin()));
+        if(new_set.size() != 0)
+        {
+          int_cells = new_set;
+        }
+        else
+        {
+          empty_set = true;
+          break;
+        }
+      } 
+      if (!empty_set)
+      {
+        // std::vector<int> res(int_cells.begin(), int_c;
+        t[ct.first] = Rcpp::wrap(int_cells);
+      }
+    }
+    return t;
   }
 
 
@@ -372,8 +447,6 @@ class EliasFanoDB
     }
     return 0;
   }
-  
-
 
 };
 
@@ -389,6 +462,7 @@ RCPP_MODULE(EliasFanoDB)
     .method("mergeDB", &EliasFanoDB::mergeDB)
     .method("sample", &EliasFanoDB::sample)
     .method("genes", &EliasFanoDB::total_genes)
+    .method("findCellTypes", &EliasFanoDB::findCellTypes)
     .method("dbMemoryFootprint", &EliasFanoDB::dbMemoryFootprint);
 }
 
