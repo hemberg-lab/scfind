@@ -180,7 +180,7 @@ merge.dataset.from.object <- function(object, new.object)
         warning("Common dataset names exist, undefined merging behavior, please fix this...")
     }
     
-    object@index <- mergeIndices(object@index, new.object@index)
+    object@index$mergeDB(new.object@index)
     object@datasets <- c(object@datasets, new.object@datasets)
     return(object)
 }
@@ -225,10 +225,8 @@ setMethod("mergeSCE",
 #' 
 #' @return nada
 query.gene <- function(object, gene)
-{
-    
-    
-    return(object@index$query(gene))
+{  
+    return(object@index$queryGene(gene))
     if(is.null(efdb[[gene]]))
     {
         warning(paste('Requested gene', gene, 'not available in the index'))

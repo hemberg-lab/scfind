@@ -38,7 +38,7 @@ inline BitSet32 int2bin_bounded(const unsigned int id, unsigned int min_bit_leng
 
 // These functions work with 1-based indexes on arrays, 
 // __builtin_clz has undefined behavior with 0
-BitSet32 int2bin(unsigned int id)
+inline BitSet32 int2bin(unsigned int id)
 {
   return make_pair(__builtin_clz(id), int2bin_core(id));
 }
@@ -55,7 +55,7 @@ class EliasFanoDB
   {
     BoolVec H;
     BoolVec L;
-    unsigned char l;
+    int l;
   } EliasFano;
   
   typedef std::map<std::string, const EliasFano*> EliasFanoIndex;
@@ -84,7 +84,7 @@ class EliasFanoDB
     }
 
     metadata[gene_name][cell_type] = ef;
-  }
+ } 
 
   long eliasFanoCoding(const std::vector<int>& ids, int items) 
   {
@@ -96,7 +96,7 @@ class EliasFanoDB
 
     EliasFano ef;
     ef.l = int(log2(items / (float)ids.size()) + 0.5) + 1;
-    unsigned char& l = ef.l;
+    int l = ef.l;
 
     int prev_indexH = 0;
     ef.L.resize(l * ids.size(), false);
@@ -111,14 +111,12 @@ class EliasFanoDB
         // TODO(Nikos) optimize this ? check if c.second[i] is false and THEN assign
         *l_iter = c.second[i];
       }
-    
-      //Use a unary code for the high bits
-      unsigned int upper_bits = (*expr >> l);
-      unsigned int m =  ef.H.size() + upper_bits - prev_indexH + 1;
-      prev_indexH = upper_bits;
-
-      ef.H.resize(m, false);
-      ef.H[m - 1] = true;
+        //Use a unary code for the high bits
+        unsigned int upper_bits = (*expr >> l);
+        unsigned int m =  ef.H.size() + upper_bits - prev_indexH + 1;
+        prev_indexH = upper_bits;
+        ef.H.resize(m, false);
+        ef.H[m - 1] = true;
     }
     ef_data.push_back(ef);
     // return the index of the ef_data in the deque
@@ -131,9 +129,11 @@ class EliasFanoDB
     std::vector<int> ids(ef.L.size() / ef.l);
 
     // This step inflates the vector by a factor of 8
-    std::vector<char> H(ef.H.size());
+    std::vector<char> H;
+    H.reserve(ef.H.size());
     H.insert(H.end(), ef.H.begin(), ef.H.end());
     
+
     unsigned int H_i = 0;
     // Warning: Very very dodgy I might want to replace this with a check in the loop
     auto prev_it = H.begin() - 1;
@@ -189,7 +189,8 @@ class EliasFanoDB
   {
     int items = gene_matrix.ncol();
     Rcpp::CharacterVector genes = Rcpp::rownames(gene_matrix);
-    std::vector<std::string> gene_names(genes.size());
+    std::vector<std::string> gene_names;
+    gene_names.reserve(genes.size());
     for(Rcpp::CharacterVector::iterator gene_it = genes.begin(); gene_it != genes.end(); ++gene_it)
     {
       gene_names.push_back(Rcpp::as<std::string>(*gene_it));
@@ -208,41 +209,170 @@ class EliasFanoDB
           sparse_index.push_back(i);
         }
       }
+      if ( i == 0)
+      {
+        warnings++;
+        continue;
+      }
       std::vector<int> ids(sparse_index.begin(), sparse_index.end());
-      insertToDB(eliasFanoCoding(ids, items), gene_names[gene_row], cell_type);
+      insertToDB(eliasFanoCoding(ids, expression_vector.size()), gene_names[gene_row], cell_type);
     }
+    return 0;
+    //std::cerr << "Total Warnings: "<<warnings << std::endl;
+  }
 
-    std::cerr << "Total Warnings: "<<warnings << std::endl;
+  int total_genes()
+  {
+    for(auto & d : metadata)
+    {
+      std::cout << d.first << ",";
+      
+    }
+    std::cout << std::endl;
+    return 0;
   }
 
   Rcpp::List queryGenes(const Rcpp::CharacterVector& gene_names)
   {
-    //std::map<std::string,std::vector<int>>
-    //if(){}
-
     Rcpp::List t;
-   
-    for(int i = 0; i < gene_names.size(); i++)
+    for (Rcpp::CharacterVector::const_iterator it = gene_names.begin(); it != gene_names.end(); ++it)
     {
       
-      std::string gene_name = Rcpp::as<std::string>(gene_names[i]);
-      t.add(Rcpp::wrap(gene_names[i]), Rcpp::List::create());
-      auto gene_meta = metadata[gene_name];
       
-      for(auto const& dat : gene_meta)
+      std::string gene_name = Rcpp::as<std::string>(*it);
+      std::cout << gene_name << std::endl;
+      
+      //t.add(Rcpp::wrap(gene_names[i]), Rcpp::List::create());
+      Rcpp::List cell_types;
+      
+      if (metadata.find(gene_name) == metadata.end())
       {
-        std::vector<int> ids = eliasFanoDecoding(*(dat.second));
-        t[gene_names[i]].add(Rcpp::wrap(dat.first),Rcpp::wrap(ids));
+        
+        std::cout << "Gene " << gene_name << " not found in the index " << std::endl;
+        continue;
       }
+
+      auto gene_meta = metadata[gene_name];
+      for (auto const& dat : gene_meta)
+      {
+
+        std::vector<int> ids = eliasFanoDecoding(*(dat.second));
+        cell_types[dat.first] = Rcpp::wrap(ids);
+        std::cout << "Cell type " << dat.first <<" with " << ids.size() << " hits" << std::endl;
+      }
+      t[gene_name] = cell_types;
+      // t.names() = gene_names;
     }
+
     return t;
   }
+  
+  size_t dbMemoryFootprint()
+  {
+    size_t bytes = 0;
+    for(auto & d : ef_data)
+    {
+      bytes += int((d.H.size() / 8) + 1);
+      bytes += int((d.L.size() / 8) + 1);
+      bytes += 4 + 8;
+    }
 
+    std::cout << "data index " << bytes << std::endl;
+
+    for(auto& d : metadata)
+    {
+      bytes += d.first.size();
+      bytes += d.second.size() * 4;
+      for (auto& ct : d.second)
+      {
+        bytes += ct.first.size();
+      }
+    }
+    return bytes;
+  }
+
+
+  int dbSize()
+  {
+    std::cout << metadata.size() << "genes in the DB" << std::endl;
+    return ef_data.size();
+    
+  }
+
+  int sample(int index)
+  {
+    auto iter = metadata.begin();
+    for(int i = 0; i < index; i++, ++iter);
+
+    std::cout << "Gene: " << iter->first << std::endl;
+    for(auto const& ct : iter->second)
+    {
+      std::cout << "Cell Type:" << ct.first << std::endl;
+      auto v = eliasFanoDecoding(*(ct.second));
+      for( auto& cell : v)
+      {
+
+        std::cout << cell << ", ";
+      }
+      std::cout << std::endl;
+      
+    }
+    return 0;
+    
+  }
+
+  std::vector<int> decode(int index)
+  {
+    if(index >= dbSize())
+    {
+      std::cerr << "Invalid index for database with size "<< dbSize() << std::endl;
+      return std::vector<int>();
+    }
+    return eliasFanoDecoding(ef_data[index]);
+  }
   Rcpp::List queryMarkerGenes(const Rcpp::CharacterVector& gene_names)
   {
     
 
   }
+
+  int mergeDB(const EliasFanoDB& db)
+  {    
+    EliasFanoDB extdb(db);
+ 
+    // Copy data on the running object
+    // and update pointers
+    // In order to maintain consistency
+    for ( auto& gene: extdb.metadata)
+    {
+      for( auto& ct : gene.second)
+      {
+        ef_data.push_back(*ct.second);
+        // Update with the new entry
+        ct.second = &ef_data.back();
+      }
+    }
+
+    for(auto const& gene : extdb.metadata)
+    {
+      // if gene does not exist in the index then insert the whole record from
+      // the whole database
+      if(metadata.find(gene.first) == metadata.end())
+      {
+        metadata[gene.first] = extdb.metadata[gene.first];
+      }
+      else
+      {
+        // Insert new cell types
+        for(auto& ct: extdb.metadata[gene.first])
+        {
+          metadata[gene.first][ct.first] = ct.second;
+        }
+      }
+    }
+    return 0;
+  }
+  
 
 
 };
@@ -252,7 +382,14 @@ RCPP_MODULE(EliasFanoDB)
 {
   Rcpp::class_<EliasFanoDB>("EliasFanoDB")
     .constructor()
-    .method("indexMatrix", &EliasFanoDB::encodeMatrix);
+    .method("indexMatrix", &EliasFanoDB::encodeMatrix)
+    .method("queryGenes", &EliasFanoDB::queryGenes)
+    .method("dbSize", &EliasFanoDB::dbSize)
+    .method("decode", &EliasFanoDB::decode)
+    .method("mergeDB", &EliasFanoDB::mergeDB)
+    .method("sample", &EliasFanoDB::sample)
+    .method("genes", &EliasFanoDB::total_genes)
+    .method("dbMemoryFootprint", &EliasFanoDB::dbMemoryFootprint);
 }
 
 
