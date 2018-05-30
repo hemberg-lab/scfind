@@ -46,38 +46,6 @@ buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name, cell.type.l
             message(paste("Generating index for", dataset.name, "from '", assay.name, "' assay"))
         }
         exprs <- "[["(sce@assays$data, assay.name)
-        ## Check if we have a sparse represantation
-        ## if(!is.matrix(exprs))
-        ## {
-        ##     ## Cast the matrix, expensive operation
-        ##     ## Normalize on the fly if we do not have normalized counts
-        ##     if( assay.name != 'logcounts')
-        ##     {
-        ##         exprs <- log2(as.matrix(exprs) + 1)
-        ##     }
-        ##     else
-        ##     {
-        ##         exprs <- as.matrix(exprs)
-        ##     }
-        ## }p
-
-        ## Normalize by dropout rate per cell
-        ## dropouts <- apply(exprs , 2, function(cell.vector) sum(cell.vector > 0))
-        ## message(paste("mean dropout rate", mean(dropouts)))
-        ## Normalize by sequencing depth
-        ## exprs <- exprs / (colSums(exprs) + 1)        ## Check for zero cells dirty hack ( avoid dividing by zero )
-
-        ## dropouts <- 10^((dropouts/10000) + 5)
-        ## exprs <- exprs * dropouts
-        ## genes.nonzero <- which(rowSums(exprs) > 0)
-        
-        ## if(length(genes.nonzero) == 0)
-        ## {
-
-        ##     return(new("SCFind", index = hash(), datasets = dataset.name))
-        ## }
-        
-##        message(paste(ncol(sce), "cells with", length(genes.nonzero), "non zero genes" ))
 
         loadModule('EliasFanoDB')
         ef <- new(EliasFanoDB)
@@ -99,60 +67,11 @@ buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name, cell.type.l
             {
                 ef$indexMatrix(new.cell.types[[cell.type]], as.matrix(cell.type.exp))
             }
-            ## Calculate the baseline probability that a gene will be expressed in a cell
-            ## index[new.cell.types[[cell.type]]] <- hash(
-            ##     keys = genenames[genes.nonzero],
-            ##     values = apply(exprs[genes.nonzero, inds.cell], 1,
-            ##                    function (x)
-            ##                    {
-            ##                        ef.gene <- eliasFanoCodingCpp(x)
-            ##                        if(length(ef.gene) == 0){
-            ##                            return(ef.gene)
-            ##                        }
-            ##                        return(list(
-            ##                            H = as.bit(ef.gene$H),
-            ##                            L = as.bit(ef.gene$L),
-            ##                            l = ef.gene$l
-            ##                        ))
-            ##                    }))
-            
         }
     }
     
-    ## message(paste('Finalizing', dataset.name, 'index...'))
-    ## index.value.model <- hash()
-    ## for (cell.type in non.zero.cell.types)
-    ## {
-    ##     index.value.model[[ as.character(new.cell.types[[cell.type]]) ]] <- list()
-    ## }
-    
-    ## new.obj <- hash()
-    ## for( gene in genenames)
-    ## {
-    ##     new.obj[[gene]] <- hash()#copy(index.value.model)
-    ## }
-
-
-    ## for (cell.type in non.zero.cell.types)
-    ## {
-    ##     new.cell.type <- new.cell.types[[cell.type]]
-    ##     for (gene in keys(index[[new.cell.type]]))
-    ##     {
-    ##         ## This if clause has to be consistent with the Rcpp side
-    ##         if (length(index[[new.cell.type]][[gene]]) != 0)
-    ##         {
-    ##             new.obj[[gene]][[new.cell.type]] <- index[[new.cell.type]][[gene]]
-    ##         }
-    ##         else
-    ##         {
-                
-    ##         }
-    ##     }
-    ## }
-
-
     index <- new("SCFind", index = ef, datasets = dataset.name)
-    ## return(index)
+    return(index)
 }
 
 #' @rdname buildCellTypeIndex

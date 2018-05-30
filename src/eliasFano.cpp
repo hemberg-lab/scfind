@@ -278,7 +278,7 @@ class EliasFanoDB
       bytes += 4 + 8;
     }
 
-    std::cout << "data index " << bytes << std::endl;
+    std::cout << "Raw elias Fano Index size " << bytes/(1024*1024) << "MB" << std::endl;
 
     for(auto& d : metadata)
     {
