@@ -60,13 +60,17 @@ class EliasFanoDB
     int l;
   } EliasFano;
   
-  typedef std::map<std::string, const EliasFano*> EliasFanoIndex;
+  typedef std::string CellType;
+  typedef std::map<const CellType*, const EliasFano*> EliasFanoIndex;
   typedef std::map<std::string, EliasFanoIndex > CellTypeIndex;
   typedef std::deque<EliasFano> ExpressionMatrix;
+  
 
  private:
   CellTypeIndex metadata;
   ExpressionMatrix ef_data;
+  std::set<CellType> cell_types;
+  
   bool global_indices;
   int warnings;
   void insertToDB(int ef_index, const std::string& gene_name, const std::string& cell_type)
@@ -78,14 +82,23 @@ class EliasFanoDB
       return;
     }
 
-    const EliasFano* ef = &(this->ef_data[ef_index]);
+    EliasFano* ef = &(this->ef_data[ef_index]);
     
     if(metadata.find(gene_name) == metadata.end())
     {
       metadata[gene_name] = EliasFanoIndex();
     }
-
-    metadata[gene_name][cell_type] = ef;
+    
+    std::set<CellType>::iterator celltype_record = this->cell_types.find(cell_type);
+    if (celltype_record == this->cell_types.end())
+    {
+      this->cell_types.insert(cell_type);
+    }
+    celltype_record = this->cell_types.find(cell_type);
+    
+    const CellType* address = &(*celltype_record);
+    metadata[gene_name][address] = ef;
+    
  } 
 
   long eliasFanoCoding(const std::vector<int>& ids, int items) 
@@ -167,26 +180,6 @@ class EliasFanoDB
     
   }
   
-  
-  // long encodeSparseMatrix(const Rcpp::CharacterVector& gene_names, const Rcpp::CharacterVector& cell_type, const arma::sp_mat& mat)
-  // {
-  //   int items = mat.n_cols;
-  //   for(unsigned int gene_row = 0; gene_row < mat.n_rows; ++gene_row)
-  //   {
-  //     std::deque<int> sparse_index;
-
-  //     arma::sp_mat::col_iterator end_mat = mat.end_col(gene_row);
-  //     for(arma::sp_mat::col_iterator it = mat.begin_col(gene_row); it != end_mat; ++it )
-  //     {
-  //       sparse_index.push_back(it.col());
-  //     }
-  //     std::vector<int> ids(sparse_index.begin(), sparse_index.end());
-  //     insertToDB(gene_names[gene_row], cell_type, eliasFanoCoding(ids, items));
-  //   }
-    
-  //   std::cerr << "Total Warnings: " << warnings << std::endl;
-  // }
-
   long encodeMatrix(const std::string& cell_type, const Rcpp::NumericMatrix& gene_matrix)
   {
     int items = gene_matrix.ncol();
@@ -223,15 +216,14 @@ class EliasFanoDB
     //std::cerr << "Total Warnings: "<<warnings << std::endl;
   }
 
-  int total_genes()
+  Rcpp::List total_genes()
   {
+    Rcpp::List t;
     for(auto & d : metadata)
     {
-      std::cout << d.first << ",";
-      
+      t.push_back(Rcpp::wrap(d.first));
     }
-    std::cout << std::endl;
-    return 0;
+    return t;
   }
 
   Rcpp::List queryGenes(const Rcpp::CharacterVector& gene_names)
@@ -259,7 +251,7 @@ class EliasFanoDB
       {
 
         std::vector<int> ids = eliasFanoDecoding(*(dat.second));
-        cell_types[dat.first] = Rcpp::wrap(ids);
+        cell_types[*(dat.first)] = Rcpp::wrap(ids);
       }
       t[gene_name] = cell_types;
       // t.names() = gene_names;
@@ -268,26 +260,28 @@ class EliasFanoDB
     return t;
   }
   
-  size_t dbMemoryFootprint()
+  size_t dataMemoryFootprint()
   {
     size_t bytes = 0;
     for(auto & d : ef_data)
     {
       bytes += int((d.H.size() / 8) + 1);
       bytes += int((d.L.size() / 8) + 1);
-      bytes += 4 + 8;
     }
+    bytes += ef_data.size() * 12; // overhead of l and deque struct
+    return bytes;
+  }
 
-    std::cout << "Raw elias Fano Index size " << bytes/(1024*1024) << "MB" << std::endl;
+  size_t dbMemoryFootprint()
+  {
+    size_t bytes = dataMemoryFootprint();
 
+    std::cout << "Raw elias Fano Index size " << bytes / (1024 * 1024) << "MB" << std::endl;
+    
     for(auto& d : metadata)
     {
       bytes += d.first.size();
-      bytes += d.second.size() * 4;
-      for (auto& ct : d.second)
-      {
-        bytes += ct.first.size();
-      }
+      bytes += d.second.size() * 12;
     }
     return bytes;
   }
@@ -297,7 +291,7 @@ class EliasFanoDB
   Rcpp::List findCellTypes(const Rcpp::CharacterVector& gene_names)
   {
     
-    std::map<std::string, std::set<std::string> > cell_types;
+    std::map<const CellType*, std::set<std::string> > cell_types;
     std::vector<std::string> genes;
     for (Rcpp::CharacterVector::const_iterator it = gene_names.begin(); it != gene_names.end(); ++it)
     {
@@ -314,7 +308,7 @@ class EliasFanoDB
       // iterate cell type
       for (auto const& ct_it : db_it->second)
       {
-        if(cell_types.find(ct_it.first) == cell_types.end())
+        if (cell_types.find(ct_it.first) == cell_types.end())
         {
           cell_types[ct_it.first] = std::set<std::string>();
         }
@@ -323,13 +317,6 @@ class EliasFanoDB
       genes.push_back(gene_name);
       
     }
-    
-    std::cout << "Proceeding with "<< cell_types.size() << " cell types " << std::endl;
-//    for ( auto ct : cell_types)
-//    {
-//      std::cout << ct.first << ", " << ct.second.size() << std::endl;
-//    }
-    std::cout << std::endl;
     Rcpp::List t;
     
     for (auto const& ct : cell_types)
@@ -360,7 +347,7 @@ class EliasFanoDB
       if (!empty_set)
       {
         // std::vector<int> res(int_cells.begin(), int_c;
-        t[ct.first] = Rcpp::wrap(int_cells);
+        t[*(ct.first)] = Rcpp::wrap(int_cells);
       }
     }
     return t;
@@ -386,7 +373,6 @@ class EliasFanoDB
       auto v = eliasFanoDecoding(*(ct.second));
       for( auto& cell : v)
       {
-
         std::cout << cell << ", ";
       }
       std::cout << std::endl;
@@ -414,7 +400,7 @@ class EliasFanoDB
   int mergeDB(const EliasFanoDB& db)
   {    
     EliasFanoDB extdb(db);
- 
+    
     // Copy data on the running object
     // and update pointers
     // In order to maintain consistency
@@ -430,19 +416,17 @@ class EliasFanoDB
 
     for(auto const& gene : extdb.metadata)
     {
-      // if gene does not exist in the index then insert the whole record from
-      // the whole database
+      // if gene does not exist initialize entry
       if(metadata.find(gene.first) == metadata.end())
       {
-        metadata[gene.first] = extdb.metadata[gene.first];
+        metadata[gene.first] = EliasFanoIndex();
       }
-      else
+      // Insert new cell types
+      for(auto const& ct: extdb.metadata[gene.first])
       {
-        // Insert new cell types
-        for(auto& ct: extdb.metadata[gene.first])
-        {
-          metadata[gene.first][ct.first] = ct.second;
-        }
+        cell_types.insert(*(ct.first));
+        auto new_ct = cell_types.find(*(ct.first));
+        metadata[gene.first][&(*new_ct)] = ct.second;
       }
     }
     return 0;
@@ -463,6 +447,7 @@ RCPP_MODULE(EliasFanoDB)
     .method("sample", &EliasFanoDB::sample)
     .method("genes", &EliasFanoDB::total_genes)
     .method("findCellTypes", &EliasFanoDB::findCellTypes)
+    .method("efMemoryFootprint", &EliasFanoDB::dataMemoryFootprint)
     .method("dbMemoryFootprint", &EliasFanoDB::dbMemoryFootprint);
 }
 

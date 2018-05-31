@@ -12,8 +12,7 @@
 #'
 #' @importFrom SingleCellExperiment SingleCellExperiment
 #' @importFrom SummarizedExperiment rowData rowData<- colData colData<- assayNames assays
-#' @importFrom hash hash copy
-#' @importFrom bit as.bit
+#' @importFrom hash hash
 #' 
 #' @importFrom Rcpp sourceCpp
 #' @useDynLib scfind 
@@ -107,8 +106,10 @@ merge.dataset.from.object <- function(object, new.object)
 #' @rdname mergeDataset
 #' @aliases mergeDataset
 setMethod("mergeDataset",
-          signature(object = "SCFind",
-                    new.object = "SCFind"),
+          signature(
+              object = "SCFind",
+              new.object = "SCFind"
+          ),
           merge.dataset.from.object)
 
 #' Merges a SingleCellExperiment object into the SCFind index
@@ -127,49 +128,13 @@ merge.dataset.from.sce <- function(object, sce, dataset.name)
 #' @importFrom SingleCellExperiment SingleCellExperiment
 #' @aliases mergeSCE
 setMethod("mergeSCE",
-          signature(object = "SCFind",
-                    sce = "SingleCellExperiment",
-                    dataset.name = "character"), merge.dataset.from.sce)
+          signature(
+              object = "SCFind",
+              sce = "SingleCellExperiment",
+              dataset.name = "character"
+          ),
+          merge.dataset.from.sce)
 
-
-#' Retrieves all relative celltypes with their correspodent cell matches
-#'
-#' @param object an scfind object
-#' @param gene an scfind object
-#'
-#' @name queryGene
-#'
-#' @importFrom Rcpp sourceCpp
-#' @useDynLib scfind
-#' 
-#' @return nada
-query.gene <- function(object, gene)
-{  
-    return(object@index$queryGene(gene))
-    if(is.null(efdb[[gene]]))
-    {
-        warning(paste('Requested gene', gene, 'not available in the index'))
-        return(hash())
-    }
-    else
-    {
-        return(hash(keys = keys(efdb[[gene]]),
-                    values = lapply(keys(efdb[[gene]]),
-                                    FUN = function(cell.type)
-                                    {   
-                                        v <- efdb[[gene]][[cell.type]]
-                                        return(
-                                            eliasFanoDecodingCpp(
-                                                as.logical(v$H),
-                                                as.logical(v$L),
-                                                v$l))
-                                    })))
-    }
-}
-
-#' @rdname queryGene
-#' @aliases queryGene
-setMethod("queryGene", signature(object = "SCFind", gene = "character"), query.gene)
 
 #' Find cell types associated with a given gene list
 #' 
@@ -182,10 +147,6 @@ setMethod("queryGene", signature(object = "SCFind", gene = "character"), query.g
 #' @name findCellTypes
 #'
 #' @return a named numeric vector containing p-values
-#'
-#' @importFrom hash hash keys
-#' @importFrom stats pchisq
-#' @importFrom methods is
 findCellTypes.geneList <- function(object, gene.list)
 {
     if (is.null(object))
@@ -196,31 +157,8 @@ findCellTypes.geneList <- function(object, gene.list)
     {
         stop("Please define a list of genes using the `gene.list` parameter!")
     }
-
-    gene.results <- hash()
-    for(gene in gene.list)
-    {
-        gene.results[[gene]] <- query.gene(object, gene)
-    }
-
-    genes <-  keys(gene.results)
-    genes.queried <-  genes[1]
     
-    query.results <- gene.results[[genes[1]]] # cold start operator
-    genes <- tail(genes, -1) # pop first element from gene list
-    
-    for(gene in genes)
-    {
-        query.results <- and.operator(query.results, gene.results[[gene]])
-        existing.cell.types <- keys(query.results)
-        genes.queried <- c(genes.queried, gene)
-        message(paste("Genes queried (", writeLines(unlist(lapply(genes.queried, paste, collapse=" "))),") with", length(existing.cell.types)))
-        if(length(existing.cell.types) == 0)
-        {
-            warning("Empty set, breaking operation")
-        }        
-    }
-    return(query.results)
+    return(object@index$findCellTypes(gene.list))
 }
 
 #' @rdname findCellType
