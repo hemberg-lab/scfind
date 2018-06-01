@@ -195,7 +195,7 @@ std::set<Pattern> fptree_growth(const FPTree& fptree)
             // generate the transactions that represent the conditional pattern base
             std::vector<Transaction> conditional_fptree_transactions;
             for ( const TransformedPrefixPath& transformed_prefix_path : conditional_pattern_base ) {
-                const std::vector<Item>& transformed_prefix_path_items = transformed_prefix_path.first;
+                const Transaction& transformed_prefix_path_items = transformed_prefix_path.first;
                 const uint64_t transformed_prefix_path_items_frequency = transformed_prefix_path.second;
 
                 Transaction transaction = transformed_prefix_path_items;

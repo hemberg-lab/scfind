@@ -2,6 +2,7 @@
 #include <iostream>
 #include <bitset>
 #include <algorithm>
+#include <functional>
 #include <iterator>
 #include <set>
 #include <cmath>
@@ -10,6 +11,7 @@
 // [[Rcpp::depends(RcppArmadillo)]]
 
 #include "scfind_types.h"
+#include "fp_growth.hpp"
 
 
 // the bits used for the encoding
@@ -18,6 +20,51 @@
 
 typedef std::pair<unsigned short, std::bitset<BITS> > BitSet32;
 typedef std::vector<bool> BoolVec;
+typedef std::string CellType;
+
+
+typedef struct
+  {
+    BoolVec H;
+    BoolVec L;
+    int l;
+    float idf;
+  } EliasFano;
+
+
+struct Cell_ID
+{
+  unsigned int num;
+  const CellType* cell_type;
+  // Hashing
+  size_t operator()() const
+  {
+    return std::hash<const CellType*>{}(cell_type) ^ std::hash<unsigned int>{}(num);
+  }
+  
+  size_t operator==(const struct Cell_ID& obj) const 
+  {
+    return (num == obj.num) && (cell_type == obj.cell_type);
+  }
+};
+
+
+typedef struct Cell_ID CellID;
+
+namespace std
+{
+  template<>
+  struct hash<CellID>
+  {
+    size_t operator()(const CellID& obj) const
+    {
+      // Return overloaded operator
+      return obj();
+    }
+  };
+}
+
+
 
 
 inline std::bitset<BITS> int2bin_core(const unsigned int id)
@@ -46,26 +93,20 @@ inline BitSet32 int2bin(unsigned int id)
 }
 
 
+
+
+
 class EliasFanoDB;
 RCPP_EXPOSED_CLASS(EliasFanoDB)
 
 
 class EliasFanoDB
 {
+ public:
   
-  typedef struct
-  {
-    BoolVec H;
-    BoolVec L;
-    int l;
-  } EliasFano;
-  
-  typedef std::string CellType;
-  typedef std::map<const CellType*, const EliasFano*> EliasFanoIndex;
-  typedef std::map<std::string, EliasFanoIndex > CellTypeIndex;
-  typedef std::deque<EliasFano> ExpressionMatrix;
-  
-
+  typedef std::unordered_map<const CellType*, const EliasFano*> EliasFanoIndex;
+  typedef std::unordered_map<std::string, EliasFanoIndex > CellTypeIndex;
+  typedef std::deque<EliasFano> ExpressionMatrix;  
  private:
   CellTypeIndex metadata;
   ExpressionMatrix ef_data;
@@ -111,6 +152,7 @@ class EliasFanoDB
 
     EliasFano ef;
     ef.l = int(log2(items / (float)ids.size()) + 0.5) + 1;
+    ef.idf = log2(items / (float)ids.size());
     int l = ef.l;
 
     int prev_indexH = 0;
@@ -234,7 +276,6 @@ class EliasFanoDB
       
       
       std::string gene_name = Rcpp::as<std::string>(*it);
-      std::cout << gene_name << std::endl;
       
       //t.add(Rcpp::wrap(gene_names[i]), Rcpp::List::create());
       Rcpp::List cell_types;
@@ -254,7 +295,6 @@ class EliasFanoDB
         cell_types[*(dat.first)] = Rcpp::wrap(ids);
       }
       t[gene_name] = cell_types;
-      // t.names() = gene_names;
     }
 
     return t;
@@ -268,7 +308,7 @@ class EliasFanoDB
       bytes += int((d.H.size() / 8) + 1);
       bytes += int((d.L.size() / 8) + 1);
     }
-    bytes += ef_data.size() * 12; // overhead of l and deque struct
+    bytes += ef_data.size() * 16; // overhead of l idf and deque struct
     return bytes;
   }
 
@@ -291,7 +331,7 @@ class EliasFanoDB
   Rcpp::List findCellTypes(const Rcpp::CharacterVector& gene_names)
   {
     
-    std::map<const CellType*, std::set<std::string> > cell_types;
+    std::unordered_map<const CellType*, std::set<std::string> > cell_types;
     std::vector<std::string> genes;
     for (Rcpp::CharacterVector::const_iterator it = gene_names.begin(); it != gene_names.end(); ++it)
     {
@@ -353,6 +393,53 @@ class EliasFanoDB
     return t;
   }
 
+  Rcpp::List findMarkerGenes(const Rcpp::CharacterVector& gene_list)
+  {
+    Rcpp::List t;
+    std::unordered_map<CellID, Transaction > cell_index;
+    Rcpp::List genes_results = queryGenes(gene_list);
+    const Rcpp::CharacterVector gene_names = genes_results.names();
+    for (auto const& gene_hit : gene_names)
+    {
+      auto gene_name = Rcpp::as<std::string>(gene_hit);
+      const Rcpp::List& cell_types_hits = genes_results[gene_name];
+      const Rcpp::CharacterVector& cell_type_names = cell_types_hits.names();
+      for (auto const& _ct : cell_type_names)
+      {
+        std::string ct = Rcpp::as<std::string>(_ct);
+        
+        std::vector<unsigned int> ids  = Rcpp::as<std::vector<unsigned int> >(cell_types_hits[ct]);
+        const CellType* ct_p = &(*(this->cell_types.find(ct)));
+        
+        for (auto const& id : ids)
+        {
+          CellID unique_id = {id, ct_p};
+          // Initialize the data structure
+          if(cell_index.find(unique_id) == cell_index.end())
+          {
+            cell_index[unique_id] = Transaction();
+          }
+          cell_index[unique_id].push_back(gene_name);
+        }
+      }
+    }
+
+    // Run FPGrowth
+    std::vector<Transaction> transactions;
+    transactions.reserve(cell_index.size());
+      for (auto const& cell : cell_index)
+      {
+        // Maybe sort?
+        transactions.push_back(cell.second);
+      }
+    
+    const FPTree fptree{transactions, 5};
+    const std::set<Pattern> patterns = fptree_growth(fptree);
+    
+
+    return t;
+  }
+
 
   int dbSize()
   {
@@ -391,11 +478,6 @@ class EliasFanoDB
     }
     return eliasFanoDecoding(ef_data[index]);
   }
-  Rcpp::List queryMarkerGenes(const Rcpp::CharacterVector& gene_names)
-  {
-    
-
-  }
 
   int mergeDB(const EliasFanoDB& db)
   {    
@@ -433,6 +515,12 @@ class EliasFanoDB
   }
 
 };
+
+
+
+
+
+
 
 
 RCPP_MODULE(EliasFanoDB)
