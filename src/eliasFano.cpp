@@ -66,6 +66,25 @@ namespace std
 
 
 
+std::string str_join( const std::vector<std::string>& elements, const char* const separator)
+{
+    switch (elements.size())
+    {
+        case 0:
+            return "";
+        case 1:
+            return *(elements.begin());
+        default:
+            std::ostringstream os; 
+            std::copy(elements.cbegin(), elements.cend() - 1, std::ostream_iterator<std::string>(os, separator));
+            os << *elements.crbegin();
+            return os.str();
+    }
+}
+
+
+
+
 
 inline std::bitset<BITS> int2bin_core(const unsigned int id)
 {
@@ -102,18 +121,25 @@ RCPP_EXPOSED_CLASS(EliasFanoDB)
 
 class EliasFanoDB
 {
+
  public:
-  
   typedef std::unordered_map<const CellType*, const EliasFano*> EliasFanoIndex;
+  // gene -> cell type -> eliasFano
   typedef std::unordered_map<std::string, EliasFanoIndex > CellTypeIndex;
-  typedef std::deque<EliasFano> ExpressionMatrix;  
+  typedef std::deque<EliasFano> ExpressionMatrix;
+  // Store the gene metadata, only presence in the data
+  typedef std::map<std::string, unsigned int> GeneIndex;
+
  private:
   CellTypeIndex metadata;
   ExpressionMatrix ef_data;
   std::set<CellType> cell_types;
+  GeneIndex gene_counts;
+  unsigned int total_cells;
   
   bool global_indices;
   int warnings;
+
   void insertToDB(int ef_index, const std::string& gene_name, const std::string& cell_type)
   {
     if(ef_index == -1)
@@ -217,20 +243,31 @@ class EliasFanoDB
  public:
 
   // constructor
-  EliasFanoDB(): global_indices(false), warnings(0)
+  EliasFanoDB(): global_indices(false), warnings(0), total_cells(0)
   {
     
   }
-  
+  // This is invoked on slices of the expression matrix of the dataset 
   long encodeMatrix(const std::string& cell_type, const Rcpp::NumericMatrix& gene_matrix)
   {
     int items = gene_matrix.ncol();
     Rcpp::CharacterVector genes = Rcpp::rownames(gene_matrix);
     std::vector<std::string> gene_names;
     gene_names.reserve(genes.size());
+
+
+    // Increase the cell number present in the index
+    this->total_cells += gene_matrix.ncol();
+
     for(Rcpp::CharacterVector::iterator gene_it = genes.begin(); gene_it != genes.end(); ++gene_it)
     {
-      gene_names.push_back(Rcpp::as<std::string>(*gene_it));
+      std::string gene_name = Rcpp::as<std::string>(*gene_it);
+      gene_names.push_back(gene_name);
+      // If this is the first time this gene occurs initialize a counter
+      if (this->gene_counts.find(gene_name) == this->gene_counts.end())
+      {
+        this->gene_counts[gene_name] = 0;
+      }
     }
      
     for(unsigned int gene_row = 0; gene_row < gene_matrix.nrow(); ++gene_row)
@@ -252,6 +289,7 @@ class EliasFanoDB
         continue;
       }
       std::vector<int> ids(sparse_index.begin(), sparse_index.end());
+      this->gene_counts[gene_names[gene_row]] += ids.size();
       insertToDB(eliasFanoCoding(ids, expression_vector.size()), gene_names[gene_row], cell_type);
     }
     return 0;
@@ -393,7 +431,7 @@ class EliasFanoDB
     return t;
   }
 
-  Rcpp::List findMarkerGenes(const Rcpp::CharacterVector& gene_list)
+  Rcpp::List findMarkerGenes(const Rcpp::CharacterVector& gene_list, unsigned int min_support_cutoff = 5)
   {
     Rcpp::List t;
     std::unordered_map<CellID, Transaction > cell_index;
@@ -420,22 +458,81 @@ class EliasFanoDB
             cell_index[unique_id] = Transaction();
           }
           cell_index[unique_id].push_back(gene_name);
+          
         }
       }
     }
 
+    std::cout << "Query Done: found " << cell_index.size() << " rules" << std::endl;
+
     // Run FPGrowth
     std::vector<Transaction> transactions;
     transactions.reserve(cell_index.size());
-      for (auto const& cell : cell_index)
-      {
-        // Maybe sort?
-        transactions.push_back(cell.second);
-      }
+    for (auto const& cell : cell_index)
+    {
+      // Maybe sort?
+      transactions.push_back(cell.second);
+    }
     
-    const FPTree fptree{transactions, 5};
+    // cutoff should be user defined
+    const FPTree fptree{transactions, min_support_cutoff};
     const std::set<Pattern> patterns = fptree_growth(fptree);
     
+    
+    std::vector<std::pair<std::string, double> > tfidf;
+    for ( auto const& item : patterns)
+    {
+      Rcpp::List gene_query;
+      const auto& gene_set = item.first;
+      double query_score = log(this->total_cells) * gene_set.size();
+      std::vector<const CellType*> gene_set_cell_types;
+      for (auto const& gene: gene_set)
+      {
+        
+        query_score -= log(this->gene_counts[gene]);
+        std::vector<const CellType*> gene_cell_types;
+        for(auto const& ct : metadata[gene])
+        {
+          gene_cell_types.push_back(ct.first);
+          std::cout << *(ct.first) << " on "<<  ct.first << std::endl;
+        }
+        if (gene_set_cell_types.empty())
+        {
+          gene_set_cell_types = gene_cell_types;
+        }
+        else
+        {
+          std::vector<const CellType*> intersected;
+          
+          std::set_intersection(
+            gene_set_cell_types.begin(), 
+            gene_set_cell_types.end(), 
+            gene_cell_types.begin(), 
+            gene_cell_types.end(), 
+            std::back_inserter(intersected));
+          
+          gene_set_cell_types = intersected;
+        }
+        
+      }
+      std::string view_string = str_join(std::vector<Item>(gene_set.begin(), gene_set.end()), ",");
+      query_score *= log(item.second);
+      double ct_idf = 0;
+      for(auto const& gene: gene_set)
+      {
+        for (auto const& ct : gene_set_cell_types)
+        {
+          ct_idf += metadata[gene][ct]->idf;
+        }
+      }
+      query_score /= ct_idf;
+      std::cout << 
+        view_string << " score: " << query_score 
+        << " support: " << item.second <<" "<< gene_set_cell_types.size() << std:: endl;
+      tfidf.push_back(make_pair(view_string, query_score));
+      
+      // t.push_back(Rcpp::List::create(Rcpp::_["query"] = Rcpp::wrap(view_string), Rcpp::_["score"] = Rcpp::wrap(query_score)));
+    }
 
     return t;
   }
@@ -483,7 +580,10 @@ class EliasFanoDB
   {    
     EliasFanoDB extdb(db);
     
-    // Copy data on the running object
+    // the DB will grow by this amount of cells
+    this->total_cells += extdb.total_cells;
+    
+    // Copy data on the external object
     // and update pointers
     // In order to maintain consistency
     for ( auto& gene: extdb.metadata)
@@ -491,6 +591,7 @@ class EliasFanoDB
       for( auto& ct : gene.second)
       {
         ef_data.push_back(*ct.second);
+        
         // Update with the new entry
         ct.second = &ef_data.back();
       }
@@ -498,16 +599,26 @@ class EliasFanoDB
 
     for(auto const& gene : extdb.metadata)
     {
-      // if gene does not exist initialize entry
+      // Update cell counts for the individual gene
+      if (this->gene_counts.find(gene.first) == this->gene_counts.end())
+      {
+        this->gene_counts[gene.first] = 0;
+      }
+      this->gene_counts[gene.first] += extdb.gene_counts[gene.first];
+      
+
+      // if gene does not exist yet initialize entry in metadata
       if(metadata.find(gene.first) == metadata.end())
       {
         metadata[gene.first] = EliasFanoIndex();
       }
+
       // Insert new cell types
       for(auto const& ct: extdb.metadata[gene.first])
       {
         cell_types.insert(*(ct.first));
         auto new_ct = cell_types.find(*(ct.first));
+        // set the reference at the map
         metadata[gene.first][&(*new_ct)] = ct.second;
       }
     }
@@ -536,7 +647,9 @@ RCPP_MODULE(EliasFanoDB)
     .method("genes", &EliasFanoDB::total_genes)
     .method("findCellTypes", &EliasFanoDB::findCellTypes)
     .method("efMemoryFootprint", &EliasFanoDB::dataMemoryFootprint)
-    .method("dbMemoryFootprint", &EliasFanoDB::dbMemoryFootprint);
+    .method("dbMemoryFootprint", &EliasFanoDB::dbMemoryFootprint)
+    .method("findMarkerGenes", &EliasFanoDB::findMarkerGenes);
+
 }
 
 
