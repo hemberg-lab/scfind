@@ -2,64 +2,16 @@
 // Generator token: 10BE3573-1514-4C36-9D1C-5A225CD40393
 
 #include "scfind_types.h"
+#include <RcppArmadillo.h>
 #include <Rcpp.h>
 
 using namespace Rcpp;
 
-// quantizeCpp
-BoolVec quantizeCpp(IntegerVector ids, int n);
-RcppExport SEXP _scfind_quantizeCpp(SEXP idsSEXP, SEXP nSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< IntegerVector >::type ids(idsSEXP);
-    Rcpp::traits::input_parameter< int >::type n(nSEXP);
-    rcpp_result_gen = Rcpp::wrap(quantizeCpp(ids, n));
-    return rcpp_result_gen;
-END_RCPP
-}
-// intersect_cells
-Rcpp::List intersect_cells(Rcpp::List a, Rcpp::List b);
-RcppExport SEXP _scfind_intersect_cells(SEXP aSEXP, SEXP bSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< Rcpp::List >::type a(aSEXP);
-    Rcpp::traits::input_parameter< Rcpp::List >::type b(bSEXP);
-    rcpp_result_gen = Rcpp::wrap(intersect_cells(a, b));
-    return rcpp_result_gen;
-END_RCPP
-}
-// eliasFanoCodingCpp
-Rcpp::List eliasFanoCodingCpp(const NumericVector& expression_vector);
-RcppExport SEXP _scfind_eliasFanoCodingCpp(SEXP expression_vectorSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< const NumericVector& >::type expression_vector(expression_vectorSEXP);
-    rcpp_result_gen = Rcpp::wrap(eliasFanoCodingCpp(expression_vector));
-    return rcpp_result_gen;
-END_RCPP
-}
-// eliasFanoDecodingCpp
-NumericVector eliasFanoDecodingCpp(BoolVec H, BoolVec L, int l);
-RcppExport SEXP _scfind_eliasFanoDecodingCpp(SEXP HSEXP, SEXP LSEXP, SEXP lSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< BoolVec >::type H(HSEXP);
-    Rcpp::traits::input_parameter< BoolVec >::type L(LSEXP);
-    Rcpp::traits::input_parameter< int >::type l(lSEXP);
-    rcpp_result_gen = Rcpp::wrap(eliasFanoDecodingCpp(H, L, l));
-    return rcpp_result_gen;
-END_RCPP
-}
+
+RcppExport SEXP _rcpp_module_boot_EliasFanoDB();
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_scfind_quantizeCpp", (DL_FUNC) &_scfind_quantizeCpp, 2},
-    {"_scfind_intersect_cells", (DL_FUNC) &_scfind_intersect_cells, 2},
-    {"_scfind_eliasFanoCodingCpp", (DL_FUNC) &_scfind_eliasFanoCodingCpp, 1},
-    {"_scfind_eliasFanoDecodingCpp", (DL_FUNC) &_scfind_eliasFanoDecodingCpp, 3},
+    {"_rcpp_module_boot_EliasFanoDB", (DL_FUNC) &_rcpp_module_boot_EliasFanoDB, 0},
     {NULL, NULL, 0}
 };
 

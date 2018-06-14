@@ -1,9 +1,10 @@
-#' Build a cell type Index
+#' Builds an scfind index from a SingleCellExperiment object
 #' 
-#' Calculates a fraction of expressed cells per gene per cell type
 #'
 #' @param sce object of SingleCellExperiment class
 #' @param dataset.name name of the dataset that will be prepended in each cell_type
+#' @param assay.name name of the SingleCellExperiment assay that will be considered for the generation of the index
+#' @param cell.type.label the cell.type metadata of the colData SingleCellExperiment that will be used for the index
 #' 
 #' @name buildCellTypeIndex
 #'
@@ -12,10 +13,9 @@
 #' @importFrom SingleCellExperiment SingleCellExperiment
 #' @importFrom SummarizedExperiment rowData rowData<- colData colData<- assayNames assays
 #' @importFrom hash hash
-#' @importFrom bit as.bit
 #' 
 #' @importFrom Rcpp sourceCpp
-#' @useDynLib scfind
+#' @useDynLib scfind 
 #' 
 buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name, cell.type.label)
 {
@@ -45,39 +45,9 @@ buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name, cell.type.l
             message(paste("Generating index for", dataset.name, "from '", assay.name, "' assay"))
         }
         exprs <- "[["(sce@assays$data, assay.name)
-        ## Check if we have a sparse represantation
-        if(!is.matrix(exprs))
-        {
-            ## Cast the matrix, expensive operation
-            ## Normalize on the fly if we do not have normalized counts
-            if( assay.name != 'logcounts')
-            {
-                exprs <- log2(as.matrix(exprs) + 1)
-            }
-            else
-            {
-                exprs <- as.matrix(exprs)
-            }
-        }
 
-        ## Normalize by dropout rate per cell
-        dropouts <- apply(exprs , 2, function(cell.vector) sum(cell.vector > 0))
-        message(paste("mean dropout rate", mean(dropouts)))
-        ## Normalize by sequencing depth
-        exprs <- exprs / (colSums(exprs) + 1)        ## Check for zero cells dirty hack ( avoid dividing by zero )
-
-        dropouts <- 10^((dropouts/10000) + 5)
-        exprs <- exprs * dropouts
-        genes.nonzero <- which(rowSums(exprs) > 0)
-        
-        if(length(genes.nonzero) == 0)
-        {
-
-            return(new("SCFind", index = hash(), datasets = dataset.name))
-        }
-        
-        message(paste(ncol(sce), "cells with", length(genes.nonzero), "non zero genes" ))
-        
+        loadModule('EliasFanoDB')
+        ef <- new(EliasFanoDB)
         for (cell.type in cell.types) {
             inds.cell <- which(cell.type == cell.types.all)
             if(length(inds.cell) < 2)
@@ -87,55 +57,19 @@ buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name, cell.type.l
             }
             non.zero.cell.types <- c(non.zero.cell.types, cell.type)
             message(paste("\tIndexing", cell.type, "as", new.cell.types[[cell.type]], " with ", length(inds.cell), " cells."))
-            ## Calculate the baseline probability that a gene will be expressed in a cell
-            index[new.cell.types[[cell.type]]] <- hash(
-                keys = genenames[genes.nonzero],
-                values = apply(exprs[genes.nonzero, inds.cell], 1,
-                               function (x)
-                               {
-                                   ef.gene <- eliasFanoCodingCpp(x)
-                                   if(length(ef.gene) == 0){
-                                       return(ef.gene)
-                                   }
-                                   return(list(
-                                       H = as.bit(ef.gene$H),
-                                       L = as.bit(ef.gene$L),
-                                       l = ef.gene$l
-                                   ))
-                               }))
-            
-              }
-    }
-    
-    message(paste('Finalizing', dataset.name, 'index...'))
-    index.value.model <- hash()
-    for (cell.type in non.zero.cell.types)
-    {
-        index.value.model[[ as.character(new.cell.types[[cell.type]]) ]] <- list()
-    }
-    
-    new.obj <- hash()
-    for( gene in genenames)
-    {
-        new.obj[[gene]] <- index.value.model
-    }
-
-
-    for (cell.type in non.zero.cell.types)
-    {
-        new.cell.type <- new.cell.types[[cell.type]]
-        for (gene in keys(index[[new.cell.type]]))
-        {
-            ## This if clause has to be consistent with the Rcpp side
-            if (length(index[[new.cell.type]][[gene]]) != 0)
+            cell.type.exp <- exprs[,inds.cell]
+            if(is.matrix(exprs))
             {
-                new.obj[[gene]][[new.cell.type]] <- index[[new.cell.type]][[gene]]
+                ef$indexMatrix(new.cell.types[[cell.type]], cell.type.exp)
+            }
+            else
+            {
+                ef$indexMatrix(new.cell.types[[cell.type]], as.matrix(cell.type.exp))
             }
         }
     }
-
-
-    index <- new("SCFind", index = new.obj, datasets = dataset.name)
+    
+    index <- new("SCFind", index = ef, datasets = dataset.name)
     return(index)
 }
 
@@ -164,18 +98,21 @@ merge.dataset.from.object <- function(object, new.object)
         warning("Common dataset names exist, undefined merging behavior, please fix this...")
     }
     
-    object@index <- mergeIndices(object@index, new.object@index)
+    object@index$mergeDB(new.object@index)
     object@datasets <- c(object@datasets, new.object@datasets)
     return(object)
 }
+
 #' @rdname mergeDataset
 #' @aliases mergeDataset
 setMethod("mergeDataset",
-          signature(object = "SCFind",
-                    new.object = "SCFind"),
+          signature(
+              object = "SCFind",
+              new.object = "SCFind"
+          ),
           merge.dataset.from.object)
 
-#' Merges another sce object
+#' Merges a SingleCellExperiment object into the SCFind index
 #'
 #' @param object the root scfind object
 #' @param sce
@@ -191,49 +128,13 @@ merge.dataset.from.sce <- function(object, sce, dataset.name)
 #' @importFrom SingleCellExperiment SingleCellExperiment
 #' @aliases mergeSCE
 setMethod("mergeSCE",
-          signature(object = "SCFind",
-                    sce = "SingleCellExperiment",
-                    dataset.name = "character"), merge.dataset.from.sce)
+          signature(
+              object = "SCFind",
+              sce = "SingleCellExperiment",
+              dataset.name = "character"
+          ),
+          merge.dataset.from.sce)
 
-
-#' Retrieves all relative celltypes with their correspodent cell matches
-#'
-#' @param object an scfind object
-#' @param gene an scfind object
-#'
-#' @name queryGene
-#'
-#' @importFrom Rcpp sourceCpp
-#' @useDynLib scfind
-#' 
-#' @return nada
-query.gene <- function(object, gene)
-{
-    efdb <- object@index
-    if(is.null(efdb[[gene]]))
-    {
-        warning(paste('Requested gene', gene, 'not available in the index'))
-        return(hash())
-    }
-    else
-    {
-        return(hash(keys = keys(efdb[[gene]]),
-                    values = lapply(keys(efdb[[gene]]),
-                                    FUN = function(cell.type)
-                                    {   
-                                        v <- efdb[[gene]][[cell.type]]
-                                        return(
-                                            eliasFanoDecodingCpp(
-                                                as.logical(v$H),
-                                                as.logical(v$L),
-                                                v$l))
-                                    })))
-    }
-}
-
-#' @rdname queryGene
-#' @aliases queryGene
-setMethod("queryGene", signature(object = "SCFind", gene = "character"), query.gene)
 
 #' Find cell types associated with a given gene list
 #' 
@@ -246,10 +147,6 @@ setMethod("queryGene", signature(object = "SCFind", gene = "character"), query.g
 #' @name findCellTypes
 #'
 #' @return a named numeric vector containing p-values
-#'
-#' @importFrom hash hash keys
-#' @importFrom stats pchisq
-#' @importFrom methods is
 findCellTypes.geneList <- function(object, gene.list)
 {
     if (is.null(object))
@@ -260,31 +157,8 @@ findCellTypes.geneList <- function(object, gene.list)
     {
         stop("Please define a list of genes using the `gene.list` parameter!")
     }
-
-    gene.results <- hash()
-    for(gene in gene.list)
-    {
-        gene.results[[gene]] <- query.gene(object, gene)
-    }
-
-    genes <-  keys(gene.results)
-    genes.queried <-  genes[1]
     
-    query.results <- gene.results[[genes[1]]] # cold start operator
-    genes <- tail(genes, -1) # pop first element from gene list
-    
-    for(gene in genes)
-    {
-        query.results <- and.operator(query.results, gene.results[[gene]])
-        existing.cell.types <- keys(query.results)
-        genes.queried <- c(genes.queried, gene)
-        message(paste("Genes queried (", cat(genes.queried),") with", length(existing.cell.types)))
-        if(length(existing.cell.types) == 0)
-        {
-            warning("Empty set, breaking operation")
-        }        
-    }
-    return(query.results)
+    return(object@index$findCellTypes(gene.list))
 }
 
 #' @rdname findCellType
