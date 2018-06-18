@@ -95,6 +95,8 @@ inline std::bitset<BITS> int2bin_core(const unsigned int id)
 
 
 
+
+
 inline BitSet32 int2bin_bounded(const unsigned int id, unsigned int min_bit_length)
 {
   // Check if number is larger than the desired size in bits
@@ -111,6 +113,50 @@ inline BitSet32 int2bin(unsigned int id)
   return make_pair(__builtin_clz(id), int2bin_core(id));
 }
 
+
+
+inline double normalCFD(double x, double mu, double sigma)
+{
+  // this is an inline function for the cdm of the normal distribution
+  // it depends on the cmath library where it contains the erfc function
+  // it return a value ranging from zero to one 
+  
+  return 1 - (0.5 * erfc( (x - mean)/ (sigma * M_SQRT1_2) ));
+   
+}
+
+
+// struct that holds the quantization vector
+typedef struct{
+  double mean;
+  double std;
+  std::vector<bool> quantile;
+
+} Normal;
+
+// Accepts a vector, transforms and returns a quantization logical vector
+// This function aims for space efficiency of the expression vector
+std::vector<bool> lognormalcdf(std::vector<double> v, unsigned int bins)
+{
+
+  float sum = std::accumulate(v.begin(),v.end(), std::sum);
+  sum /= v.size();
+
+  float variance = std::accumulate(v.begin(), v.end(), [&sum](const double& val){
+      return (val - sum)*(val -sum);
+    });
+  variance = sqrt(variance);
+  std::vector<bool> quantization_bits;
+  for (auto& s : v )
+  {
+    int t = normalCDF(s, sum, variance);
+    std::bitset<BITS> q = int2bin_core(t);
+    for( int i = 0; i < 2 << bins; ++i){
+      quantization_bits.push_back(q[i]);
+    }
+  }
+  return quantization_bits;
+}
 
 
 
