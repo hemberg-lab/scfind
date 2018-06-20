@@ -401,8 +401,10 @@ class EliasFanoDB
     {
       bytes += int((d.H.size() / 8) + 1);
       bytes += int((d.L.size() / 8) + 1);
+      bytes += int((d.quantile.size() / 8) + 1);
+      
     }
-    bytes += ef_data.size() * 16; // overhead of l idf and deque struct
+    bytes += ef_data.size() * 32; // overhead of l idf and deque struct
     return bytes;
   }
 
