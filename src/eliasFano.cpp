@@ -23,13 +23,22 @@ typedef std::vector<bool> BoolVec;
 typedef std::string CellType;
 
 
+
+// struct that holds the quantization vector
+typedef struct{
+  double mu;
+  double sigma;
+  std::vector<bool> quantile;
+} Quantile;
+
 typedef struct
-  {
-    BoolVec H;
-    BoolVec L;
-    int l;
-    float idf;
-  } EliasFano;
+{
+  BoolVec H;
+  BoolVec L;
+  int l;
+  float idf;
+  Quantile expr;
+} EliasFano;
 
 
 struct Cell_ID
@@ -115,47 +124,42 @@ inline BitSet32 int2bin(unsigned int id)
 
 
 
-inline double normalCFD(double x, double mu, double sigma)
+inline double normalCDF(double x, double mu, double sigma)
 {
   // this is an inline function for the cdm of the normal distribution
   // it depends on the cmath library where it contains the erfc function
   // it return a value ranging from zero to one 
   
-  return 1 - (0.5 * erfc( (x - mean)/ (sigma * M_SQRT1_2) ));
+  return 1 - (0.5 * erfc( (x - mu)/ (sigma * M_SQRT1_2) ));
    
 }
 
 
-// struct that holds the quantization vector
-typedef struct{
-  double mean;
-  double std;
-  std::vector<bool> quantile;
-
-} Normal;
-
 // Accepts a vector, transforms and returns a quantization logical vector
 // This function aims for space efficiency of the expression vector
-std::vector<bool> lognormalcdf(std::vector<double> v, unsigned int bins)
+Quantile lognormalcdf(std::vector<int> ids, const Rcpp::NumericVector& v, unsigned int bits)
 {
-
-  float sum = std::accumulate(v.begin(),v.end(), std::sum);
-  sum /= v.size();
-
-  float variance = std::accumulate(v.begin(), v.end(), [&sum](const double& val){
-      return (val - sum)*(val -sum);
-    });
-  variance = sqrt(variance);
-  std::vector<bool> quantization_bits;
-  for (auto& s : v )
+  Quantile expr;
+  expr.mu = std::accumulate(ids.begin(),ids.end(), 0, [&v](const double& mean, const int& index){
+      return  mean + v[index];
+    }) / ids.size();
+  
+  expr.sigma = sqrt(std::accumulate(ids.begin(), ids.end(), 0, [&v, &expr](const double& variance, const int& index){
+        return pow(expr.mu - v[index], 2);
+      }) / ids.size());
+  // initialize vector with zeros
+  expr.quantile.resize(ids.size() * bits, 0);
+  int expr_quantile_i = 0;
+  for (auto& s : v)
   {
-    int t = normalCDF(s, sum, variance);
+    unsigned int t = round(normalCDF(s, expr.mu, expr.sigma) * (1 << bits));  
     std::bitset<BITS> q = int2bin_core(t);
-    for( int i = 0; i < 2 << bins; ++i){
-      quantization_bits.push_back(q[i]);
+    for (int i = 0; i < bits; ++i)
+    {
+      expr.quantile[expr_quantile_i++] = q[i];
     }
   }
-  return quantization_bits;
+  return expr;
 }
 
 
@@ -214,14 +218,16 @@ class EliasFanoDB
     
  } 
 
-  long eliasFanoCoding(const std::vector<int>& ids, int items) 
+  long eliasFanoCoding(const std::vector<int>& ids, const Rcpp::NumericVector& values) 
   {
     
     if(ids.empty())
     {
       return -1;
     }
+    int items = values.size();
 
+    
     EliasFano ef;
     ef.l = int(log2(items / (float)ids.size()) + 0.5) + 1;
     ef.idf = log2(items / (float)ids.size());
@@ -231,6 +237,10 @@ class EliasFanoDB
     ef.L.resize(l * ids.size(), false);
 
     BoolVec::iterator l_iter = ef.L.begin();
+    ef.expr = lognormalcdf(ids, values, 2);
+    
+    
+    
     for (auto expr = ids.begin(); expr != ids.end(); ++expr)
     {
       BitSet32 c = int2bin_bounded(*expr, l);
@@ -336,7 +346,7 @@ class EliasFanoDB
       }
       std::vector<int> ids(sparse_index.begin(), sparse_index.end());
       this->gene_counts[gene_names[gene_row]] += ids.size();
-      insertToDB(eliasFanoCoding(ids, expression_vector.size()), gene_names[gene_row], cell_type);
+      insertToDB(eliasFanoCoding(ids, expression_vector), gene_names[gene_row], cell_type);
     }
     return 0;
     //std::cerr << "Total Warnings: "<<warnings << std::endl;
@@ -672,13 +682,6 @@ class EliasFanoDB
   }
 
 };
-
-
-
-
-
-
-
 
 RCPP_MODULE(EliasFanoDB)
 {
