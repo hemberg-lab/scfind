@@ -1,4 +1,5 @@
 #include <Rcpp.h>
+#include <unistd.h>
 #include <iostream>
 #include <bitset>
 #include <algorithm>
@@ -77,18 +78,18 @@ namespace std
 
 std::string str_join( const std::vector<std::string>& elements, const char* const separator)
 {
-    switch (elements.size())
-    {
-        case 0:
-            return "";
-        case 1:
-            return *(elements.begin());
-        default:
-            std::ostringstream os; 
-            std::copy(elements.cbegin(), elements.cend() - 1, std::ostream_iterator<std::string>(os, separator));
-            os << *elements.crbegin();
-            return os.str();
-    }
+  switch (elements.size())
+  {
+    case 0:
+      return "";
+    case 1:
+      return *(elements.begin());
+    default:
+      std::ostringstream os; 
+      std::copy(elements.cbegin(), elements.cend() - 1, std::ostream_iterator<std::string>(os, separator));
+      os << *elements.crbegin();
+      return os.str();
+  }
 }
 
 
@@ -190,6 +191,117 @@ class EliasFanoDB
   bool global_indices;
   int warnings;
 
+  int getSizeBoolVector(const std::vector<bool>& v)
+  {
+    int size = v.size() / 8;
+    if (v.size() % 8 != 0)
+    {
+      ++size;
+    }
+    return size;
+  }
+  
+  void binarizeEliasFano(int fd, const EliasFano& ef)
+  {
+    int i = 0;
+    
+    write(fd, &ef.l, sizeof(ef.l));
+    write(fd, &ef.idf, sizeof(ef.idf));
+    int H_size = getSizeBoolVector(ef.H);
+    int L_size = getSizeBoolVector(ef.L);
+    int quant_size = getSizeBoolVector(ef.expr.quantile);
+
+    write(fd, &H_size, sizeof(H_size));
+    write(fd, &L_size, sizeof(L_size));
+    
+    std::vector<char> H_buf, L_buf;
+    // Initialize memory to zeros
+    H_buf.resize(H_size, 0);
+    L_buf.resize(L_size, 0);
+    
+    for (size_t i = 0; i < ef.H.size(); i++)
+    {
+      H_buf[i / BITS] |= ef.H[i] << (i % BITS);
+    }
+
+    for ( size_t i = 0; i < ef.L.size(); i++)
+    {
+      L_buf[i / BITS] |= ef.L[i] << (i % BITS);
+    }
+
+
+    std::vector<char> expr;
+    expr.resize(quant_size, 0);
+    for (size_t i = 0; i < ef.expr.quantile.size(); i++)
+    {
+      expr[i / BITS] |= ef.expr.quantile[i] << (i % BITS);
+    }
+
+    write(fd, &H_buf[0], H_buf.size());
+    write(fd, &L_buf[0], L_buf.size());
+    write(fd, &expr[0], expr.size());
+    return;
+  }
+
+  void serializeToFile(const std::string& filename)
+  {
+    FILE* fp;
+
+    fp = fopen(filename.c_str(), "wb");
+    int fd = fileno(fp);
+    
+    int gene_id = 0;
+    // Dump gene names
+    std::map<std::string, int> gene_ids;
+    for (auto const& g : gene_counts)
+    {
+      unsigned char gene_name_size = g.first.size();
+      write(fd, &gene_name_size, sizeof(unsigned char));
+      write(fd, &g.first[0], gene_name_size);
+    }
+    // Dump cell types
+    std::map<CellType, int> ct_ids;
+    int cell_type_id = 0;
+    for (auto const& ct : cell_types)
+    {
+      //assign unique id
+      unsigned char cell_type_name_size = ct.size();
+      ct_ids[ct] = ++cell_type_id;
+      write(fd, &cell_type_name_size, sizeof(unsigned char));
+      write(fd, &ct[0], cell_type_name_size);
+    }
+
+    // Dump gene idfs
+    for ( auto const& g : gene_counts)
+    {
+      write(fd, &g.second, sizeof(g.second));
+    }
+    
+    
+    // Dump records
+    // Write size of index, if it is 1:1 relation it should be consistent
+    size_t index_size = ef_data.size();
+    write(fd, &index_size, sizeof(index_size));
+    for (auto const& g : metadata)
+    {
+      int g_id = 0;
+      for(auto const& ct : g.second)
+      {
+        ++g_id;
+        write(fd, &g_id, sizeof(g_id));
+        write(fd, &ct_ids[*ct.first], sizeof(int));
+        write(fd, &gene_ids[g.first], sizeof(int));
+      }
+      
+    }
+    // Dump raw data
+    for (auto const& ef : ef_data)
+    {
+      binarizeEliasFano(fd, ef);
+    }
+    
+  }
+
   void insertToDB(int ef_index, const std::string& gene_name, const std::string& cell_type)
   {
     if(ef_index == -1)
@@ -216,7 +328,7 @@ class EliasFanoDB
     const CellType* address = &(*celltype_record);
     metadata[gene_name][address] = ef;
     
- } 
+  } 
 
   long eliasFanoCoding(const std::vector<int>& ids, const Rcpp::NumericVector& values) 
   {
@@ -250,12 +362,12 @@ class EliasFanoDB
         // TODO(Nikos) optimize this ? check if c.second[i] is false and THEN assign
         *l_iter = c.second[i];
       }
-        //Use a unary code for the high bits
-        unsigned int upper_bits = (*expr >> l);
-        unsigned int m =  ef.H.size() + upper_bits - prev_indexH + 1;
-        prev_indexH = upper_bits;
-        ef.H.resize(m, false);
-        ef.H[m - 1] = true;
+      //Use a unary code for the high bits
+      unsigned int upper_bits = (*expr >> l);
+      unsigned int m =  ef.H.size() + upper_bits - prev_indexH + 1;
+      prev_indexH = upper_bits;
+      ef.H.resize(m, false);
+      ef.H[m - 1] = true;
     }
     ef_data.push_back(ef);
     // return the index of the ef_data in the deque
@@ -401,7 +513,7 @@ class EliasFanoDB
     {
       bytes += int((d.H.size() / 8) + 1);
       bytes += int((d.L.size() / 8) + 1);
-      bytes += int((d.quantile.size() / 8) + 1);
+      bytes += int((d.expr.quantile.size() / 8) + 1);
       
     }
     bytes += ef_data.size() * 32; // overhead of l idf and deque struct
@@ -551,6 +663,7 @@ class EliasFanoDB
         std::vector<const CellType*> gene_cell_types;
         for(auto const& ct : metadata[gene])
         {
+
           gene_cell_types.push_back(ct.first);
           std::cout << *(ct.first) << " on "<<  ct.first << std::endl;
         }
@@ -586,7 +699,7 @@ class EliasFanoDB
       query_score /= ct_idf;
       std::cout << 
         view_string << " score: " << query_score 
-        << " support: " << item.second <<" "<< gene_set_cell_types.size() << std:: endl;
+                << " support: " << item.second <<" "<< gene_set_cell_types.size() << std:: endl;
       tfidf.push_back(make_pair(view_string, query_score));
       
       // t.push_back(Rcpp::List::create(Rcpp::_["query"] = Rcpp::wrap(view_string), Rcpp::_["score"] = Rcpp::wrap(query_score)));
