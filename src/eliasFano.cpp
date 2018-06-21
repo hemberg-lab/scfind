@@ -181,7 +181,7 @@ class EliasFanoDB
   // Store the gene metadata, only presence in the data
   typedef std::map<std::string, unsigned int> GeneIndex;
 
- private:
+ // private:
   CellTypeIndex metadata;
   ExpressionMatrix ef_data;
   std::set<CellType> cell_types;
@@ -250,11 +250,20 @@ class EliasFanoDB
     fp = fopen(filename.c_str(), "wb");
     int fd = fileno(fp);
     
+    std::map<const EliasFano*, int> ef_ids;
+    int ef_id = 0;
+    for (auto const& ef : ef_data)
+    {
+      ef_ids[&ef] = ef_id++;
+    }
+
+
     int gene_id = 0;
     // Dump gene names
     std::map<std::string, int> gene_ids;
     for (auto const& g : gene_counts)
     {
+      // Size of cell type can be from 0 to 1
       unsigned char gene_name_size = g.first.size();
       write(fd, &gene_name_size, sizeof(unsigned char));
       write(fd, &g.first[0], gene_name_size);
@@ -284,13 +293,13 @@ class EliasFanoDB
     write(fd, &index_size, sizeof(index_size));
     for (auto const& g : metadata)
     {
-      int g_id = 0;
-      for(auto const& ct : g.second)
+
+      for (auto const& ct : g.second)
       {
-        ++g_id;
-        write(fd, &g_id, sizeof(g_id));
-        write(fd, &ct_ids[*ct.first], sizeof(int));
         write(fd, &gene_ids[g.first], sizeof(int));
+        write(fd, &ct_ids[*ct.first], sizeof(int));
+        // int dist = std::distance(ef_data.begin(), ct.second);
+        write(fd, &ef_ids[ct.second], sizeof(EliasFano*));
       }
       
     }
@@ -300,6 +309,7 @@ class EliasFanoDB
       binarizeEliasFano(fd, ef);
     }
     
+    return;
   }
 
   void insertToDB(int ef_index, const std::string& gene_name, const std::string& cell_type)
@@ -812,8 +822,9 @@ RCPP_MODULE(EliasFanoDB)
     .method("findCellTypes", &EliasFanoDB::findCellTypes)
     .method("efMemoryFootprint", &EliasFanoDB::dataMemoryFootprint)
     .method("dbMemoryFootprint", &EliasFanoDB::dbMemoryFootprint)
-    .method("findMarkerGenes", &EliasFanoDB::findMarkerGenes);
-
+    .method("findMarkerGenes", &EliasFanoDB::findMarkerGenes)
+    .method("serializeToFile", &EliasFanoDB::serializeToFile);
+  
 }
 
 
