@@ -17,11 +17,14 @@
 
 // the bits used for the encoding
 #define BITS 32
+#define SERIALIZATION_VERSION 2
 
 
 typedef std::pair<unsigned short, std::bitset<BITS> > BitSet32;
 typedef std::vector<bool> BoolVec;
 typedef std::string CellType;
+
+typedef float IDFtype;
 
 
 
@@ -37,9 +40,16 @@ typedef struct
   BoolVec H;
   BoolVec L;
   int l;
-  float idf;
+  IDFtype idf;
   Quantile expr;
 } EliasFano;
+
+typedef struct
+{
+  int gene;
+  int cell_type;
+  int index;
+} IndexRecord;
 
 
 struct Cell_ID
@@ -75,6 +85,31 @@ namespace std
 }
 
 
+// Highly Recommended
+// TODO(Nikos) refactor code with these to avoid nasty bug that will misalign the whole bytestream
+// ;)
+template<typename T>
+int readNum(int fd, T& val)
+{
+  if(read(fd, &val, sizeof(T)) < 0)
+  {
+    std::cerr << "Something went wrong" << std::endl;
+    return 1;
+  }
+  
+  return 0;
+}
+
+template<typename T>
+int writeNum(int fd, const T& val)
+{
+  if(write(fd, &val, sizeof(T)) != sizeof(T))
+  {
+    std::cerr << "Something went wrong" << std::endl;
+    return 1;
+  }
+  return 0;
+}
 
 std::string str_join( const std::vector<std::string>& elements, const char* const separator)
 {
@@ -92,18 +127,12 @@ std::string str_join( const std::vector<std::string>& elements, const char* cons
   }
 }
 
-
-
-
-
 inline std::bitset<BITS> int2bin_core(const unsigned int id)
 {
   // we have a fixed BITS bitset so we have to offset 
   // the leading zeros whenever we need to access the elements
   return std::bitset<BITS>(id);
 }
-
-
 
 
 
@@ -178,7 +207,8 @@ class EliasFanoDB
   // gene -> cell type -> eliasFano
   typedef std::unordered_map<std::string, EliasFanoIndex > CellTypeIndex;
   typedef std::deque<EliasFano> ExpressionMatrix;
-  // Store the gene metadata, only presence in the data
+
+  // Store the gene metadata, gene support in cells at the index
   typedef std::map<std::string, unsigned int> GeneIndex;
 
  // private:
@@ -187,6 +217,7 @@ class EliasFanoDB
   std::set<CellType> cell_types;
   GeneIndex gene_counts;
   unsigned int total_cells;
+  unsigned char quantization_bits;
   
   bool global_indices;
   int warnings;
@@ -200,48 +231,237 @@ class EliasFanoDB
     }
     return size;
   }
+
+  int readBuffer(const std::vector<char> buf, std::vector<bool>& bool_vec)
+  {
+    bool_vec.resize((buf.size() << 3), 0);
+    int c = 0;
+    for (auto const& b : buf)
+    {
+      for ( int i = 0; i < 8; i++)
+      {
+        bool_vec[c++] = ((b >> i) & 1);
+      }
+    }
+    
+  }
   
+  void deserializeEliasFano(int fd, EliasFano& ef)
+  {
+    int cells;
+    
+    readNum(fd, cells);
+    readNum(fd, ef.l);
+    readNum(fd, ef.idf);
+    
+    int H_size, L_size, quant_size;
+    unsigned char test;
+    readNum(fd, test);
+    assert(test == 0xFF);
+    readNum(fd, H_size);
+    readNum(fd, L_size);
+    readNum(fd, quant_size);
+    
+    
+    // Multiply by eight, shift three positions
+    // std::cout << "l = " << ef.l << std::endl;
+    // std::cout << "Read " << " H " << H_size << std::endl;
+    // std::cout << "Read " << " L " << L_size << std::endl;
+    // std::cout << "Read " << " quant " << quant_size << std::endl;
+    
+    
+    std::vector<char> buffer;
+
+    // Read H
+    buffer.resize(H_size, 0);
+    read(fd,&buffer[0], buffer.size());
+    readBuffer(buffer, ef.H);
+    // Trim padding to last 1
+    for(int i = ef.H.size() - 1; i > 0; i--)
+    {
+      if(ef.H[i])
+      {
+        // Trim vector size and exit 
+        ef.H.resize(i + 1, 0);
+        break;
+      }
+    }
+
+    
+    // Read L
+    buffer.resize(L_size, 0);
+    read(fd, &buffer[0], buffer.size());
+    
+    readBuffer(buffer, ef.L);
+    ef.L.resize(cells * ef.l);
+    
+    
+    // Read expression values
+    buffer.resize(quant_size, 0);
+    read(fd, &buffer[0], buffer.size());
+    readBuffer(buffer, ef.expr.quantile);
+    
+    // Take care of the byte quantization
+    // Resize container to the right size
+    ef.expr.quantile.resize(this->quantization_bits * cells);
+   
+    readNum(fd, ef.expr.mu);
+    readNum(fd, ef.expr.sigma);
+    // std::cout << "Mu : " << ef.expr.mu << "Sigma : " << ef.expr.sigma << std::endl;
+  }
+
   void binarizeEliasFano(int fd, const EliasFano& ef)
   {
-    int i = 0;
-    
-    write(fd, &ef.l, sizeof(ef.l));
-    write(fd, &ef.idf, sizeof(ef.idf));
+    // int i = 0;
+    int cells = ef.L.size() / ef.l;
+    writeNum(fd, cells);
+    writeNum(fd, ef.l);
+    writeNum(fd, ef.idf);
     int H_size = getSizeBoolVector(ef.H);
     int L_size = getSizeBoolVector(ef.L);
     int quant_size = getSizeBoolVector(ef.expr.quantile);
-
-    write(fd, &H_size, sizeof(H_size));
-    write(fd, &L_size, sizeof(L_size));
+    unsigned char t = 0xFF;
+    writeNum(fd,t);
+    writeNum(fd, H_size);
+    writeNum(fd, L_size);
+    writeNum(fd, quant_size);
     
-    std::vector<char> H_buf, L_buf;
+    std::vector<char> H_buf, L_buf, expr;
     // Initialize memory to zeros
     H_buf.resize(H_size, 0);
     L_buf.resize(L_size, 0);
-    
+    expr.resize(quant_size, 0);
+
     for (size_t i = 0; i < ef.H.size(); i++)
     {
-      H_buf[i / BITS] |= ef.H[i] << (i % BITS);
+      H_buf[i / 8] |= ef.H[i] << (i % 8);
     }
 
     for ( size_t i = 0; i < ef.L.size(); i++)
     {
-      L_buf[i / BITS] |= ef.L[i] << (i % BITS);
+      L_buf[i / 8] |= ef.L[i] << (i % 8);
     }
 
-
-    std::vector<char> expr;
-    expr.resize(quant_size, 0);
+    
     for (size_t i = 0; i < ef.expr.quantile.size(); i++)
     {
-      expr[i / BITS] |= ef.expr.quantile[i] << (i % BITS);
+      expr[i / 8] |= ef.expr.quantile[i] << (i % 8);
     }
 
     write(fd, &H_buf[0], H_buf.size());
     write(fd, &L_buf[0], L_buf.size());
     write(fd, &expr[0], expr.size());
+    writeNum(fd, ef.expr.mu);
+    writeNum(fd, ef.expr.sigma);
+    
     return;
   }
+
+
+  void loadFromFile(const std::string& filename)
+  {
+    FILE* fp = fopen(filename.c_str(), "rb");
+    int fd = fileno(fp);
+
+    // Read the database version
+    int version;
+    readNum(fd, version);
+    std::cout << "Version " << version << std::endl;
+    if (version != SERIALIZATION_VERSION)
+    {
+      std::cerr << "The model that the database was stored is not matching the of the existing version that the database will be built. Exiting now" << std::endl;
+      return;
+    }
+
+    
+    // Read the total cells stored in the database
+    read(fd, &this->total_cells, sizeof(this->total_cells));
+    std::cout << "Total Cells " << this->total_cells << std::endl;
+    // Read the number of bits used for the quantization of the expression level quantiles
+    
+    readNum(fd, this->quantization_bits);
+    std::cout << "Quantization bits " << (unsigned int)this->quantization_bits << std::endl;
+    int genes_present;
+    readNum(fd, genes_present);
+    
+    std::cout << "Present genes " << genes_present << std::endl;
+    if (not(genes_present > 0 and genes_present < 100000))
+    {
+      std::cerr << "something went wrong" << std::endl;
+      return;
+    }
+
+    // Read gene names
+    char buffer[256];
+    std::vector<std::string> gene_ids;
+    gene_ids.reserve(genes_present);
+    for ( int i = 0; i < genes_present; ++i)
+    {
+      int cell_support;
+      unsigned char gene_name_length;
+      readNum(fd, gene_name_length);
+      read(fd, buffer, gene_name_length);
+      readNum(fd, cell_support);
+      gene_counts[buffer] = cell_support;
+      metadata[buffer] = EliasFanoIndex();
+      gene_ids.push_back(buffer);
+    }
+
+    // Read cell type names
+    int cell_types_present;
+    readNum(fd, cell_types_present);
+    std::cout << "Present cell_types " << cell_types_present << std::endl;
+    if(not(cell_types_present > 0 and cell_types_present < 50000))
+    {
+      std::cerr << "something went wrong with the cell types" << std::endl;
+      return;
+    }
+    
+    unsigned int cell_support;
+    std::vector<const CellType*> cell_type_ids;
+    cell_type_ids.reserve(cell_types_present);
+    for (int i = 0; i < cell_types_present; ++i)
+    {
+      unsigned char cell_type_length;
+      readNum(fd, cell_type_length);
+      read(fd, buffer, cell_type_length);
+      this->cell_types.insert(buffer);
+      auto it = this->cell_types.find(buffer);
+      // remap the reference address
+      cell_type_ids.push_back(&(*it));
+      
+    }
+
+    int index_size;
+    readNum(fd, index_size);
+    std::cout << "Index size " << index_size << std::endl;
+    std::vector<IndexRecord> records;
+    for (int i = 0; i < index_size; ++i)
+    {
+      IndexRecord record;
+      read(fd, &record, sizeof(IndexRecord));
+    }
+    
+    std::cout << "Reading raw data" << std::endl;
+    for (int i = 0; i < index_size; i++)
+    {
+      EliasFano ef;
+      deserializeEliasFano(fd, ef);
+      ef_data.push_back(ef);
+       
+    }
+    
+    
+    // Build database
+    for (auto const& r : records)
+    {
+      metadata[gene_ids[r.gene]][cell_type_ids[r.cell_type]] = &(this->ef_data[r.index]);
+    }
+    std::cout <<"All good " << std::endl;
+    fclose(fp);
+  }
+
+
 
   void serializeToFile(const std::string& filename)
   {
@@ -256,21 +476,42 @@ class EliasFanoDB
     {
       ef_ids[&ef] = ef_id++;
     }
+    
+    int version = SERIALIZATION_VERSION;
+    writeNum(fd,version);
 
+    // Dump the total amount of cells
+    writeNum(fd, this->total_cells);
+    // Dump the quantization bits for storing the expression level of the genes
+    writeNum(fd, this->quantization_bits);
+    
+    // Number of genes present in the database
+    int genes_present = gene_counts.size();
+    writeNum(fd, genes_present);
 
+    
     int gene_id = 0;
-    // Dump gene names
+    // Read the gene names
     std::map<std::string, int> gene_ids;
+    
     for (auto const& g : gene_counts)
     {
-      // Size of cell type can be from 0 to 1
+      // Size of cell type can be from 0 to 255
       unsigned char gene_name_size = g.first.size();
+      
       write(fd, &gene_name_size, sizeof(unsigned char));
       write(fd, &g.first[0], gene_name_size);
+      // Dump gene idf
+      write(fd, &g.second, sizeof(g.second));
+      gene_ids[g.first] = gene_id++;
     }
     // Dump cell types
     std::map<CellType, int> ct_ids;
     int cell_type_id = 0;
+    int cell_types_present = cell_types.size();
+    
+    write(fd, &cell_types_present, sizeof(cell_types_present));
+    
     for (auto const& ct : cell_types)
     {
       //assign unique id
@@ -279,27 +520,21 @@ class EliasFanoDB
       write(fd, &cell_type_name_size, sizeof(unsigned char));
       write(fd, &ct[0], cell_type_name_size);
     }
-
-    // Dump gene idfs
-    for ( auto const& g : gene_counts)
-    {
-      write(fd, &g.second, sizeof(g.second));
-    }
-    
     
     // Dump records
     // Write size of index, if it is 1:1 relation it should be consistent
-    size_t index_size = ef_data.size();
+    int index_size = ef_data.size();
     write(fd, &index_size, sizeof(index_size));
     for (auto const& g : metadata)
     {
 
       for (auto const& ct : g.second)
       {
-        write(fd, &gene_ids[g.first], sizeof(int));
-        write(fd, &ct_ids[*ct.first], sizeof(int));
-        // int dist = std::distance(ef_data.begin(), ct.second);
-        write(fd, &ef_ids[ct.second], sizeof(EliasFano*));
+        IndexRecord record;
+        record.gene = gene_ids[g.first];
+        record.cell_type = ct_ids[*ct.first];
+        record.index = ef_ids[ct.second];
+        write(fd, &record, sizeof(IndexRecord));
       }
       
     }
@@ -308,6 +543,10 @@ class EliasFanoDB
     {
       binarizeEliasFano(fd, ef);
     }
+    
+
+    std::cout << "Database was dumped on " << filename << std::endl;
+    fclose(fp);
     
     return;
   }
@@ -421,7 +660,7 @@ class EliasFanoDB
  public:
 
   // constructor
-  EliasFanoDB(): global_indices(false), warnings(0), total_cells(0)
+  EliasFanoDB(): global_indices(false), warnings(0), total_cells(0), quantization_bits(2)
   {
     
   }
@@ -434,7 +673,8 @@ class EliasFanoDB
     gene_names.reserve(genes.size());
 
 
-    // Increase the cell number present in the index
+    // Inc\
+rease the cell number present in the index
     this->total_cells += gene_matrix.ncol();
 
     for(Rcpp::CharacterVector::iterator gene_it = genes.begin(); gene_it != genes.end(); ++gene_it)
@@ -818,12 +1058,12 @@ RCPP_MODULE(EliasFanoDB)
     .method("decode", &EliasFanoDB::decode)
     .method("mergeDB", &EliasFanoDB::mergeDB)
     .method("sample", &EliasFanoDB::sample)
-    .method("genes", &EliasFanoDB::total_genes)
     .method("findCellTypes", &EliasFanoDB::findCellTypes)
     .method("efMemoryFootprint", &EliasFanoDB::dataMemoryFootprint)
     .method("dbMemoryFootprint", &EliasFanoDB::dbMemoryFootprint)
     .method("findMarkerGenes", &EliasFanoDB::findMarkerGenes)
-    .method("serializeToFile", &EliasFanoDB::serializeToFile);
+    .method("serializeToFile", &EliasFanoDB::serializeToFile)
+    .method("loadFromFile",&EliasFanoDB::loadFromFile);
   
 }
 
