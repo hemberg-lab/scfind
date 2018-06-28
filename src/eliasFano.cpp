@@ -171,22 +171,25 @@ Quantile lognormalcdf(std::vector<int> ids, const Rcpp::NumericVector& v, unsign
 {
   Quantile expr;
   expr.mu = std::accumulate(ids.begin(),ids.end(), 0, [&v](const double& mean, const int& index){
-      return  mean + v[index];
+      return  mean + v[index - 1];
     }) / ids.size();
   
   expr.sigma = sqrt(std::accumulate(ids.begin(), ids.end(), 0, [&v, &expr](const double& variance, const int& index){
-        return pow(expr.mu - v[index], 2);
+        return pow(expr.mu - v[index - 1], 2);
       }) / ids.size());
   // initialize vector with zeros
   expr.quantile.resize(ids.size() * bits, 0);
+  //std::cerr << "Mean,std" << expr.mu << "," << expr.sigma << std::endl;
+  //std::cerr << "ids size " << ids.size() << " v size " << v.size() << std::endl;
   int expr_quantile_i = 0;
-  for (auto& s : v)
+  for (auto const& s : ids)
   {
-    unsigned int t = round(normalCDF(s, expr.mu, expr.sigma) * (1 << bits));  
+    unsigned int t = round(normalCDF(v[s], expr.mu, expr.sigma) * (1 << bits));  
     std::bitset<BITS> q = int2bin_core(t);
     for (int i = 0; i < bits; ++i)
     {
-      expr.quantile[expr_quantile_i++] = q[i];
+       expr.quantile[expr_quantile_i++] = q[i];
+      
     }
   }
   return expr;
@@ -356,7 +359,14 @@ class EliasFanoDB
     
     return;
   }
-
+  
+  void dumpGenes()
+  {
+    for (auto const g : gene_counts){
+      std::cout << g.first << " " ;
+      }
+    std::cout << std::endl;
+  }
 
   void loadFromFile(const std::string& filename)
   {
@@ -394,6 +404,7 @@ class EliasFanoDB
     // Read gene names
     char buffer[256];
     std::vector<std::string> gene_ids;
+    gene_counts.clear();
     gene_ids.reserve(genes_present);
     for ( int i = 0; i < genes_present; ++i)
     {
@@ -401,8 +412,10 @@ class EliasFanoDB
       unsigned char gene_name_length;
       readNum(fd, gene_name_length);
       read(fd, buffer, gene_name_length);
+      // Insert end of character string
+      buffer[gene_name_length] = '\0';
       readNum(fd, cell_support);
-      gene_counts[buffer] = cell_support;
+      this->gene_counts[buffer] = cell_support;
       metadata[buffer] = EliasFanoIndex();
       gene_ids.push_back(buffer);
     }
@@ -417,6 +430,7 @@ class EliasFanoDB
       return;
     }
     
+    std::cout << "Genes support " << gene_counts.size() << std::endl;
     unsigned int cell_support;
     std::vector<const CellType*> cell_type_ids;
     cell_type_ids.reserve(cell_types_present);
@@ -425,6 +439,8 @@ class EliasFanoDB
       unsigned char cell_type_length;
       readNum(fd, cell_type_length);
       read(fd, buffer, cell_type_length);
+      // Insert end of string character
+      buffer[cell_type_length] = '\0';
       this->cell_types.insert(buffer);
       auto it = this->cell_types.find(buffer);
       // remap the reference address
@@ -499,7 +515,7 @@ class EliasFanoDB
       // Size of cell type can be from 0 to 255
       unsigned char gene_name_size = g.first.size();
       
-      write(fd, &gene_name_size, sizeof(unsigned char));
+      writeNum(fd, gene_name_size);
       write(fd, &g.first[0], gene_name_size);
       // Dump gene idf
       write(fd, &g.second, sizeof(g.second));
@@ -598,8 +614,7 @@ class EliasFanoDB
     ef.L.resize(l * ids.size(), false);
 
     BoolVec::iterator l_iter = ef.L.begin();
-    ef.expr = lognormalcdf(ids, values, 2);
-    
+    ef.expr = lognormalcdf(ids, values, this->quantization_bits);
     
     
     for (auto expr = ids.begin(); expr != ids.end(); ++expr)
@@ -619,6 +634,7 @@ class EliasFanoDB
       ef.H[m - 1] = true;
     }
     ef_data.push_back(ef);
+    // std::cerr <<"New index" << ef_data.size() - 1 << std::endl;
     // return the index of the ef_data in the deque
     return ef_data.size() - 1;
   }
@@ -664,6 +680,7 @@ class EliasFanoDB
   {
     
   }
+
   // This is invoked on slices of the expression matrix of the dataset 
   long encodeMatrix(const std::string& cell_type, const Rcpp::NumericMatrix& gene_matrix)
   {
@@ -673,10 +690,9 @@ class EliasFanoDB
     gene_names.reserve(genes.size());
 
 
-    // Inc\
-rease the cell number present in the index
+    // Increase the cell number present in the index
     this->total_cells += gene_matrix.ncol();
-
+    
     for(Rcpp::CharacterVector::iterator gene_it = genes.begin(); gene_it != genes.end(); ++gene_it)
     {
       std::string gene_name = Rcpp::as<std::string>(*gene_it);
@@ -687,9 +703,10 @@ rease the cell number present in the index
         this->gene_counts[gene_name] = 0;
       }
     }
-     
+    
     for(unsigned int gene_row = 0; gene_row < gene_matrix.nrow(); ++gene_row)
     {
+      
       const Rcpp::NumericVector& expression_vector = gene_matrix(gene_row, Rcpp::_);
       std::deque<int> sparse_index;
       int i = 0;
@@ -708,6 +725,7 @@ rease the cell number present in the index
       }
       std::vector<int> ids(sparse_index.begin(), sparse_index.end());
       this->gene_counts[gene_names[gene_row]] += ids.size();
+      
       insertToDB(eliasFanoCoding(ids, expression_vector), gene_names[gene_row], cell_type);
     }
     return 0;
@@ -1063,7 +1081,8 @@ RCPP_MODULE(EliasFanoDB)
     .method("dbMemoryFootprint", &EliasFanoDB::dbMemoryFootprint)
     .method("findMarkerGenes", &EliasFanoDB::findMarkerGenes)
     .method("serializeToFile", &EliasFanoDB::serializeToFile)
-    .method("loadFromFile",&EliasFanoDB::loadFromFile);
+    .method("loadFromFile",&EliasFanoDB::loadFromFile)
+    .method("dumpGenes", &EliasFanoDB::dumpGenes);
   
 }
 
