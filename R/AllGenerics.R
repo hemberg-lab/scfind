@@ -64,3 +64,9 @@ setGeneric(name = "findCellTypes", function(object, gene.list) {
 setGeneric(name = "scfind_interactive", function(object) {
     standardGeneric("scfind_interactive")
 })
+
+
+#' @export
+setGeneric(name = "loadFromFile", function(object){
+    standardGeneric("loadFromFile")
+})

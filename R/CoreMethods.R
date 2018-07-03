@@ -79,6 +79,26 @@ setMethod("buildCellTypeIndex",
           signature(sce = "SingleCellExperiment"),
           buildCellTypeIndex.SCESet)
 
+#' Load a binary file and deserializes the database
+#'
+#' @param filename the compatible file
+#'
+#' @name loadSerializedObject
+#' @return the loaded database
+load.from.serialized.object <- function(filename)
+{
+    loadModule('EliasFanoDB')
+    ef <-  new(EliasFanoDB)
+    ef$loadFromFile(filename)
+    index <-  new("SCFind", index = ef, datasets = filename)
+    return(index)
+
+}
+
+#' @rdname loadFromFile
+#' @aliases loadFromFile
+setMethod("loadFromFile",  definition = load.from.serialized.object)
+
 
 #' Merges external index to existing object
 #'
