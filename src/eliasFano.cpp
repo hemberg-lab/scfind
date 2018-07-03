@@ -251,38 +251,33 @@ class EliasFanoDB
   }
 
   template<typename T>
-  int write(const T& val)
+  int expandStream(const T& new_length)
   {
-    const unsigned char* ptr = reinterpret_cast<const unsigned char*>(&val);
-    
-    if(byte_pointer + sizeof(T) >= this->serialized_bytestream.size())
+    if(this->byte_pointer + new_length >= this->serialized_bytestream.size())
     {
       // Is there a chance the buffer to be bigger than 16MB
       // Grow the buffer by 16MB
-      this->serialized_bytestream.resize(this->serialized_bytestream.size() + (1 << 20));
+      // std::cout << "expanding stream" << std::endl;
+      this->serialized_bytestream.resize(this->serialized_bytestream.size() + (1 << 24));
     }
-    // this->serialized_bytestream.insert(this->serialized_bytestream.end(), ptr, ptr + sizeof(T));
-    memcpy(&this->serialized_bytestream[byte_pointer], ptr, sizeof(T));
+  }
+  
+  template<typename T>
+  int write(const T& val)
+  {
+    // const unsigned char* ptr = reinterpret_cast<const unsigned char*>(&val);
+    expandStream(sizeof(T));
+    memcpy(&this->serialized_bytestream[this->byte_pointer], &val, sizeof(T));
     byte_pointer += sizeof(T);
-    
-    // if(write(fd, &val, sizeof(T)) != sizeof(T))
-    //   {
-    //     std::cerr << "Something went wrong" << std::endl;
-    //     return 1;
-    //   }
     return 0;
   }
 
 
   int writeBuffer(const char* buf, int buf_len)
   {
-    if(byte_pointer + buf_len >= this->serialized_bytestream.size())
-    {
-      // Grow the buffer by 16MB
-      this->serialized_bytestream.resize(this->serialized_bytestream.size() + (1 << 20));
-    }
     
-    memcpy(&this->serialized_bytestream[byte_pointer], buf, buf_len);
+    expandStream(buf_len);
+    memcpy(&this->serialized_bytestream[this->byte_pointer], buf, buf_len);
     byte_pointer += buf_len;
     
     // this->serialized_bytestream.insert(this->serialized_bytestream.end(), buf, buf + buf_len);
@@ -465,10 +460,9 @@ class EliasFanoDB
     cell_types_id.clear();
     inverse_cell_type.clear();
     gene_counts.clear();
+    serialized_bytestream.clear();
     
-    
-
-    
+    // Read the whole file contents!
     readFile(filename);
     
 
@@ -580,14 +574,9 @@ class EliasFanoDB
   }
 
 
-
-  void serializeToFile(const std::string& filename)
+  void serialize()
   {
     this->serialized_bytestream.clear();
-    FILE* fp;
-
-    fp = fopen(filename.c_str(), "wb");
-    int fd = fileno(fp);
     
     std::map<const EliasFano*, int> ef_ids;
     int ef_id = 0;
@@ -664,11 +653,24 @@ class EliasFanoDB
       binarizeEliasFano(ef);
     }
 
+    return;
+  }
+  
+  Rcpp::RawVector getByteStream()
+  {
+    serialize();
+    Rcpp::RawVector r_obj = Rcpp::wrap(this->serialized_bytestream);
+    this->serialized_bytestream.clear();
+    return r_obj;
+  }
+  void serializeToFile(const std::string& filename)
+  {
+    serialize();
+    FILE* fp = fopen(filename.c_str(), "wb");
+    fwrite(&this->serialized_bytestream[0], this->byte_pointer, 1, fp);
     std::cout << "Database was dumped on " << filename << std::endl;
-
-    fwrite(&this->serialized_bytestream[0], this->serialized_bytestream.size(), 1, fp);
     fclose(fp);
-    
+    this->serialized_bytestream.clear();
     return;
   }
 
@@ -1211,7 +1213,8 @@ RCPP_MODULE(EliasFanoDB)
     .method("findMarkerGenes", &EliasFanoDB::findMarkerGenes)
     .method("serializeToFile", &EliasFanoDB::serializeToFile)
     .method("loadFromFile",&EliasFanoDB::loadFromFile)
-    .method("dumpGenes", &EliasFanoDB::dumpGenes);
+    .method("dumpGenes", &EliasFanoDB::dumpGenes)
+    .method("getByteStream", &EliasFanoDB::getByteStream);
   
 }
 

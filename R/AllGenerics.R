@@ -1,7 +1,7 @@
 
 #' The scfind main class object
 #' @export
-setClass("SCFind", representation(index = "Rcpp_EliasFanoDB", datasets = "character"))
+setClass("SCFind", representation(index = "Rcpp_EliasFanoDB", datasets = "character", serialized = "raw"))
 
 #' @examples TODO
 #' 
@@ -69,4 +69,9 @@ setGeneric(name = "scfind_interactive", function(object) {
 #' @export
 setGeneric(name = "loadFromFile", function(object){
     standardGeneric("loadFromFile")
+})
+
+#' @export
+setGeneric(name = "saveObject", function(object, filename){
+    standardGeneric("saveObject")
 })

@@ -95,9 +95,23 @@ load.from.serialized.object <- function(filename)
 
 }
 
+
 #' @rdname loadFromFile
 #' @aliases loadFromFile
 setMethod("loadFromFile",  definition = load.from.serialized.object)
+
+
+#' @name saveObject
+save.serialized.object <- function(object, filename){
+    loadModule('EliasFanoDB')
+    object@serialized <- object@index$getByteStream()
+    return(object)
+}
+
+#' @rdname loadFromFile
+#' @aliases loadFromFile
+setMethod("saveObject",  definition = save.serialized.object)
+
 
 
 #' Merges external index to existing object
