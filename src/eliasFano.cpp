@@ -55,11 +55,11 @@ typedef struct
 struct Cell_ID
 {
   unsigned int num;
-  const CellType* cell_type;
+  const int cell_type;
   // Hashing
   size_t operator()() const
   {
-    return std::hash<const CellType*>{}(cell_type) ^ std::hash<unsigned int>{}(num);
+    return std::hash<int>{}(cell_type) ^ std::hash<unsigned int>{}(num);
   }
   
   size_t operator==(const struct Cell_ID& obj) const 
@@ -202,11 +202,14 @@ class EliasFanoDB;
 RCPP_EXPOSED_CLASS(EliasFanoDB)
 
 
+typedef int EliasFanoID;
+typedef int CellTypeID;
+
 class EliasFanoDB
 {
 
  public:
-  typedef std::unordered_map<const CellType*, const EliasFano*> EliasFanoIndex;
+  typedef std::unordered_map<CellTypeID, EliasFanoID> EliasFanoIndex;
   // gene -> cell type -> eliasFano
   typedef std::unordered_map<std::string, EliasFanoIndex > CellTypeIndex;
   typedef std::deque<EliasFano> ExpressionMatrix;
@@ -217,7 +220,8 @@ class EliasFanoDB
  // private:
   CellTypeIndex metadata;
   ExpressionMatrix ef_data;
-  std::set<CellType> cell_types;
+  std::map<CellType, int> cell_types_id;
+  std::deque<CellType> inverse_cell_type;
   GeneIndex gene_counts;
   unsigned int total_cells;
   unsigned char quantization_bits;
@@ -362,10 +366,32 @@ class EliasFanoDB
   
   void dumpGenes()
   {
-    for (auto const g : gene_counts){
-      std::cout << g.first << " " ;
+    for (auto const g : gene_counts)
+    {
+      // std::cout << g.first << " " ;
+    }
+    
+    std::cout << "Total Genes:" << gene_counts.size() << std::endl;
+    for (auto const c : this->cell_types_id)
+    {
+      std::cout << c.first << " ";
+    }
+    std::cout << "Total Cell types" << std::endl;
+    
+    for (auto const& m : metadata)
+    {
+      std::cout << "Gene:" << m.first << std::endl;
+      long total = 0;
+      for (auto const& t : m.second)
+      {
+          auto str = inverse_cell_type[t.first];
+          // str.size();
+          total += str.size();
       }
-    std::cout << std::endl;
+      std::cout << total <<std:: endl;
+    }
+ 
+    
   }
 
   void loadFromFile(const std::string& filename)
@@ -373,6 +399,8 @@ class EliasFanoDB
     FILE* fp = fopen(filename.c_str(), "rb");
     int fd = fileno(fp);
 
+
+    metadata.clear();
     // Read the database version
     int version;
     readNum(fd, version);
@@ -432,7 +460,7 @@ class EliasFanoDB
     
     std::cout << "Genes support " << gene_counts.size() << std::endl;
     unsigned int cell_support;
-    std::vector<const CellType*> cell_type_ids;
+    std::vector<CellTypeID> cell_type_ids;
     cell_type_ids.reserve(cell_types_present);
     for (int i = 0; i < cell_types_present; ++i)
     {
@@ -441,11 +469,10 @@ class EliasFanoDB
       read(fd, buffer, cell_type_length);
       // Insert end of string character
       buffer[cell_type_length] = '\0';
-      this->cell_types.insert(buffer);
-      auto it = this->cell_types.find(buffer);
-      // remap the reference address
-      cell_type_ids.push_back(&(*it));
-      
+      int cell_type_id = this->cell_types_id.size();
+      this->cell_types_id[buffer] = cell_type_id;
+      this->inverse_cell_type.push_back(buffer);
+      std::cout << buffer << std::endl;
     }
 
     int index_size;
@@ -456,6 +483,7 @@ class EliasFanoDB
     {
       IndexRecord record;
       read(fd, &record, sizeof(IndexRecord));
+      records.push_back(record);
     }
     
     std::cout << "Reading raw data" << std::endl;
@@ -471,7 +499,8 @@ class EliasFanoDB
     // Build database
     for (auto const& r : records)
     {
-      metadata[gene_ids[r.gene]][cell_type_ids[r.cell_type]] = &(this->ef_data[r.index]);
+      //std::cerr << r.gene << " " <<r.cell_type << " " << r.index << std::endl;
+      metadata[gene_ids[r.gene]][r.cell_type] = r.index;
     }
     std::cout <<"All good " << std::endl;
     fclose(fp);
@@ -522,25 +551,26 @@ class EliasFanoDB
       gene_ids[g.first] = gene_id++;
     }
     // Dump cell types
-    std::map<CellType, int> ct_ids;
+
     int cell_type_id = 0;
-    int cell_types_present = cell_types.size();
+    int cell_types_present = this->cell_types_id.size();
+    writeNum(fd, cell_types_present);
     
-    write(fd, &cell_types_present, sizeof(cell_types_present));
-    
-    for (auto const& ct : cell_types)
+    for (auto const& ct : this->inverse_cell_type)
     {
       //assign unique id
       unsigned char cell_type_name_size = ct.size();
-      ct_ids[ct] = ++cell_type_id;
-      write(fd, &cell_type_name_size, sizeof(unsigned char));
+      writeNum(fd, cell_type_name_size);
       write(fd, &ct[0], cell_type_name_size);
+      //std::cout << ct << std::endl;
     }
     
     // Dump records
     // Write size of index, if it is 1:1 relation it should be consistent
     int index_size = ef_data.size();
-    write(fd, &index_size, sizeof(index_size));
+    writeNum(fd, index_size);
+    std::cout << "Index size " << index_size << std::endl;
+    
     for (auto const& g : metadata)
     {
 
@@ -548,18 +578,17 @@ class EliasFanoDB
       {
         IndexRecord record;
         record.gene = gene_ids[g.first];
-        record.cell_type = ct_ids[*ct.first];
-        record.index = ef_ids[ct.second];
-        write(fd, &record, sizeof(IndexRecord));
+        record.cell_type = ct.first;
+        record.index = ct.second;
+        writeNum(fd, record);
       }
-      
     }
+
     // Dump raw data
     for (auto const& ef : ef_data)
     {
       binarizeEliasFano(fd, ef);
     }
-    
 
     std::cout << "Database was dumped on " << filename << std::endl;
     fclose(fp);
@@ -583,15 +612,18 @@ class EliasFanoDB
       metadata[gene_name] = EliasFanoIndex();
     }
     
-    std::set<CellType>::iterator celltype_record = this->cell_types.find(cell_type);
-    if (celltype_record == this->cell_types.end())
+    auto celltype_record = this->cell_types_id.find(cell_type);
+    if (celltype_record == this->cell_types_id.end())
     {
-      this->cell_types.insert(cell_type);
+      int id = this->cell_types_id.size();
+      this->cell_types_id[cell_type] = id;
+      this->inverse_cell_type.push_back(cell_type);
+      metadata[gene_name][id] = ef_index;
+    }else
+    {
+      metadata[gene_name][this->cell_types_id[cell_type]] = ef_index;
     }
-    celltype_record = this->cell_types.find(cell_type);
     
-    const CellType* address = &(*celltype_record);
-    metadata[gene_name][address] = ef;
     
   } 
 
@@ -765,8 +797,8 @@ class EliasFanoDB
       for (auto const& dat : gene_meta)
       {
 
-        std::vector<int> ids = eliasFanoDecoding(*(dat.second));
-        cell_types[*(dat.first)] = Rcpp::wrap(ids);
+        std::vector<int> ids = eliasFanoDecoding(ef_data[dat.second]);
+        cell_types[this->inverse_cell_type[dat.first]] = Rcpp::wrap(ids);
       }
       t[gene_name] = cell_types;
     }
@@ -797,7 +829,7 @@ class EliasFanoDB
     for(auto& d : metadata)
     {
       bytes += d.first.size();
-      bytes += d.second.size() * 12;
+      bytes += d.second.size() * 8;
     }
     return bytes;
   }
@@ -807,8 +839,9 @@ class EliasFanoDB
   Rcpp::List findCellTypes(const Rcpp::CharacterVector& gene_names)
   {
     
-    std::unordered_map<const CellType*, std::set<std::string> > cell_types;
+    std::unordered_map<CellTypeID, std::set<std::string> > cell_types;
     std::vector<std::string> genes;
+    // Fast pruning if there is not an entry we do not need to consider
     for (Rcpp::CharacterVector::const_iterator it = gene_names.begin(); it != gene_names.end(); ++it)
     {
       std::string gene_name = Rcpp::as<std::string>(*it);
@@ -843,11 +876,12 @@ class EliasFanoDB
       {
         continue;
       }
-      std::vector<int> ef = eliasFanoDecoding(*(metadata[*(ct.second.begin())][ct.first]));
+      //comment this one! what does it do?
+      std::vector<int> ef = eliasFanoDecoding(ef_data[ metadata[*(ct.second.begin())][ct.first] ] );
       std::set<int> int_cells(ef.begin(), ef.end());
       for (auto const& g : ct.second)
       {
-        auto cells = eliasFanoDecoding(*(metadata[g][ct.first]));
+        auto cells = eliasFanoDecoding(this->ef_data[metadata[g][ct.first]]);
         std::set<int> new_set;
         std::set_intersection(int_cells.begin(), int_cells.end(), cells.begin(), cells.end(), std::inserter(new_set, new_set.begin()));
         if(new_set.size() != 0)
@@ -863,7 +897,7 @@ class EliasFanoDB
       if (!empty_set)
       {
         // std::vector<int> res(int_cells.begin(), int_c;
-        t[*(ct.first)] = Rcpp::wrap(int_cells);
+        t[this->inverse_cell_type[ct.first]] = Rcpp::wrap(int_cells);
       }
     }
     return t;
@@ -885,11 +919,11 @@ class EliasFanoDB
         std::string ct = Rcpp::as<std::string>(_ct);
         
         std::vector<unsigned int> ids  = Rcpp::as<std::vector<unsigned int> >(cell_types_hits[ct]);
-        const CellType* ct_p = &(*(this->cell_types.find(ct)));
+        // auto ct_p = this->cell_types_id.find(ct);
         
         for (auto const& id : ids)
         {
-          CellID unique_id = {id, ct_p};
+          CellID unique_id = {id, this->cell_types_id[ct]};
           // Initialize the data structure
           if(cell_index.find(unique_id) == cell_index.end())
           {
@@ -916,24 +950,22 @@ class EliasFanoDB
     const FPTree fptree{transactions, min_support_cutoff};
     const std::set<Pattern> patterns = fptree_growth(fptree);
     
-    
     std::vector<std::pair<std::string, double> > tfidf;
     for ( auto const& item : patterns)
     {
       Rcpp::List gene_query;
       const auto& gene_set = item.first;
       double query_score = log(this->total_cells) * gene_set.size();
-      std::vector<const CellType*> gene_set_cell_types;
+      std::vector<CellType> gene_set_cell_types;
       for (auto const& gene: gene_set)
       {
         
         query_score -= log(this->gene_counts[gene]);
-        std::vector<const CellType*> gene_cell_types;
+        std::vector<CellType> gene_cell_types;
         for(auto const& ct : metadata[gene])
         {
-
-          gene_cell_types.push_back(ct.first);
-          std::cout << *(ct.first) << " on "<<  ct.first << std::endl;
+          gene_cell_types.push_back(this->inverse_cell_type[ct.first]);
+          // std::cout << this->inverse_cell_type[ct.first] << " on "<<  ct.first << std::endl;
         }
         if (gene_set_cell_types.empty())
         {
@@ -941,7 +973,7 @@ class EliasFanoDB
         }
         else
         {
-          std::vector<const CellType*> intersected;
+          std::vector<CellType> intersected;
           
           std::set_intersection(
             gene_set_cell_types.begin(), 
@@ -959,9 +991,10 @@ class EliasFanoDB
       double ct_idf = 0;
       for(auto const& gene: gene_set)
       {
+        // Intersected cell types so this should exist no reason to query existance
         for (auto const& ct : gene_set_cell_types)
         {
-          ct_idf += metadata[gene][ct]->idf;
+          ct_idf += this->ef_data[ metadata[gene][ this->cell_types_id[ct]] ].idf;
         }
       }
       query_score /= ct_idf;
@@ -993,8 +1026,8 @@ class EliasFanoDB
     for(auto const& ct : iter->second)
     {
       std::cout << "Cell Type:" << ct.first << std::endl;
-      auto v = eliasFanoDecoding(*(ct.second));
-      for( auto& cell : v)
+      auto v = eliasFanoDecoding(ef_data[ct.second]);
+      for( auto const& cell : v)
       {
         std::cout << cell << ", ";
       }
@@ -1014,6 +1047,26 @@ class EliasFanoDB
     }
     return eliasFanoDecoding(ef_data[index]);
   }
+  
+  int insertNewCellType(const std::string& cell_type)
+  {
+    int id = this->inverse_cell_type.size();
+
+    if ( this->cell_types_id.find(cell_type) != this->cell_types_id.end())
+    {
+
+      std::cerr << "This should not happen!! Duplicate Cell Type: " << cell_type << std::endl;
+      id = this->cell_types_id[cell_type];
+    }
+    else
+    {
+      id = this->inverse_cell_type.size();
+      this->inverse_cell_type.push_back(cell_type);
+      this->cell_types_id[cell_type] = id;
+    }
+    return id;
+    
+  }
 
   int mergeDB(const EliasFanoDB& db)
   {    
@@ -1021,44 +1074,39 @@ class EliasFanoDB
     
     // the DB will grow by this amount of cells
     this->total_cells += extdb.total_cells;
-    
-    // Copy data on the external object
-    // and update pointers
-    // In order to maintain consistency
-    for ( auto& gene: extdb.metadata)
-    {
-      for( auto& ct : gene.second)
-      {
-        ef_data.push_back(*ct.second);
-        
-        // Update with the new entry
-        ct.second = &ef_data.back();
-      }
-    }
 
-    for(auto const& gene : extdb.metadata)
+    // Insert new cell types in the database
+    for (auto const& ct : extdb.inverse_cell_type)
+    {
+      insertNewCellType(ct);
+    }
+    
+    // Iterate through the data model
+    for ( auto& gene: extdb.metadata)
     {
       // Update cell counts for the individual gene
       if (this->gene_counts.find(gene.first) == this->gene_counts.end())
       {
         this->gene_counts[gene.first] = 0;
       }
+      
       this->gene_counts[gene.first] += extdb.gene_counts[gene.first];
       
-
+      
       // if gene does not exist yet initialize entry in metadata
       if(metadata.find(gene.first) == metadata.end())
       {
         metadata[gene.first] = EliasFanoIndex();
       }
-
-      // Insert new cell types
-      for(auto const& ct: extdb.metadata[gene.first])
+      
+      for( auto& ct : gene.second)
       {
-        cell_types.insert(*(ct.first));
-        auto new_ct = cell_types.find(*(ct.first));
-        // set the reference at the map
-        metadata[gene.first][&(*new_ct)] = ct.second;
+        int new_id = ef_data.size();
+        // Push the new elias fano index in the database
+        ef_data.push_back(extdb.ef_data[ct.second]);
+        // Update with the new entry
+        int cell_type_id = this->cell_types_id[extdb.inverse_cell_type[ct.first]];
+        metadata[gene.first][cell_type_id] = new_id;
       }
     }
     return 0;
