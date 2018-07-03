@@ -171,7 +171,7 @@ Quantile lognormalcdf(std::vector<int> ids, const Rcpp::NumericVector& v, unsign
     }
   }
   return expr;
-}
+ }
 
 
 int byteToBoolVector(const std::vector<char> buf, std::vector<bool>& bool_vec)
@@ -215,6 +215,7 @@ class EliasFanoDB
   std::deque<CellType> inverse_cell_type;
   GeneIndex gene_counts;
   unsigned int total_cells;
+  long byte_pointer;
   unsigned char quantization_bits;
   std::vector<unsigned char> serialized_bytestream;
   
@@ -237,8 +238,10 @@ class EliasFanoDB
   template<typename T>
   int read(T& val)
   {
-    memcpy(&val, &this->serialized_bytestream[0], sizeof(T));
-    this->serialized_bytestream.erase(this->serialized_bytestream.begin(), this->serialized_bytestream.begin() + sizeof(T));
+    memcpy(&val, &this->serialized_bytestream[byte_pointer], sizeof(T));
+    // SLOOOOOOOOOOOOOW
+    // this->serialized_bytestream.erase(this->serialized_bytestream.begin(), this->serialized_bytestream.begin() + sizeof(T));
+    byte_pointer += sizeof(T);
     // if(read(fd, &val, sizeof(T)) < 0)
     //   {
         // std::cerr << "Something went wrong" << std::endl;
@@ -251,7 +254,16 @@ class EliasFanoDB
   int write(const T& val)
   {
     const unsigned char* ptr = reinterpret_cast<const unsigned char*>(&val);
-    this->serialized_bytestream.insert(this->serialized_bytestream.end(), ptr, ptr + sizeof(T));
+    
+    if(byte_pointer + sizeof(T) >= this->serialized_bytestream.size())
+    {
+      // Is there a chance the buffer to be bigger than 16MB
+      // Grow the buffer by 16MB
+      this->serialized_bytestream.resize(this->serialized_bytestream.size() + (1 << 20));
+    }
+    // this->serialized_bytestream.insert(this->serialized_bytestream.end(), ptr, ptr + sizeof(T));
+    memcpy(&this->serialized_bytestream[byte_pointer], ptr, sizeof(T));
+    byte_pointer += sizeof(T);
     
     // if(write(fd, &val, sizeof(T)) != sizeof(T))
     //   {
@@ -261,25 +273,47 @@ class EliasFanoDB
     return 0;
   }
 
-  //TODO(Nikos) Grow the buffer in chunks??
+
   int writeBuffer(const char* buf, int buf_len)
   {
-    this->serialized_bytestream.insert(this->serialized_bytestream.end(), buf, buf + buf_len);
+    if(byte_pointer + buf_len >= this->serialized_bytestream.size())
+    {
+      // Grow the buffer by 16MB
+      this->serialized_bytestream.resize(this->serialized_bytestream.size() + (1 << 20));
+    }
+    
+    memcpy(&this->serialized_bytestream[byte_pointer], buf, buf_len);
+    byte_pointer += buf_len;
+    
+    // this->serialized_bytestream.insert(this->serialized_bytestream.end(), buf, buf + buf_len);
     return 0;
   }
  
   int readBuffer(void* buf, int buf_len)
   {
-    memcpy(buf, &this->serialized_bytestream[0], buf_len);
+    
+    memcpy(buf, &this->serialized_bytestream[this->byte_pointer], buf_len);
+    this->byte_pointer += buf_len;
     // erase is cheap constant in a vector so i do not think this needs optimization
-    this->serialized_bytestream.erase(this->serialized_bytestream.begin(), this->serialized_bytestream.begin() + buf_len);
+    // this->serialized_bytestream.erase(this->serialized_bytestream.begin(), this->serialized_bytestream.begin() + buf_len);
     return 0;
   }
   
   
-
+  int readFile(const std::string& filename)
+  {
+    FILE *fp = fopen(filename.c_str(), "rb");
+    fseek(fp, 0, SEEK_END);
+    long bytes = ftell(fp);
+    // Rewind the fp to the start of the file so we can read the contents
+    fseek(fp, 0, SEEK_SET); 
+    this->serialized_bytestream.resize(bytes);
+    fread(&this->serialized_bytestream[0], bytes, 1, fp);
+    fclose(fp);
+    return 0;
+  }
   
-  void deserializeEliasFano(int fd, EliasFano& ef)
+  void deserializeEliasFano(EliasFano& ef)
   {
     int cells;
     
@@ -345,7 +379,7 @@ class EliasFanoDB
 
   }
 
-  void binarizeEliasFano(int fd, const EliasFano& ef)
+  void binarizeEliasFano(const EliasFano& ef)
   {
     // int i = 0;
     int cells = ef.L.size() / ef.l;
@@ -424,11 +458,20 @@ class EliasFanoDB
 
   void loadFromFile(const std::string& filename)
   {
-    FILE* fp = fopen(filename.c_str(), "rb");
-    int fd = fileno(fp);
 
 
+    // Clear the database
     metadata.clear();
+    cell_types_id.clear();
+    inverse_cell_type.clear();
+    gene_counts.clear();
+    
+    
+
+    
+    readFile(filename);
+    
+
     // Read the database version
     int version;
     read(version);
@@ -460,7 +503,6 @@ class EliasFanoDB
     // Read gene names
     char buffer[256];
     std::vector<std::string> gene_ids;
-    gene_counts.clear();
     gene_ids.reserve(genes_present);
     for (int i = 0; i < genes_present; ++i)
     {
@@ -473,6 +515,7 @@ class EliasFanoDB
       read(cell_support);
       this->gene_counts[buffer] = cell_support;
       metadata[buffer] = EliasFanoIndex();
+      // std::cout << "gene" << buffer << std::endl;
       gene_ids.push_back(buffer);
     }
 
@@ -518,7 +561,7 @@ class EliasFanoDB
     for (int i = 0; i < index_size; i++)
     {
       EliasFano ef;
-      deserializeEliasFano(fd, ef);
+      deserializeEliasFano(ef);
       ef_data.push_back(ef);
        
     }
@@ -530,14 +573,17 @@ class EliasFanoDB
       //std::cerr << r.gene << " " <<r.cell_type << " " << r.index << std::endl;
       metadata[gene_ids[r.gene]][r.cell_type] = r.index;
     }
-    std::cout <<"All good " << std::endl;
-    fclose(fp);
+    std::cout <<"All good!" << std::endl;
+    std::cout << "Bytes left to read:" << this->serialized_bytestream.size() - byte_pointer << std::endl;
+    this->serialized_bytestream.clear();
+    
   }
 
 
 
   void serializeToFile(const std::string& filename)
   {
+    this->serialized_bytestream.clear();
     FILE* fp;
 
     fp = fopen(filename.c_str(), "wb");
@@ -615,10 +661,12 @@ class EliasFanoDB
     // Dump raw data
     for (auto const& ef : ef_data)
     {
-      binarizeEliasFano(fd, ef);
+      binarizeEliasFano(ef);
     }
 
     std::cout << "Database was dumped on " << filename << std::endl;
+
+    fwrite(&this->serialized_bytestream[0], this->serialized_bytestream.size(), 1, fp);
     fclose(fp);
     
     return;
@@ -736,7 +784,12 @@ class EliasFanoDB
  public:
 
   // constructor
-  EliasFanoDB(): global_indices(false), warnings(0), total_cells(0), quantization_bits(2)
+  EliasFanoDB(): 
+    global_indices(false), 
+    warnings(0), 
+    total_cells(0), 
+    quantization_bits(2), 
+    byte_pointer(0)
   {
     
   }
