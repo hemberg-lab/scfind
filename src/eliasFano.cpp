@@ -1,5 +1,5 @@
 #include <Rcpp.h>
-#include <unistd.h>
+// #include <unistd.h>
 #include <iostream>
 #include <bitset>
 #include <algorithm>
@@ -55,11 +55,11 @@ typedef struct
 struct Cell_ID
 {
   unsigned int num;
-  const CellType* cell_type;
+  const int cell_type;
   // Hashing
   size_t operator()() const
   {
-    return std::hash<const CellType*>{}(cell_type) ^ std::hash<unsigned int>{}(num);
+    return std::hash<int>{}(cell_type) ^ std::hash<unsigned int>{}(num);
   }
   
   size_t operator==(const struct Cell_ID& obj) const 
@@ -84,32 +84,10 @@ namespace std
   };
 }
 
-
 // Highly Recommended
 // TODO(Nikos) refactor code with these to avoid nasty bug that will misalign the whole bytestream
 // ;)
-template<typename T>
-int readNum(int fd, T& val)
-{
-  if(read(fd, &val, sizeof(T)) < 0)
-  {
-    std::cerr << "Something went wrong" << std::endl;
-    return 1;
-  }
-  
-  return 0;
-}
 
-template<typename T>
-int writeNum(int fd, const T& val)
-{
-  if(write(fd, &val, sizeof(T)) != sizeof(T))
-  {
-    std::cerr << "Something went wrong" << std::endl;
-    return 1;
-  }
-  return 0;
-}
 
 std::string str_join( const std::vector<std::string>& elements, const char* const separator)
 {
@@ -171,39 +149,57 @@ Quantile lognormalcdf(std::vector<int> ids, const Rcpp::NumericVector& v, unsign
 {
   Quantile expr;
   expr.mu = std::accumulate(ids.begin(),ids.end(), 0, [&v](const double& mean, const int& index){
-      return  mean + v[index];
+      return  mean + v[index - 1];
     }) / ids.size();
   
   expr.sigma = sqrt(std::accumulate(ids.begin(), ids.end(), 0, [&v, &expr](const double& variance, const int& index){
-        return pow(expr.mu - v[index], 2);
+        return pow(expr.mu - v[index - 1], 2);
       }) / ids.size());
   // initialize vector with zeros
   expr.quantile.resize(ids.size() * bits, 0);
+  //std::cerr << "Mean,std" << expr.mu << "," << expr.sigma << std::endl;
+  //std::cerr << "ids size " << ids.size() << " v size " << v.size() << std::endl;
   int expr_quantile_i = 0;
-  for (auto& s : v)
+  for (auto const& s : ids)
   {
-    unsigned int t = round(normalCDF(s, expr.mu, expr.sigma) * (1 << bits));  
+    unsigned int t = round(normalCDF(v[s], expr.mu, expr.sigma) * (1 << bits));  
     std::bitset<BITS> q = int2bin_core(t);
     for (int i = 0; i < bits; ++i)
     {
-      expr.quantile[expr_quantile_i++] = q[i];
+       expr.quantile[expr_quantile_i++] = q[i];
+      
     }
   }
   return expr;
+ }
+
+
+int byteToBoolVector(const std::vector<char> buf, std::vector<bool>& bool_vec)
+{
+  bool_vec.resize((buf.size() << 3), 0);
+  int c = 0;
+  for (auto const& b : buf)
+  {
+    for ( int i = 0; i < 8; i++)
+    {
+      bool_vec[c++] = ((b >> i) & 1);
+    }
+  }
+    
 }
-
-
 
 
 class EliasFanoDB;
 RCPP_EXPOSED_CLASS(EliasFanoDB)
 
+typedef int EliasFanoID;
+typedef int CellTypeID;
 
 class EliasFanoDB
 {
 
  public:
-  typedef std::unordered_map<const CellType*, const EliasFano*> EliasFanoIndex;
+  typedef std::unordered_map<CellTypeID, EliasFanoID> EliasFanoIndex;
   // gene -> cell type -> eliasFano
   typedef std::unordered_map<std::string, EliasFanoIndex > CellTypeIndex;
   typedef std::deque<EliasFano> ExpressionMatrix;
@@ -214,10 +210,14 @@ class EliasFanoDB
  // private:
   CellTypeIndex metadata;
   ExpressionMatrix ef_data;
-  std::set<CellType> cell_types;
+  std::map<CellType, int> cell_types_id;
+  std::deque<CellType> inverse_cell_type;
   GeneIndex gene_counts;
   unsigned int total_cells;
+  long byte_pointer;
   unsigned char quantization_bits;
+  std::vector<unsigned char> serialized_bytestream;
+  
   
   bool global_indices;
   int warnings;
@@ -232,35 +232,96 @@ class EliasFanoDB
     return size;
   }
 
-  int readBuffer(const std::vector<char> buf, std::vector<bool>& bool_vec)
+  
+  
+  template<typename T>
+  int read(T& val)
   {
-    bool_vec.resize((buf.size() << 3), 0);
-    int c = 0;
-    for (auto const& b : buf)
+    memcpy(&val, &this->serialized_bytestream[byte_pointer], sizeof(T));
+    // SLOOOOOOOOOOOOOW
+    // this->serialized_bytestream.erase(this->serialized_bytestream.begin(), this->serialized_bytestream.begin() + sizeof(T));
+    byte_pointer += sizeof(T);
+    // if(read(fd, &val, sizeof(T)) < 0)
+    //   {
+        // std::cerr << "Something went wrong" << std::endl;
+    //     return 1;
+    //   }
+    return 0;
+  }
+
+  template<typename T>
+  int expandStream(const T& new_length)
+  {
+    if(this->byte_pointer + new_length >= this->serialized_bytestream.size())
     {
-      for ( int i = 0; i < 8; i++)
-      {
-        bool_vec[c++] = ((b >> i) & 1);
-      }
+      // Is there a chance the buffer to be bigger than 16MB
+      // Grow the buffer by 16MB
+      // std::cout << "expanding stream" << std::endl;
+      this->serialized_bytestream.resize(this->serialized_bytestream.size() + (1 << 24));
     }
-    
   }
   
-  void deserializeEliasFano(int fd, EliasFano& ef)
+  template<typename T>
+  int write(const T& val)
+  {
+    // const unsigned char* ptr = reinterpret_cast<const unsigned char*>(&val);
+    expandStream(sizeof(T));
+    memcpy(&this->serialized_bytestream[this->byte_pointer], &val, sizeof(T));
+    byte_pointer += sizeof(T);
+    return 0;
+  }
+
+
+  int writeBuffer(const char* buf, int buf_len)
+  {
+    
+    expandStream(buf_len);
+    memcpy(&this->serialized_bytestream[this->byte_pointer], buf, buf_len);
+    byte_pointer += buf_len;
+    
+    // this->serialized_bytestream.insert(this->serialized_bytestream.end(), buf, buf + buf_len);
+    return 0;
+  }
+ 
+  int readBuffer(void* buf, int buf_len)
+  {
+    
+    memcpy(buf, &this->serialized_bytestream[this->byte_pointer], buf_len);
+    this->byte_pointer += buf_len;
+    // erase is cheap constant in a vector so i do not think this needs optimization
+    // this->serialized_bytestream.erase(this->serialized_bytestream.begin(), this->serialized_bytestream.begin() + buf_len);
+    return 0;
+  }
+  
+  
+  int readFile(const std::string& filename)
+  {
+    FILE *fp = fopen(filename.c_str(), "rb");
+    fseek(fp, 0, SEEK_END);
+    long bytes = ftell(fp);
+    // Rewind the fp to the start of the file so we can read the contents
+    fseek(fp, 0, SEEK_SET); 
+    this->serialized_bytestream.resize(bytes);
+    fread(&this->serialized_bytestream[0], bytes, 1, fp);
+    fclose(fp);
+    return 0;
+  }
+  
+  void deserializeEliasFano(EliasFano& ef)
   {
     int cells;
     
-    readNum(fd, cells);
-    readNum(fd, ef.l);
-    readNum(fd, ef.idf);
+    read(cells);
+    read(ef.l);
+    read(ef.idf);
     
     int H_size, L_size, quant_size;
     unsigned char test;
-    readNum(fd, test);
+    read(test);
     assert(test == 0xFF);
-    readNum(fd, H_size);
-    readNum(fd, L_size);
-    readNum(fd, quant_size);
+    read(H_size);
+    read(L_size);
+    read(quant_size);
     
     
     // Multiply by eight, shift three positions
@@ -274,8 +335,8 @@ class EliasFanoDB
 
     // Read H
     buffer.resize(H_size, 0);
-    read(fd,&buffer[0], buffer.size());
-    readBuffer(buffer, ef.H);
+    readBuffer(&buffer[0], buffer.size());
+    byteToBoolVector(buffer, ef.H);
     // Trim padding to last 1
     for(int i = ef.H.size() - 1; i > 0; i--)
     {
@@ -290,41 +351,43 @@ class EliasFanoDB
     
     // Read L
     buffer.resize(L_size, 0);
-    read(fd, &buffer[0], buffer.size());
+    readBuffer(&buffer[0], buffer.size());
     
-    readBuffer(buffer, ef.L);
+    byteToBoolVector(buffer, ef.L);
+    // Trim buffer to the right size
     ef.L.resize(cells * ef.l);
     
     
     // Read expression values
     buffer.resize(quant_size, 0);
-    read(fd, &buffer[0], buffer.size());
-    readBuffer(buffer, ef.expr.quantile);
+    readBuffer(&buffer[0], buffer.size());
+    byteToBoolVector(buffer, ef.expr.quantile);
+    
     
     // Take care of the byte quantization
     // Resize container to the right size
     ef.expr.quantile.resize(this->quantization_bits * cells);
    
-    readNum(fd, ef.expr.mu);
-    readNum(fd, ef.expr.sigma);
-    // std::cout << "Mu : " << ef.expr.mu << "Sigma : " << ef.expr.sigma << std::endl;
+    read(ef.expr.mu);
+    read(ef.expr.sigma);
+
   }
 
-  void binarizeEliasFano(int fd, const EliasFano& ef)
+  void binarizeEliasFano(const EliasFano& ef)
   {
     // int i = 0;
     int cells = ef.L.size() / ef.l;
-    writeNum(fd, cells);
-    writeNum(fd, ef.l);
-    writeNum(fd, ef.idf);
+    write(cells);
+    write(ef.l);
+    write(ef.idf);
     int H_size = getSizeBoolVector(ef.H);
     int L_size = getSizeBoolVector(ef.L);
     int quant_size = getSizeBoolVector(ef.expr.quantile);
     unsigned char t = 0xFF;
-    writeNum(fd,t);
-    writeNum(fd, H_size);
-    writeNum(fd, L_size);
-    writeNum(fd, quant_size);
+    write(t);
+    write(H_size);
+    write(L_size);
+    write(quant_size);
     
     std::vector<char> H_buf, L_buf, expr;
     // Initialize memory to zeros
@@ -348,24 +411,52 @@ class EliasFanoDB
       expr[i / 8] |= ef.expr.quantile[i] << (i % 8);
     }
 
-    write(fd, &H_buf[0], H_buf.size());
-    write(fd, &L_buf[0], L_buf.size());
-    write(fd, &expr[0], expr.size());
-    writeNum(fd, ef.expr.mu);
-    writeNum(fd, ef.expr.sigma);
+    writeBuffer(&H_buf[0], H_buf.size());
+    writeBuffer(&L_buf[0], L_buf.size());
+    writeBuffer(&expr[0], expr.size());
+    write(ef.expr.mu);
+    write(ef.expr.sigma);
     
     return;
   }
-
-
-  void loadFromFile(const std::string& filename)
+  
+  void dumpGenes()
   {
-    FILE* fp = fopen(filename.c_str(), "rb");
-    int fd = fileno(fp);
+    // for (auto const g : gene_counts)
+    // {
+    //   // std::cout << g.first << " " ;
+    // }
+    
+    std::cout << "Total Genes:" << gene_counts.size() << std::endl;
+    for (auto const c : this->cell_types_id)
+    {
+      std::cout << c.first << " ";
+    }
+    std::cout << "Total Cell types" << std::endl;
+    
+    for (auto const& m : metadata)
+    {
+      std::cout << "Gene:" << m.first << std::endl;
+      long total = 0;
+      for (auto const& t : m.second)
+      {
+          auto str = inverse_cell_type[t.first];
+          // str.size();
+          total += str.size();
+      }
+      std::cout << total <<std:: endl;
+    }
+ 
+    
+  }
+
+
+  void deserializeDB()
+  {
 
     // Read the database version
     int version;
-    readNum(fd, version);
+    read(version);
     std::cout << "Version " << version << std::endl;
     if (version != SERIALIZATION_VERSION)
     {
@@ -375,14 +466,14 @@ class EliasFanoDB
 
     
     // Read the total cells stored in the database
-    read(fd, &this->total_cells, sizeof(this->total_cells));
+    read(this->total_cells);
     std::cout << "Total Cells " << this->total_cells << std::endl;
     // Read the number of bits used for the quantization of the expression level quantiles
     
-    readNum(fd, this->quantization_bits);
+    read(this->quantization_bits);
     std::cout << "Quantization bits " << (unsigned int)this->quantization_bits << std::endl;
     int genes_present;
-    readNum(fd, genes_present);
+    read(genes_present);
     
     std::cout << "Present genes " << genes_present << std::endl;
     if (not(genes_present > 0 and genes_present < 100000))
@@ -395,21 +486,24 @@ class EliasFanoDB
     char buffer[256];
     std::vector<std::string> gene_ids;
     gene_ids.reserve(genes_present);
-    for ( int i = 0; i < genes_present; ++i)
+    for (int i = 0; i < genes_present; ++i)
     {
       int cell_support;
       unsigned char gene_name_length;
-      readNum(fd, gene_name_length);
-      read(fd, buffer, gene_name_length);
-      readNum(fd, cell_support);
-      gene_counts[buffer] = cell_support;
+      read(gene_name_length);
+      readBuffer(buffer, gene_name_length);
+      // Insert end of character string
+      buffer[gene_name_length] = '\0';
+      read(cell_support);
+      this->gene_counts[buffer] = cell_support;
       metadata[buffer] = EliasFanoIndex();
+      // std::cout << "gene" << buffer << std::endl;
       gene_ids.push_back(buffer);
     }
 
     // Read cell type names
     int cell_types_present;
-    readNum(fd, cell_types_present);
+    read(cell_types_present);
     std::cout << "Present cell_types " << cell_types_present << std::endl;
     if(not(cell_types_present > 0 and cell_types_present < 50000))
     {
@@ -417,36 +511,39 @@ class EliasFanoDB
       return;
     }
     
+    std::cout << "Genes support " << gene_counts.size() << std::endl;
     unsigned int cell_support;
-    std::vector<const CellType*> cell_type_ids;
+    std::vector<CellTypeID> cell_type_ids;
     cell_type_ids.reserve(cell_types_present);
     for (int i = 0; i < cell_types_present; ++i)
     {
       unsigned char cell_type_length;
-      readNum(fd, cell_type_length);
-      read(fd, buffer, cell_type_length);
-      this->cell_types.insert(buffer);
-      auto it = this->cell_types.find(buffer);
-      // remap the reference address
-      cell_type_ids.push_back(&(*it));
-      
+      read(cell_type_length);
+      readBuffer(buffer, cell_type_length);
+      // Insert end of string character
+      buffer[cell_type_length] = '\0';
+      int cell_type_id = this->cell_types_id.size();
+      this->cell_types_id[buffer] = cell_type_id;
+      this->inverse_cell_type.push_back(buffer);
+      std::cout << buffer << std::endl;
     }
 
     int index_size;
-    readNum(fd, index_size);
+    read(index_size);
     std::cout << "Index size " << index_size << std::endl;
     std::vector<IndexRecord> records;
     for (int i = 0; i < index_size; ++i)
     {
       IndexRecord record;
-      read(fd, &record, sizeof(IndexRecord));
+      read(record);
+      records.push_back(record);
     }
     
     std::cout << "Reading raw data" << std::endl;
     for (int i = 0; i < index_size; i++)
     {
       EliasFano ef;
-      deserializeEliasFano(fd, ef);
+      deserializeEliasFano(ef);
       ef_data.push_back(ef);
        
     }
@@ -455,20 +552,48 @@ class EliasFanoDB
     // Build database
     for (auto const& r : records)
     {
-      metadata[gene_ids[r.gene]][cell_type_ids[r.cell_type]] = &(this->ef_data[r.index]);
+      //std::cerr << r.gene << " " <<r.cell_type << " " << r.index << std::endl;
+      metadata[gene_ids[r.gene]][r.cell_type] = r.index;
     }
-    std::cout <<"All good " << std::endl;
-    fclose(fp);
+    std::cout <<"All good!" << std::endl;
+    std::cout << "Bytes left to read:" << this->serialized_bytestream.size() - byte_pointer << std::endl;
+    this->serialized_bytestream.clear();
+    
+  }
+
+  void clearDB()
+  {
+    // Clear the database
+    metadata.clear();
+    cell_types_id.clear();
+    inverse_cell_type.clear();
+    gene_counts.clear();
+    serialized_bytestream.clear();
+  }
+
+  
+
+  void loadFromFile(const std::string& filename)
+  {
+    clearDB();
+    readFile(filename);
+    deserializeDB();
   }
 
 
-
-  void serializeToFile(const std::string& filename)
+  void loadByteStream(const Rcpp::RawVector& stream)
   {
-    FILE* fp;
+    this->serialized_bytestream = std::vector<unsigned char>(stream.begin(), stream.end());
+    
+    deserializeDB();
+    std::cout << "Database deserialized!" << std:: endl;
 
-    fp = fopen(filename.c_str(), "wb");
-    int fd = fileno(fp);
+  }
+
+
+  void serialize()
+  {
+    this->serialized_bytestream.clear();
     
     std::map<const EliasFano*, int> ef_ids;
     int ef_id = 0;
@@ -478,16 +603,16 @@ class EliasFanoDB
     }
     
     int version = SERIALIZATION_VERSION;
-    writeNum(fd,version);
+    write(version);
 
     // Dump the total amount of cells
-    writeNum(fd, this->total_cells);
+    write(this->total_cells);
     // Dump the quantization bits for storing the expression level of the genes
-    writeNum(fd, this->quantization_bits);
+    write(this->quantization_bits);
     
     // Number of genes present in the database
     int genes_present = gene_counts.size();
-    writeNum(fd, genes_present);
+    write(genes_present);
 
     
     int gene_id = 0;
@@ -499,32 +624,33 @@ class EliasFanoDB
       // Size of cell type can be from 0 to 255
       unsigned char gene_name_size = g.first.size();
       
-      write(fd, &gene_name_size, sizeof(unsigned char));
-      write(fd, &g.first[0], gene_name_size);
+      write(gene_name_size);
+      writeBuffer(&g.first[0], gene_name_size);
       // Dump gene idf
-      write(fd, &g.second, sizeof(g.second));
+      write(g.second);
       gene_ids[g.first] = gene_id++;
     }
     // Dump cell types
-    std::map<CellType, int> ct_ids;
+
     int cell_type_id = 0;
-    int cell_types_present = cell_types.size();
+    int cell_types_present = this->cell_types_id.size();
+    write(cell_types_present);
     
-    write(fd, &cell_types_present, sizeof(cell_types_present));
-    
-    for (auto const& ct : cell_types)
+    for (auto const& ct : this->inverse_cell_type)
     {
       //assign unique id
       unsigned char cell_type_name_size = ct.size();
-      ct_ids[ct] = ++cell_type_id;
-      write(fd, &cell_type_name_size, sizeof(unsigned char));
-      write(fd, &ct[0], cell_type_name_size);
+      write(cell_type_name_size);
+      writeBuffer(&ct[0], cell_type_name_size);
+      //std::cout << ct << std::endl;
     }
     
     // Dump records
     // Write size of index, if it is 1:1 relation it should be consistent
     int index_size = ef_data.size();
-    write(fd, &index_size, sizeof(index_size));
+    write(index_size);
+    std::cout << "Index size " << index_size << std::endl;
+    
     for (auto const& g : metadata)
     {
 
@@ -532,22 +658,36 @@ class EliasFanoDB
       {
         IndexRecord record;
         record.gene = gene_ids[g.first];
-        record.cell_type = ct_ids[*ct.first];
-        record.index = ef_ids[ct.second];
-        write(fd, &record, sizeof(IndexRecord));
+        record.cell_type = ct.first;
+        record.index = ct.second;
+        write(record);
       }
-      
     }
+
     // Dump raw data
     for (auto const& ef : ef_data)
     {
-      binarizeEliasFano(fd, ef);
+      binarizeEliasFano(ef);
     }
-    
 
+    return;
+  }
+  
+  Rcpp::RawVector getByteStream()
+  {
+    serialize();
+    Rcpp::RawVector r_obj = Rcpp::wrap(this->serialized_bytestream);
+    this->serialized_bytestream.clear();
+    return r_obj;
+  }
+  void serializeToFile(const std::string& filename)
+  {
+    serialize();
+    FILE* fp = fopen(filename.c_str(), "wb");
+    fwrite(&this->serialized_bytestream[0], this->byte_pointer, 1, fp);
     std::cout << "Database was dumped on " << filename << std::endl;
     fclose(fp);
-    
+    this->serialized_bytestream.clear();
     return;
   }
 
@@ -567,15 +707,18 @@ class EliasFanoDB
       metadata[gene_name] = EliasFanoIndex();
     }
     
-    std::set<CellType>::iterator celltype_record = this->cell_types.find(cell_type);
-    if (celltype_record == this->cell_types.end())
+    auto celltype_record = this->cell_types_id.find(cell_type);
+    if (celltype_record == this->cell_types_id.end())
     {
-      this->cell_types.insert(cell_type);
+      int id = this->cell_types_id.size();
+      this->cell_types_id[cell_type] = id;
+      this->inverse_cell_type.push_back(cell_type);
+      metadata[gene_name][id] = ef_index;
+    }else
+    {
+      metadata[gene_name][this->cell_types_id[cell_type]] = ef_index;
     }
-    celltype_record = this->cell_types.find(cell_type);
     
-    const CellType* address = &(*celltype_record);
-    metadata[gene_name][address] = ef;
     
   } 
 
@@ -598,8 +741,7 @@ class EliasFanoDB
     ef.L.resize(l * ids.size(), false);
 
     BoolVec::iterator l_iter = ef.L.begin();
-    ef.expr = lognormalcdf(ids, values, 2);
-    
+    ef.expr = lognormalcdf(ids, values, this->quantization_bits);
     
     
     for (auto expr = ids.begin(); expr != ids.end(); ++expr)
@@ -619,6 +761,7 @@ class EliasFanoDB
       ef.H[m - 1] = true;
     }
     ef_data.push_back(ef);
+    // std::cerr <<"New index" << ef_data.size() - 1 << std::endl;
     // return the index of the ef_data in the deque
     return ef_data.size() - 1;
   }
@@ -660,10 +803,16 @@ class EliasFanoDB
  public:
 
   // constructor
-  EliasFanoDB(): global_indices(false), warnings(0), total_cells(0), quantization_bits(2)
+  EliasFanoDB(): 
+    global_indices(false), 
+    warnings(0), 
+    total_cells(0), 
+    quantization_bits(2), 
+    byte_pointer(0)
   {
     
   }
+
   // This is invoked on slices of the expression matrix of the dataset 
   long encodeMatrix(const std::string& cell_type, const Rcpp::NumericMatrix& gene_matrix)
   {
@@ -673,10 +822,9 @@ class EliasFanoDB
     gene_names.reserve(genes.size());
 
 
-    // Inc\
-rease the cell number present in the index
+    // Increase the cell number present in the index
     this->total_cells += gene_matrix.ncol();
-
+    
     for(Rcpp::CharacterVector::iterator gene_it = genes.begin(); gene_it != genes.end(); ++gene_it)
     {
       std::string gene_name = Rcpp::as<std::string>(*gene_it);
@@ -687,9 +835,10 @@ rease the cell number present in the index
         this->gene_counts[gene_name] = 0;
       }
     }
-     
+    
     for(unsigned int gene_row = 0; gene_row < gene_matrix.nrow(); ++gene_row)
     {
+      
       const Rcpp::NumericVector& expression_vector = gene_matrix(gene_row, Rcpp::_);
       std::deque<int> sparse_index;
       int i = 0;
@@ -708,6 +857,7 @@ rease the cell number present in the index
       }
       std::vector<int> ids(sparse_index.begin(), sparse_index.end());
       this->gene_counts[gene_names[gene_row]] += ids.size();
+      
       insertToDB(eliasFanoCoding(ids, expression_vector), gene_names[gene_row], cell_type);
     }
     return 0;
@@ -747,8 +897,8 @@ rease the cell number present in the index
       for (auto const& dat : gene_meta)
       {
 
-        std::vector<int> ids = eliasFanoDecoding(*(dat.second));
-        cell_types[*(dat.first)] = Rcpp::wrap(ids);
+        std::vector<int> ids = eliasFanoDecoding(ef_data[dat.second]);
+        cell_types[this->inverse_cell_type[dat.first]] = Rcpp::wrap(ids);
       }
       t[gene_name] = cell_types;
     }
@@ -779,7 +929,7 @@ rease the cell number present in the index
     for(auto& d : metadata)
     {
       bytes += d.first.size();
-      bytes += d.second.size() * 12;
+      bytes += d.second.size() * 8;
     }
     return bytes;
   }
@@ -789,8 +939,9 @@ rease the cell number present in the index
   Rcpp::List findCellTypes(const Rcpp::CharacterVector& gene_names)
   {
     
-    std::unordered_map<const CellType*, std::set<std::string> > cell_types;
+    std::unordered_map<CellTypeID, std::set<std::string> > cell_types;
     std::vector<std::string> genes;
+    // Fast pruning if there is not an entry we do not need to consider
     for (Rcpp::CharacterVector::const_iterator it = gene_names.begin(); it != gene_names.end(); ++it)
     {
       std::string gene_name = Rcpp::as<std::string>(*it);
@@ -825,11 +976,12 @@ rease the cell number present in the index
       {
         continue;
       }
-      std::vector<int> ef = eliasFanoDecoding(*(metadata[*(ct.second.begin())][ct.first]));
+      //comment this one! what does it do?
+      std::vector<int> ef = eliasFanoDecoding(ef_data[ metadata[*(ct.second.begin())][ct.first] ] );
       std::set<int> int_cells(ef.begin(), ef.end());
       for (auto const& g : ct.second)
       {
-        auto cells = eliasFanoDecoding(*(metadata[g][ct.first]));
+        auto cells = eliasFanoDecoding(this->ef_data[metadata[g][ct.first]]);
         std::set<int> new_set;
         std::set_intersection(int_cells.begin(), int_cells.end(), cells.begin(), cells.end(), std::inserter(new_set, new_set.begin()));
         if(new_set.size() != 0)
@@ -845,7 +997,7 @@ rease the cell number present in the index
       if (!empty_set)
       {
         // std::vector<int> res(int_cells.begin(), int_c;
-        t[*(ct.first)] = Rcpp::wrap(int_cells);
+        t[this->inverse_cell_type[ct.first]] = Rcpp::wrap(int_cells);
       }
     }
     return t;
@@ -867,11 +1019,11 @@ rease the cell number present in the index
         std::string ct = Rcpp::as<std::string>(_ct);
         
         std::vector<unsigned int> ids  = Rcpp::as<std::vector<unsigned int> >(cell_types_hits[ct]);
-        const CellType* ct_p = &(*(this->cell_types.find(ct)));
+        // auto ct_p = this->cell_types_id.find(ct);
         
         for (auto const& id : ids)
         {
-          CellID unique_id = {id, ct_p};
+          CellID unique_id = {id, this->cell_types_id[ct]};
           // Initialize the data structure
           if(cell_index.find(unique_id) == cell_index.end())
           {
@@ -898,24 +1050,22 @@ rease the cell number present in the index
     const FPTree fptree{transactions, min_support_cutoff};
     const std::set<Pattern> patterns = fptree_growth(fptree);
     
-    
     std::vector<std::pair<std::string, double> > tfidf;
     for ( auto const& item : patterns)
     {
       Rcpp::List gene_query;
       const auto& gene_set = item.first;
       double query_score = log(this->total_cells) * gene_set.size();
-      std::vector<const CellType*> gene_set_cell_types;
+      std::vector<CellType> gene_set_cell_types;
       for (auto const& gene: gene_set)
       {
         
         query_score -= log(this->gene_counts[gene]);
-        std::vector<const CellType*> gene_cell_types;
+        std::vector<CellType> gene_cell_types;
         for(auto const& ct : metadata[gene])
         {
-
-          gene_cell_types.push_back(ct.first);
-          std::cout << *(ct.first) << " on "<<  ct.first << std::endl;
+          gene_cell_types.push_back(this->inverse_cell_type[ct.first]);
+          // std::cout << this->inverse_cell_type[ct.first] << " on "<<  ct.first << std::endl;
         }
         if (gene_set_cell_types.empty())
         {
@@ -923,7 +1073,7 @@ rease the cell number present in the index
         }
         else
         {
-          std::vector<const CellType*> intersected;
+          std::vector<CellType> intersected;
           
           std::set_intersection(
             gene_set_cell_types.begin(), 
@@ -941,9 +1091,10 @@ rease the cell number present in the index
       double ct_idf = 0;
       for(auto const& gene: gene_set)
       {
+        // Intersected cell types so this should exist no reason to query existance
         for (auto const& ct : gene_set_cell_types)
         {
-          ct_idf += metadata[gene][ct]->idf;
+          ct_idf += this->ef_data[ metadata[gene][ this->cell_types_id[ct]] ].idf;
         }
       }
       query_score /= ct_idf;
@@ -975,8 +1126,8 @@ rease the cell number present in the index
     for(auto const& ct : iter->second)
     {
       std::cout << "Cell Type:" << ct.first << std::endl;
-      auto v = eliasFanoDecoding(*(ct.second));
-      for( auto& cell : v)
+      auto v = eliasFanoDecoding(ef_data[ct.second]);
+      for( auto const& cell : v)
       {
         std::cout << cell << ", ";
       }
@@ -996,6 +1147,26 @@ rease the cell number present in the index
     }
     return eliasFanoDecoding(ef_data[index]);
   }
+  
+  int insertNewCellType(const std::string& cell_type)
+  {
+    int id = this->inverse_cell_type.size();
+
+    if ( this->cell_types_id.find(cell_type) != this->cell_types_id.end())
+    {
+
+      std::cerr << "This should not happen!! Duplicate Cell Type: " << cell_type << std::endl;
+      id = this->cell_types_id[cell_type];
+    }
+    else
+    {
+      id = this->inverse_cell_type.size();
+      this->inverse_cell_type.push_back(cell_type);
+      this->cell_types_id[cell_type] = id;
+    }
+    return id;
+    
+  }
 
   int mergeDB(const EliasFanoDB& db)
   {    
@@ -1003,44 +1174,39 @@ rease the cell number present in the index
     
     // the DB will grow by this amount of cells
     this->total_cells += extdb.total_cells;
-    
-    // Copy data on the external object
-    // and update pointers
-    // In order to maintain consistency
-    for ( auto& gene: extdb.metadata)
-    {
-      for( auto& ct : gene.second)
-      {
-        ef_data.push_back(*ct.second);
-        
-        // Update with the new entry
-        ct.second = &ef_data.back();
-      }
-    }
 
-    for(auto const& gene : extdb.metadata)
+    // Insert new cell types in the database
+    for (auto const& ct : extdb.inverse_cell_type)
+    {
+      insertNewCellType(ct);
+    }
+    
+    // Iterate through the data model
+    for ( auto& gene: extdb.metadata)
     {
       // Update cell counts for the individual gene
       if (this->gene_counts.find(gene.first) == this->gene_counts.end())
       {
         this->gene_counts[gene.first] = 0;
       }
+      
       this->gene_counts[gene.first] += extdb.gene_counts[gene.first];
       
-
+      
       // if gene does not exist yet initialize entry in metadata
       if(metadata.find(gene.first) == metadata.end())
       {
         metadata[gene.first] = EliasFanoIndex();
       }
-
-      // Insert new cell types
-      for(auto const& ct: extdb.metadata[gene.first])
+      
+      for( auto& ct : gene.second)
       {
-        cell_types.insert(*(ct.first));
-        auto new_ct = cell_types.find(*(ct.first));
-        // set the reference at the map
-        metadata[gene.first][&(*new_ct)] = ct.second;
+        int new_id = ef_data.size();
+        // Push the new elias fano index in the database
+        ef_data.push_back(extdb.ef_data[ct.second]);
+        // Update with the new entry
+        int cell_type_id = this->cell_types_id[extdb.inverse_cell_type[ct.first]];
+        metadata[gene.first][cell_type_id] = new_id;
       }
     }
     return 0;
@@ -1063,7 +1229,10 @@ RCPP_MODULE(EliasFanoDB)
     .method("dbMemoryFootprint", &EliasFanoDB::dbMemoryFootprint)
     .method("findMarkerGenes", &EliasFanoDB::findMarkerGenes)
     .method("serializeToFile", &EliasFanoDB::serializeToFile)
-    .method("loadFromFile",&EliasFanoDB::loadFromFile);
+    .method("loadFromFile",&EliasFanoDB::loadFromFile)
+    .method("dumpGenes", &EliasFanoDB::dumpGenes)
+    .method("getByteStream", &EliasFanoDB::getByteStream)
+    .method("loadByteStream", &EliasFanoDB::loadByteStream);
   
 }
 

@@ -79,6 +79,45 @@ setMethod("buildCellTypeIndex",
           signature(sce = "SingleCellExperiment"),
           buildCellTypeIndex.SCESet)
 
+#' Add documentation
+#'
+#' 
+#' @name saveObject
+save.serialized.object <- function(object, filename){
+    loadModule('EliasFanoDB')
+    object@serialized <- object@index$getByteStream()
+    object@index <- NULL
+    saveRDS(object, filename)
+    return(object)
+}
+
+#' @rdname saveObject
+#' @aliases saveObject
+setMethod("saveObject",  definition = save.serialized.object)
+
+
+#' Add documentation
+#'
+#' 
+#' @name loadObject
+load.serialized.object <- function(filename){
+    object <-  readRDS(filename)
+    # Deserialize object
+    loadModule('EliasFanoDB')
+    object@index <-  new(EliasFanoDB)
+    object@index$loadByteStream(object@serialized)
+    
+    object@serialized <- NULL
+    message("Loaded object")
+    gc()
+    return(object)
+}
+
+#' @rdname loadObject
+#' @aliases loadObject
+setMethod("loadObject",  definition = load.serialized.object)
+
+
 
 #' Merges external index to existing object
 #'
@@ -102,7 +141,9 @@ merge.dataset.from.object <- function(object, new.object)
     object@datasets <- c(object@datasets, new.object@datasets)
     return(object)
 }
-
+#' Used to merge multiple eliasfanoDB
+#'
+#' 
 #' @rdname mergeDataset
 #' @aliases mergeDataset
 setMethod("mergeDataset",

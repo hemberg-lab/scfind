@@ -1,7 +1,7 @@
 
 #' The scfind main class object
 #' @export
-setClass("SCFind", representation(index = "Rcpp_EliasFanoDB", datasets = "character"))
+setClass("SCFind", representation(index = "Rcpp_EliasFanoDB", datasets = "character", serialized = "raw"))
 
 #' @examples TODO
 #' 
@@ -63,4 +63,17 @@ setGeneric(name = "findCellTypes", function(object, gene.list) {
 #' @export
 setGeneric(name = "scfind_interactive", function(object) {
     standardGeneric("scfind_interactive")
+})
+
+
+#' Generic to be used instead of readRDS
+#' @export
+setGeneric(name = "loadObject", function(filename){
+    standardGeneric("loadObject")
+})
+
+#' Generic to be used instead of saveRDS
+#' @export
+setGeneric(name = "saveObject", function(object, filename){
+    standardGeneric("saveObject")
 })
