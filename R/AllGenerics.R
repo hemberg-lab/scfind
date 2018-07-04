@@ -66,11 +66,13 @@ setGeneric(name = "scfind_interactive", function(object) {
 })
 
 
+#' Generic to be used instead of readRDS
 #' @export
-setGeneric(name = "loadFromFile", function(object){
-    standardGeneric("loadFromFile")
+setGeneric(name = "loadObject", function(filename){
+    standardGeneric("loadObject")
 })
 
+#' Generic to be used instead of saveRDS
 #' @export
 setGeneric(name = "saveObject", function(object, filename){
     standardGeneric("saveObject")

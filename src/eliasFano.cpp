@@ -192,7 +192,6 @@ int byteToBoolVector(const std::vector<char> buf, std::vector<bool>& bool_vec)
 class EliasFanoDB;
 RCPP_EXPOSED_CLASS(EliasFanoDB)
 
-
 typedef int EliasFanoID;
 typedef int CellTypeID;
 
@@ -451,20 +450,9 @@ class EliasFanoDB
     
   }
 
-  void loadFromFile(const std::string& filename)
+
+  void deserializeDB()
   {
-
-
-    // Clear the database
-    metadata.clear();
-    cell_types_id.clear();
-    inverse_cell_type.clear();
-    gene_counts.clear();
-    serialized_bytestream.clear();
-    
-    // Read the whole file contents!
-    readFile(filename);
-    
 
     // Read the database version
     int version;
@@ -571,6 +559,35 @@ class EliasFanoDB
     std::cout << "Bytes left to read:" << this->serialized_bytestream.size() - byte_pointer << std::endl;
     this->serialized_bytestream.clear();
     
+  }
+
+  void clearDB()
+  {
+    // Clear the database
+    metadata.clear();
+    cell_types_id.clear();
+    inverse_cell_type.clear();
+    gene_counts.clear();
+    serialized_bytestream.clear();
+  }
+
+  
+
+  void loadFromFile(const std::string& filename)
+  {
+    clearDB();
+    readFile(filename);
+    deserializeDB();
+  }
+
+
+  void loadByteStream(const Rcpp::RawVector& stream)
+  {
+    this->serialized_bytestream = std::vector<unsigned char>(stream.begin(), stream.end());
+    
+    deserializeDB();
+    std::cout << "Database deserialized!" << std:: endl;
+
   }
 
 
@@ -1214,7 +1231,8 @@ RCPP_MODULE(EliasFanoDB)
     .method("serializeToFile", &EliasFanoDB::serializeToFile)
     .method("loadFromFile",&EliasFanoDB::loadFromFile)
     .method("dumpGenes", &EliasFanoDB::dumpGenes)
-    .method("getByteStream", &EliasFanoDB::getByteStream);
+    .method("getByteStream", &EliasFanoDB::getByteStream)
+    .method("loadByteStream", &EliasFanoDB::loadByteStream);
   
 }
 
