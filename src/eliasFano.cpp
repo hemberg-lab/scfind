@@ -581,12 +581,13 @@ class EliasFanoDB
   }
 
 
-  void loadByteStream(const Rcpp::RawVector& stream)
+  int loadByteStream(const Rcpp::RawVector& stream)
   {
     this->serialized_bytestream = std::vector<unsigned char>(stream.begin(), stream.end());
     
     deserializeDB();
     std::cout << "Database deserialized!" << std:: endl;
+    return 1;
 
   }
 
@@ -678,6 +679,11 @@ class EliasFanoDB
     serialize();
     Rcpp::RawVector r_obj = Rcpp::wrap(this->serialized_bytestream);
     this->serialized_bytestream.clear();
+    std::cout << r_obj.size() <<" is the size of the stream " << std::endl;
+    for( int i = 0 ; i < 13; i++)
+    {
+      std::cerr << r_obj[i] << std::endl;
+    }
     return r_obj;
   }
   void serializeToFile(const std::string& filename)

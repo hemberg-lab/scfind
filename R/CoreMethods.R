@@ -86,7 +86,7 @@ setMethod("buildCellTypeIndex",
 save.serialized.object <- function(object, filename){
     loadModule('EliasFanoDB')
     object@serialized <- object@index$getByteStream()
-    object@index <- NULL
+    ## object@index
     saveRDS(object, filename)
     return(object)
 }
@@ -105,10 +105,11 @@ load.serialized.object <- function(filename){
     # Deserialize object
     loadModule('EliasFanoDB')
     object@index <-  new(EliasFanoDB)
-    object@index$loadByteStream(object@serialized)
+    success <- object@index$loadByteStream(object@serialized)
     
-    object@serialized <- NULL
-    message("Loaded object")
+    
+    message("Loaded object, cleaning")
+    object@serialized <- raw()
     gc()
     return(object)
 }
