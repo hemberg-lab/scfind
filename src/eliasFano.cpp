@@ -17,7 +17,7 @@
 
 // the bits used for the encoding
 #define BITS 32
-#define SERIALIZATION_VERSION 2
+#define SERIALIZATION_VERSION 3
 
 
 typedef std::pair<unsigned short, std::bitset<BITS> > BitSet32;
@@ -682,7 +682,7 @@ class EliasFanoDB
     std::cout << r_obj.size() <<" is the size of the stream " << std::endl;
     for( int i = 0 ; i < 13; i++)
     {
-      std::cerr << r_obj[i] << std::endl;
+      std::cerr << (unsigned int)r_obj[i] << std::endl;
     }
     return r_obj;
   }
@@ -1009,6 +1009,9 @@ class EliasFanoDB
     return t;
   }
 
+
+  // TODO(Nikos) this function can be optimized.. It uses the native quering mechanism
+  // that casts the results into native R data structures
   Rcpp::List findMarkerGenes(const Rcpp::CharacterVector& gene_list, unsigned int min_support_cutoff = 5)
   {
     Rcpp::List t;
@@ -1055,8 +1058,12 @@ class EliasFanoDB
     // cutoff should be user defined
     const FPTree fptree{transactions, min_support_cutoff};
     const std::set<Pattern> patterns = fptree_growth(fptree);
+
+    
     
     std::vector<std::pair<std::string, double> > tfidf;
+    
+    // Iterate through the calculated frequent patterns
     for ( auto const& item : patterns)
     {
       Rcpp::List gene_query;
@@ -1092,6 +1099,7 @@ class EliasFanoDB
         }
         
       }
+      
       std::string view_string = str_join(std::vector<Item>(gene_set.begin(), gene_set.end()), ",");
       query_score *= log(item.second);
       double ct_idf = 0;

@@ -77,3 +77,12 @@ setGeneric(name = "loadObject", function(filename){
 setGeneric(name = "saveObject", function(object, filename){
     standardGeneric("saveObject")
 })
+
+#' @export
+setGeneric(name = "markerGenes", function(object, gene.list)
+{
+    standardGeneric("markerGenes")
+})
+
+
+

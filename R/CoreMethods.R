@@ -178,6 +178,28 @@ setMethod("mergeSCE",
           merge.dataset.from.sce)
 
 
+#' query optimization function
+#' @param object SCFind object
+#' @param gene.list
+#' 
+#' @return hierarchical list of queries and their respective scores
+find.marker.genes <-  function(object, gene.list)
+{
+    results <- object@index$findMarkerGenes(gene.list)
+    return(results)
+}
+
+
+#' @rdname markerGenes
+#' @aliases markerGenes
+setMethod("markerGenes",
+          signature(
+              object = "SCFind",
+              gene.list = "character"),
+          find.marker.genes)
+
+
+
 #' Find cell types associated with a given gene list
 #' 
 #' Calculates p-values of a log-likelihood of a list of genes to be associated
