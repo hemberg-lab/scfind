@@ -83,11 +83,13 @@ setMethod("buildCellTypeIndex",
 #'
 #' 
 #' @name saveObject
-save.serialized.object <- function(object, filename){
-    loadModule('EliasFanoDB')
+save.serialized.object <- function(object, file){
+    #loadModule('EliasFanoDB')
     object@serialized <- object@index$getByteStream()
     ## object@index
-    saveRDS(object, filename)
+    a <- saveRDS(object, file)
+    # Clear the serialized stream
+    object@serialized <- raw()
     return(object)
 }
 
@@ -185,7 +187,7 @@ setMethod("mergeSCE",
 #' @return hierarchical list of queries and their respective scores
 find.marker.genes <-  function(object, gene.list)
 {
-    results <- object@index$findMarkerGenes(gene.list)
+    results <- object@index$findMarkerGenes(gene.list, 5)
     return(results)
 }
 

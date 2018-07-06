@@ -256,7 +256,7 @@ class EliasFanoDB
     {
       // Is there a chance the buffer to be bigger than 16MB
       // Grow the buffer by 16MB
-      // std::cout << "expanding stream" << std::endl;
+      std::cout << "expanding stream" << std::endl;
       this->serialized_bytestream.resize(this->serialized_bytestream.size() + (1 << 24));
     }
   }
@@ -595,7 +595,7 @@ class EliasFanoDB
   void serialize()
   {
     this->serialized_bytestream.clear();
-    
+    this->byte_pointer = 0;
     std::map<const EliasFano*, int> ef_ids;
     int ef_id = 0;
     for (auto const& ef : ef_data)
@@ -677,7 +677,10 @@ class EliasFanoDB
   Rcpp::RawVector getByteStream()
   {
     serialize();
-    Rcpp::RawVector r_obj = Rcpp::wrap(this->serialized_bytestream);
+    Rcpp::RawVector r_obj(this->byte_pointer);
+    memcpy(&r_obj[0], &this->serialized_bytestream[0], this->byte_pointer);
+    
+    //Rcpp::wrap(this->serialized_bytestream);
     this->serialized_bytestream.clear();
     std::cout << r_obj.size() <<" is the size of the stream " << std::endl;
     for( int i = 0 ; i < 13; i++)
