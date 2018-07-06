@@ -18,7 +18,7 @@
 // the bits used for the encoding
 #define BITS 32
 #define SERIALIZATION_VERSION 3
-
+// #define DEBUG
 
 typedef std::pair<unsigned short, std::bitset<BITS> > BitSet32;
 typedef std::vector<bool> BoolVec;
@@ -467,15 +467,16 @@ class EliasFanoDB
     
     // Read the total cells stored in the database
     read(this->total_cells);
-    std::cout << "Total Cells " << this->total_cells << std::endl;
+    
     // Read the number of bits used for the quantization of the expression level quantiles
     
     read(this->quantization_bits);
-    std::cout << "Quantization bits " << (unsigned int)this->quantization_bits << std::endl;
+
+    
     int genes_present;
     read(genes_present);
     
-    std::cout << "Present genes " << genes_present << std::endl;
+
     if (not(genes_present > 0 and genes_present < 100000))
     {
       std::cerr << "something went wrong" << std::endl;
@@ -504,14 +505,14 @@ class EliasFanoDB
     // Read cell type names
     int cell_types_present;
     read(cell_types_present);
-    std::cout << "Present cell_types " << cell_types_present << std::endl;
+
     if(not(cell_types_present > 0 and cell_types_present < 50000))
     {
       std::cerr << "something went wrong with the cell types" << std::endl;
       return;
     }
     
-    std::cout << "Genes support " << gene_counts.size() << std::endl;
+
     unsigned int cell_support;
     std::vector<CellTypeID> cell_type_ids;
     cell_type_ids.reserve(cell_types_present);
@@ -525,12 +526,12 @@ class EliasFanoDB
       int cell_type_id = this->cell_types_id.size();
       this->cell_types_id[buffer] = cell_type_id;
       this->inverse_cell_type.push_back(buffer);
-      std::cout << buffer << std::endl;
+      
     }
 
     int index_size;
     read(index_size);
-    std::cout << "Index size " << index_size << std::endl;
+    
     std::vector<IndexRecord> records;
     for (int i = 0; i < index_size; ++i)
     {
@@ -539,7 +540,7 @@ class EliasFanoDB
       records.push_back(record);
     }
     
-    std::cout << "Reading raw data" << std::endl;
+    
     for (int i = 0; i < index_size; i++)
     {
       EliasFano ef;
@@ -555,8 +556,16 @@ class EliasFanoDB
       //std::cerr << r.gene << " " <<r.cell_type << " " << r.index << std::endl;
       metadata[gene_ids[r.gene]][r.cell_type] = r.index;
     }
-    std::cout <<"All good!" << std::endl;
+    
+#ifdef DEBUG
+    std::cout << "Total Cells " << this->total_cells << std::endl;
+    std::cout << "Quantization bits " << (unsigned int)this->quantization_bits << std::endl;
+    std::cout << "Present genes " << genes_present << std::endl;
+    std::cout << "Present cell_types " << cell_types_present << std::endl;
+    std::cout << "Genes support " << gene_counts.size() << std::endl;
+    std::cout << "Index size " << index_size << std::endl;
     std::cout << "Bytes left to read:" << this->serialized_bytestream.size() - byte_pointer << std::endl;
+#endif
     this->serialized_bytestream.clear();
     
   }
@@ -588,7 +597,7 @@ class EliasFanoDB
     deserializeDB();
     std::cout << "Database deserialized!" << std:: endl;
     return 1;
-
+    
   }
 
 
