@@ -1030,7 +1030,8 @@ class EliasFanoDB
   Rcpp::List findMarkerGenes(const Rcpp::CharacterVector& gene_list, unsigned int min_support_cutoff = 5)
   {
     Rcpp::List t;
-    std::unordered_map<CellID, Transaction > cell_index;
+    std::map<std::string, std::map<int, Transaction> > cell_index;
+    int cells_present = 0;
     Rcpp::List genes_results = queryGenes(gene_list);
     const Rcpp::CharacterVector gene_names = genes_results.names();
     for (auto const& gene_hit : gene_names)
@@ -1043,33 +1044,45 @@ class EliasFanoDB
         std::string ct = Rcpp::as<std::string>(_ct);
         
         std::vector<unsigned int> ids  = Rcpp::as<std::vector<unsigned int> >(cell_types_hits[ct]);
-        // auto ct_p = this->cell_types_id.find(ct);
+        if(cell_index.find(ct) == cell_index.end())
+        {
+          cell_index[ct] = std::map<int, Transaction>();
+        }
         
+        
+        
+        // auto ct_p = this->cell_types_id.find(ct);
+        auto& cell_type_index = cell_index[ct];
         for (auto const& id : ids)
         {
-          CellID unique_id = {id, this->cell_types_id[ct]};
-          // Initialize the data structure
-          if(cell_index.find(unique_id) == cell_index.end())
+          if(cell_type_index.find(id) == cell_type_index.end())
           {
-            cell_index[unique_id] = Transaction();
+            cell_type_index[id] = Transaction();
           }
-          cell_index[unique_id].push_back(gene_name);
-          
+          cell_type_index[id].push_back(gene_name);
+          cells_present++;
         }
       }
     }
 
-    std::cout << "Query Done: found " << cell_index.size() << " rules" << std::endl;
+    std::cout << "Query Done: found " << cells_present << " rules" << std::endl;
 
     // Run FPGrowth
     std::vector<Transaction> transactions;
-    transactions.reserve(cell_index.size());
-    for (auto const& cell : cell_index)
+    transactions.reserve(cells_present);
+    for (auto & ct : cell_index)
     {
-      // Maybe sort?
-      transactions.push_back(cell.second);
+      for (auto & cl : ct.second)
+      {
+        // Maybe sort?        
+        std::sort(cl.second.begin(), cl.second.end());
+        transactions.push_back(cl.second);
+      }
+      
+      
     }
     
+    std::cout << transactions.size() << " transactions" << std::endl;
     // cutoff should be user defined
     const FPTree fptree{transactions, min_support_cutoff};
     const std::set<Pattern> patterns = fptree_growth(fptree);
