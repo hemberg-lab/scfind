@@ -83,11 +83,13 @@ setMethod("buildCellTypeIndex",
 #'
 #' 
 #' @name saveObject
-save.serialized.object <- function(object, filename){
-    loadModule('EliasFanoDB')
+save.serialized.object <- function(object, file){
+    #loadModule('EliasFanoDB')
     object@serialized <- object@index$getByteStream()
-    object@index <- NULL
-    saveRDS(object, filename)
+    ## object@index
+    a <- saveRDS(object, file)
+    # Clear the serialized stream
+    object@serialized <- raw()
     return(object)
 }
 
@@ -105,10 +107,11 @@ load.serialized.object <- function(filename){
     # Deserialize object
     loadModule('EliasFanoDB')
     object@index <-  new(EliasFanoDB)
-    object@index$loadByteStream(object@serialized)
+    success <- object@index$loadByteStream(object@serialized)
     
-    object@serialized <- NULL
-    message("Loaded object")
+    
+    message("Loaded object, cleaning")
+    object@serialized <- raw()
     gc()
     return(object)
 }
@@ -175,6 +178,28 @@ setMethod("mergeSCE",
               dataset.name = "character"
           ),
           merge.dataset.from.sce)
+
+
+#' query optimization function
+#' @param object SCFind object
+#' @param gene.list
+#' 
+#' @return hierarchical list of queries and their respective scores
+find.marker.genes <-  function(object, gene.list)
+{
+    results <- object@index$findMarkerGenes(gene.list, 5)
+    return(results)
+}
+
+
+#' @rdname markerGenes
+#' @aliases markerGenes
+setMethod("markerGenes",
+          signature(
+              object = "SCFind",
+              gene.list = "character"),
+          find.marker.genes)
+
 
 
 #' Find cell types associated with a given gene list

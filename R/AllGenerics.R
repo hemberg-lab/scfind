@@ -74,6 +74,15 @@ setGeneric(name = "loadObject", function(filename){
 
 #' Generic to be used instead of saveRDS
 #' @export
-setGeneric(name = "saveObject", function(object, filename){
+setGeneric(name = "saveObject", function(object, file){
     standardGeneric("saveObject")
 })
+
+#' @export
+setGeneric(name = "markerGenes", function(object, gene.list)
+{
+    standardGeneric("markerGenes")
+})
+
+
+
