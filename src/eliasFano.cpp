@@ -113,7 +113,6 @@ inline std::bitset<BITS> int2bin_core(const unsigned int id)
 }
 
 
-
 inline BitSet32 int2bin_bounded(const unsigned int id, unsigned int min_bit_length)
 {
   // Check if number is larger than the desired size in bits
@@ -911,14 +910,16 @@ class EliasFanoDB
         continue;
       }
 
-      auto gene_meta = metadata[gene_name];
+      const auto& gene_meta = metadata[gene_name];
       for (auto const& dat : gene_meta)
       {
 
         std::vector<int> ids = eliasFanoDecoding(ef_data[dat.second]);
         cell_types[this->inverse_cell_type[dat.first]] = Rcpp::wrap(ids);
+        
       }
       t[gene_name] = cell_types;
+      
     }
 
     return t;
@@ -1029,181 +1030,201 @@ class EliasFanoDB
   // that casts the results into native R data structures
   Rcpp::List findMarkerGenes(const Rcpp::CharacterVector& gene_list, unsigned int min_support_cutoff = 5)
   {
-    Rcpp::List t;
-    std::map<std::string, std::map<int, Transaction> > cell_index;
+    // Store the results in this list
+    Rcpp::List results;
+    std::map<CellType, std::map<int, Transaction> > cells;
+
+
     int cells_present = 0;
+    
+    // Perform an OR query on the database as a first step
     Rcpp::List genes_results = queryGenes(gene_list);
-    const Rcpp::CharacterVector gene_names = genes_results.names();
-    for (auto const& gene_hit : gene_names)
+    // Start inversing the list to a cell level
+    const Rcpp::CharacterVector& gene_names = genes_results.names();
+    for (auto const& gene : gene_names)
     {
-      auto gene_name = Rcpp::as<std::string>(gene_hit);
-      const Rcpp::List& cell_types_hits = genes_results[gene_name];
-      const Rcpp::CharacterVector& cell_type_names = cell_types_hits.names();
+      const auto gene_name = Rcpp::as<std::string>(gene);
+      // Gene hits contains the cell type hierarchy
+      const Rcpp::List& gene_hits = genes_results[gene_name];
+      const Rcpp::CharacterVector& cell_type_names = gene_hits.names();
       for (auto const& _ct : cell_type_names)
       {
-        std::string ct = Rcpp::as<std::string>(_ct);
-        
-        std::vector<unsigned int> ids  = Rcpp::as<std::vector<unsigned int> >(cell_types_hits[ct]);
-        if(cell_index.find(ct) == cell_index.end())
+        const auto ct = Rcpp::as<std::string>(_ct);
+        std::vector<unsigned int> ids  = Rcpp::as<std::vector<unsigned int> >(gene_hits[ct]);
+        if (cells.find(ct) == cells.end())
         {
-          cell_index[ct] = std::map<int, Transaction>();
+          cells[ct] = std::map<int, Transaction>();
         }
         
-        
-        
-        // auto ct_p = this->cell_types_id.find(ct);
-        auto& cell_type_index = cell_index[ct];
+        //
+        auto& cell_index = cells[ct];
+        // For all the hits
         for (auto const& id : ids)
         {
-          if(cell_type_index.find(id) == cell_type_index.end())
+          // search for the id in the cell type space!
+          if (cell_index.find(id) == cell_index.end())
           {
-            cell_type_index[id] = Transaction();
+            // insert new cell
+            cell_index[id] = Transaction();
+            cells_present++;
           }
-          cell_type_index[id].push_back(gene_name);
-          cells_present++;
+          // Add gene hit in the cell
+          cell_index[id].push_back(gene_name);
         }
       }
     }
 
     std::cout << "Query Done: found " << cells_present << " rules" << std::endl;
-
-    // Run FPGrowth
+    
+    // Collect all transactions for fp-growth
     std::vector<Transaction> transactions;
     transactions.reserve(cells_present);
-    for (auto & ct : cell_index)
+    for (auto & ct : cells)
     {
       for (auto & cl : ct.second)
       {
         // Maybe sort?        
         std::sort(cl.second.begin(), cl.second.end());
-        transactions.push_back(cl.second);
+        if (cl.second.size() != 1)
+        {
+          transactions.push_back(std::vector<std::string>(cl.second.begin(), cl.second.end()));
+        }
       }
-      
-      
     }
     
     std::cout << transactions.size() << " transactions" << std::endl;
-    // cutoff should be user defined
+    // Run fp-growth algorithm
     const FPTree fptree{transactions, min_support_cutoff};
     const std::set<Pattern> patterns = fptree_growth(fptree);
 
     // Patterns contain genesets
-    
     std::vector<std::pair<std::string, double> > tfidf;
     
     // Iterate through the calculated frequent patterns
-    for ( auto const& item : patterns)
+    for (auto const& item : patterns)
     {
       Rcpp::List gene_query;
       const auto& gene_set = item.first;
-      // Support scaled by genes
-      double query_base_score = 1 + (log(item.second) * gene_set.size());
+      int fp_support = item.second;
       
+      // Support scaled by genes
+      // double query_base_score = 1 + (log(item.second) * gene_set.size());
       
       // Get the cell type intersection of the involved cells
-      std::vector<CellType> gene_set_cell_types(this->inverse_cell_type.begin(), this->inverse_cell_type.end());
-      
+      // TODO(Nikos) optimize wrapping 
+      std::map<CellType, std::vector<int> > ct_map;
+      // flag that will set the interesection mode after first iteration
+      bool intersection_mode = true;
       for (auto const& gene: gene_set)
       {
-        std::vector<CellType> gene_cell_types;
-        // Get existing cell types 
-        for (auto const& ct : metadata[gene])
+        // const std::string gene_name = Rcpp::as<std::string>(gene);
+        const Rcpp::List& gdata = genes_results[gene];
+        const Rcpp::CharacterVector& gct_names = gdata.names();
+
+        for (auto const& _ct : gct_names)
         {
-          gene_cell_types.push_back(this->inverse_cell_type[ct.first]);
-          // std::cout << this->inverse_cell_type[ct.first] << " on "<<  ct.first << std::endl;
+          auto ct = Rcpp::as<std::string>(_ct);
+          const auto ct_cell_set = Rcpp::as< std::vector<int> >(gdata[ct]);
+          auto ct_map_it = ct_map.find(ct);
+
+          if (ct_map_it == ct_map.end())
+          {
+            // check if we are at interesection mode
+            if (intersection_mode)
+            {
+              ct_map[ct] = Rcpp::as< std::vector<int> >(gdata[ct]);
+            }
+          }
+          else
+          {
+            const auto& gene_cell_set = ct_map_it->second;
+            std::vector<int> intersected;
+            std::set_intersection(
+              ct_cell_set.begin(), 
+              ct_cell_set.end(), 
+              gene_cell_set.begin(), 
+              gene_cell_set.end(), 
+              std::back_inserter(intersected)); 
+            
+            ct_map[ct] = intersected;
+            if (intersected.empty())
+            {
+              ct_map.erase(ct_map.find(ct));
+              break;
+            }
+          }
         }
-        std::vector<CellType> intersected;
-        std::set_intersection(
-          gene_set_cell_types.begin(), 
-          gene_set_cell_types.end(), 
-          gene_cell_types.begin(), 
-          gene_cell_types.end(), 
-          std::back_inserter(intersected));
-        
-        gene_set_cell_types = intersected;
-        if (gene_set_cell_types.empty())
-        {
-          break;
-        }
+        intersection_mode = false;
       }
 
-      if( gene_set_cell_types.empty())
+      // Remove all empty records
+      int total_support = 0;
+      for (auto it = ct_map.begin(); it != ct_map.end(); ++it)
+      {
+        if(it->second.empty())
+        {
+          ct_map.erase(it);
+          
+        }
+        else
+        {
+          total_support+= it->second.size();
+        }
+      }
+      
+      // Continue to the next pattern
+      if (ct_map.empty())
       {
         continue;
       }
-      
+
+      std::cout << "FP-Growth support " << fp_support << ", Discovered support: " << total_support << std::endl;
+     
+      // Give query a score
       std::string view_string = str_join(std::vector<Item>(gene_set.begin(), gene_set.end()), ",");
+      std::cout << view_string << " " << ct_map.size() << std::endl;
       
-      // Get support across different cell types
-      std::map<std::string, unsigned int> support;
+      // for (auto const& t : ct_map)
+      // {
+      //   std::cout <<"\t" << t.first << " " << t.second.size() << std::endl;
+      // }
       
-      for ( auto const& ct : gene_set_cell_types)
-      {
-        
-        std::vector<int> cells;
-        
-        for (auto const&  g : gene_set)
-        {
-          const Rcpp::List ml = genes_results[g]; 
-          const Rcpp::NumericVector nv = Rcpp::wrap(ml[ct]);
-          std::vector<int> gcells(nv.begin(), nv.end());
-          
-          if(cells.empty())
-          {
-            cells = gcells;
-            continue;
-          }
-          
-          std::vector<int> inter_cells;
-          std::set_intersection(gcells.begin(), gcells.end(), cells.begin(), cells.end(), std::back_inserter(inter_cells));
-          cells = inter_cells;
-          if(inter_cells.empty())
-          {
-            // std::cerr << "This is not supposed to be happening" << std::endl;
-            break;
-          }
-        }
-        if (!cells.empty())
-        {
-          support[ct] = cells.size();
-        }
-      }
       // Clear gene_set_cell_types and updated with the cell types that actually have hits!
-      gene_set_cell_types.clear();
-      for ( auto const& ct : support )
-      {
-        gene_set_cell_types.push_back(ct.first);
-      }
+      // gene_set_cell_types.clear();
+      // for (auto const& ct : support)
+      // {
+      //   gene_set_cell_types.push_back(ct.first);
+      // }
       
       
-      double query_score = 0;
-      std::map<std::string, double> ct_tfidf;
-      for ( auto const& ct : gene_set_cell_types)
-      {
-        double tfidf = 0;
-        for (auto const&  g : gene_set)
-        {
-          tfidf += this->ef_data[this->metadata[g][this->cell_types_id[ct]]].idf;
-        }
-        query_score += tfidf * support[ct];
-      }
+      // double query_score = 0;
+      // std::map<std::string, double> ct_tfidf;
+      // for ( auto const& ct : gene_set_cell_types)
+      // {
+      //   double tfidf = 0;
+      //   for (auto const&  g : gene_set)
+      //   {
+      //     tfidf += this->ef_data[this->metadata[g][this->cell_types_id[ct]]].idf;
+      //   }
+      //   query_score += tfidf * support[ct];
+      // }
       
       
-      std::cout << view_string << " score: " << query_score 
-                << " support: " << item.second 
-                <<" on "<< gene_set_cell_types.size() << " cell types" << std:: endl;
+      // std::cout << view_string << " score: " << query_score 
+      //           << " support: " << item.second 
+      //           <<" on "<< gene_set_cell_types.size() << " cell types" << std:: endl;
       
-      for (auto const& ct : gene_set_cell_types)
-      {
-        std::cout << "\t" << ct << std::endl;
-      }
+      // for (auto const& ct : gene_set_cell_types)
+      // {
+      //   std::cout << "\t" << ct << std::endl;
+      // }
       
       // tfidf.push_back(make_pair(view_string, query_score));
       
       // t.push_back(Rcpp::List::create(Rcpp::_["query"] = Rcpp::wrap(view_string), Rcpp::_["score"] = Rcpp::wrap(query_score)));
     }
 
-    return t;
+    return results;
   }
 
 

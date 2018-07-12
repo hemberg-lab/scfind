@@ -7,12 +7,12 @@
 #include <set>
 #include <string>
 #include <vector>
-#include <deque>
+// #include <deque>
 #include <utility>
 
 
 using Item = std::string;
-using Transaction = std::deque<Item>;
+using Transaction = std::vector<Item>;
 using TransformedPrefixPath = std::pair<Transaction, uint64_t>;
 using Pattern = std::pair<std::set<Item>, uint64_t>;
 
