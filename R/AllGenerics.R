@@ -34,7 +34,7 @@ setGeneric(name = "mergeSCE", def = function(object, sce, dataset.name) {
 #' 
 #' @examples TODO
 #' 
-setGeneric(name = "queryGene", def = function(object, gene) {
+setGeneric(name = "queryGene", def = function(object, gene, datasets) {
     standardGeneric("queryGene")
 })
 
@@ -55,7 +55,7 @@ setGeneric(name = "queryGene", def = function(object, gene) {
 #' index <- buildCellIndex(sce)
 #' res <- findCell(index, genelist = c('SOX6', 'SNAI3'))
 #' 
-setGeneric(name = "findCellTypes", function(object, gene.list) {
+setGeneric(name = "findCellTypes", function(object, gene.list, datasets) {
     standardGeneric("findCellTypes")
 })
 
@@ -79,7 +79,7 @@ setGeneric(name = "saveObject", function(object, file){
 })
 
 #' @export
-setGeneric(name = "markerGenes", function(object, gene.list)
+setGeneric(name = "markerGenes", function(object, gene.list, datasets)
 {
     standardGeneric("markerGenes")
 })

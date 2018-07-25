@@ -6,6 +6,7 @@
 #' @aliases ui.scfind
 #'
 #' @importFrom shiny titlePanel sidebarLayout textInput mainPanel plotOutput fluidPage h1 h2 h3 h4 sidebarPanel uiOutput checkboxGroupInput plotOutput
+#' @importFrom DT dataTableOutput
 #' 
 ui.scfind <- function(object)
 {
@@ -16,12 +17,19 @@ ui.scfind <- function(object)
                 sidebarPanel(
                     textInput("geneList", label = h3("Gene List"), value = ""),
                     uiOutput("geneCheckbox"),
-                    checkboxGroupInput("datasetCheckbox", h3("Datasets"), choices = object@datasets, selected = object@datasets)
+                    checkboxGroupInput("datasetCheckbox",
+                                       h3("Datasets"),
+                                       choices = object@datasets,
+                                       selected = object@datasets,
+                                       inline = T),
+                     dataTableOutput("queryOptimizer")
                 ),
+                   
                 mainPanel(
-                    plotOutput("cellTypesHisto")
+                    plotOutput("cellTypesHisto", height = 800)
                 )
             )
+
         )
     )
 }
@@ -38,6 +46,8 @@ ui.scfind <- function(object)
 #' @aliases server.scfind
 #'
 #' @importFrom shiny renderPlot stopApp checkboxGroupInput
+#' @importFrom DT renderDataTable datatable
+#' @importFrom data.table as.data.table data.table
 #' @importFrom ggplot2 ggplot geom_bar ggtitle xlab ylab aes coord_flip theme_minimal
 server.scfind <- function(object)
 {
@@ -45,40 +55,103 @@ server.scfind <- function(object)
     return(
         function(input,output,session)
         {
+            
+
+            gene.list <- reactive({
+                genes <-  unlist(strsplit(gsub("\\s", "", input$geneList), ","))
+            })
+
+            checkbox.selection <- reactive({
+                selected.index <- input$queryOptimizer_rows_selected
+                if (!is.null(selected.index))
+                {
+                    available.queries <-  recommended.queries()
+                    selected.query <- available.queries[selected.index, 'query']
+                    genes <-  unlist(strsplit(gsub("\\s", "", selected.query), ","))
+                }
+                else
+                {
+                    if(is.null(input$geneCheckbox))
+                    {
+                        genes <- gene.list()
+                    }
+                    else
+                    {
+                        genes <- input$geneCheckbox
+                    }
+                }
+                genes
+                ## updateSelectInput(session, "geneCheckbox", selected  = genes)
+            })
+            
+            output$geneCheckbox <- renderUI({
+                
+                ## Select genes
+                checkboxGroupInput("geneCheckbox", h4("Select Genes"), choices = gene.list(), selected = checkbox.selection(), inline = T)
+            })
+           
+            
+            
+            
+            recommended.queries <- reactive({
+                
+                selected.genes <- input$geneCheckbox
+                selected.datasets <- input$datasetCheckbox
+                if (length(selected.genes) != 0)
+                {
+                    available.queries <-  markerGenes(object, selected.genes, selected.datasets)
+                }
+                else
+                {
+                    available.queries <- c()
+                }
+                available.queries <- as.data.table(available.queries)
+                available.queries
+            })
+
+
+            output$queryOptimizer <- renderDataTable({
+                datatable(recommended.queries(), selection = 'single')
+            })
+            
+            
+            
             output$cellTypesHisto <- renderPlot({
                 ## Render a barplot
-                print(length(input$geneCheckbox))
-                print(input$geneCheckbox)
+                ## print(length(input$geneCheckbox))
+                ## print(input$geneCheckbox)
+                selection <- checkbox.selection()
+                print(selection)
                 if (length(input$geneCheckbox) != 0)
                 {
-                    result <- findCellTypes(object, input$geneCheckbox)
+                    print(input$datasetCheckbox)
+                    result <- findCellTypes(object, selection, input$datasetCheckbox)
                     print(result)
-                    result <- setNames(unlist(result, use.names=F),rep(names(result), lengths(result)))
+                    result <- setNames(unlist(result, use.names=F), rep(names(result), lengths(result)))
                     df <- data.frame(cell_type = names(result), cell_id = result)
-                    g <- ggplot(df, aes(x=cell_type)) +
-                        xlab("Cell Type") +
-                        ylab("Cells") +
-                        geom_bar(color = "blue") +
-                        ggtitle(paste0(input$geneCheckbox,collapse=",")) +
-                        coord_flip() +
-                        theme_minimal()
+                    if (nrow(df) != 0)
+                    {
+                        g <- ggplot(df, aes(x=cell_type)) +
+                            xlab("Cell Type") +
+                            ylab("Cells") +
+                            geom_bar(color = "blue") +
+                            ggtitle(paste0(selection, collapse = ",")) +
+                            coord_flip() +
+                            theme_minimal()
+                    }
+                    else
+                    {
+                        g <- plot(0,type='n',axes=FALSE,ann=FALSE)
+                    }
                     g
                 }
                 else
                 {
-                    barplot(table(mtcars$gear), 
-                        ## main=input$region,
-                        ylab="Number of Cells",
-                        xlab="Cell Type")
+                    plot(0,type='n',axes=FALSE,ann=FALSE)
                 }
             })
-
-            output$geneCheckbox <- renderUI({
-                genes <-  unlist(strsplit(gsub("\\s", "", input$geneList), ","))
-                checkboxGroupInput("geneCheckbox","Select Genes", choices = genes, selected = genes, inline = T)
-
-            })
-
+            
+            
             session$onSessionEnded(function() {
                 stopApp()
             })

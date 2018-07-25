@@ -119,3 +119,26 @@ contigency.table <- function(query.results)
     return(data)
     
 }
+
+
+select.datasets <- function(object, datasets)
+{
+    
+    if (datasets == "")
+    {
+        ## Select all available datasets
+        datasets <- object@datasets
+    }
+    else
+    {
+        ## datasets should not be a superset of the data
+        if(length(setdiff(datasets, object@datasets)) != 0)
+        {
+            stop(paste("Dataset", setdiff(datasets,object@datasets), "does not exist in the database"))
+        }
+    }
+    return(datasets)
+
+}
+
+
