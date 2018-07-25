@@ -95,7 +95,7 @@ server.scfind <- function(object)
             
             recommended.queries <- reactive({
                 
-                selected.genes <- input$geneCheckbox
+                selected.genes <- gene.list()
                 selected.datasets <- input$datasetCheckbox
                 if (length(selected.genes) != 0)
                 {
@@ -126,7 +126,7 @@ server.scfind <- function(object)
                 {
                     print(input$datasetCheckbox)
                     result <- findCellTypes(object, selection, input$datasetCheckbox)
-                    print(result)
+                    ## print(result)
                     result <- setNames(unlist(result, use.names=F), rep(names(result), lengths(result)))
                     df <- data.frame(cell_type = names(result), cell_id = result)
                     if (nrow(df) != 0)

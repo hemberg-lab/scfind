@@ -985,19 +985,13 @@ class EliasFanoDB
       for (auto const& ct_it : db_it->second)
       {
         CellType ct_name = this->inverse_cell_type[ct_it.first];
-        // Extract dataset 
+       
+        // Remove cells if not in the selected datasets
         CellType ct_dataset = ct_name.substr(0, ct_name.find("."));
-        
         auto find_dataset = std::find(datasets.begin(), datasets.end(), ct_dataset);
         // check if the cells are in active datasets
         if (find_dataset == datasets.end())
         {
-          
-          // for( auto dt : datasets)
-          // {
-          //  std::cerr << "Active dataset" << dt << std::endl;
-          // }
-          // std::cerr << "Extracted dataset" << ct_dataset << std::endl;
           continue;
         }
 
@@ -1149,62 +1143,79 @@ class EliasFanoDB
       // Get the cell type intersection of the involved cells
       // TODO(Nikos) optimize wrapping 
       std::map<CellType, std::vector<int> > ct_map;
-      // flag that will set the interesection mode after first iteration
-      bool intersection_mode = true;
-      for (auto const& gene: gene_set)
+      
+
+
+      // First gene init set for intersections
+      auto git = gene_set.begin();
+
+     
+      const Rcpp::List& first_gene = genes_results[*git];
+      std::vector<std::string> initial_cell_types = Rcpp::as<std::vector<std::string> >(first_gene.names());
+      for (auto const& ct : initial_cell_types)
       {
-        // const std::string gene_name = Rcpp::as<std::string>(gene);
-        const Rcpp::List& gdata = genes_results[gene];
-        const Rcpp::CharacterVector& gct_names = gdata.names();
+        ct_map[ct] = Rcpp::as< std::vector<int> >(first_gene[ct]);
+      }
+      
 
-        for (auto const& _ct : gct_names)
+      for (++git; git != gene_set.end(); ++git)
+      {
+        const Rcpp::List& g_res = genes_results[*git];
+        std::vector<std::string> cell_types = Rcpp::as<std::vector<std::string> >(g_res.names());
+        
+        std::vector<std::string> ct_intersection;
+        std::set_intersection(initial_cell_types.begin(),
+                              initial_cell_types.end(),
+                              cell_types.begin(),
+                              cell_types.end(),
+                              std::back_inserter(ct_intersection));
+        for(auto m_it = ct_map.begin(); m_it != ct_map.end();)
         {
-          auto ct = Rcpp::as<std::string>(_ct);
-          const auto ct_cell_set = Rcpp::as< std::vector<int> >(gdata[ct]);
-          auto ct_map_it = ct_map.find(ct);
-
-          if (ct_map_it == ct_map.end())
+          auto f_it = std::find(ct_intersection.begin(),ct_intersection.end(), m_it->first);
+          if (f_it == ct_intersection.end())
           {
-            // check if we are at interesection mode
-            if (intersection_mode)
-            {
-              ct_map[ct] = Rcpp::as< std::vector<int> >(gdata[ct]);
-            }
+            m_it = ct_map.erase(m_it);
           }
           else
           {
-            const auto& gene_cell_set = ct_map_it->second;
-            std::vector<int> intersected;
-            std::set_intersection(
-              ct_cell_set.begin(), 
-              ct_cell_set.end(), 
-              gene_cell_set.begin(), 
-              gene_cell_set.end(), 
-              std::back_inserter(intersected)); 
-            
-            ct_map[ct] = intersected;
-            if (intersected.empty())
-            {
-              ct_map.erase(ct_map.find(ct));
-              break;
-            }
+            ++m_it;
           }
         }
-        intersection_mode = false;
+
+        for ( auto const& ct : ct_intersection)
+        {
+          std::vector<int> cells;
+          std::vector<int> cells_in_gct = Rcpp::as<std::vector<int>>(g_res[ct]);
+          const auto& current_cells = ct_map[ct];
+          std::set_intersection(
+            current_cells.begin(), 
+            current_cells.end(), 
+            cells_in_gct.begin(), 
+            cells_in_gct.end(),
+            std::back_inserter(cells));
+          if (cells.empty())
+          {
+            ct_map.erase(ct_map.find(ct));
+          }
+        }
       }
+      
+      
 
       // Remove all empty records
       int total_support = 0;
-      for (auto it = ct_map.begin(); it != ct_map.end(); ++it)
+      for (auto it = ct_map.begin(); it != ct_map.end();)
       {
         if(it->second.empty())
         {
-          ct_map.erase(it);
+          std::cerr << "deleted" << it->first << std::endl;
+          it = ct_map.erase(it);
           
         }
         else
         {
           total_support+= it->second.size();
+          ++it;
         }
       }
       
