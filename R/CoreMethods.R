@@ -185,9 +185,11 @@ setMethod("mergeSCE",
 #' @param gene.list
 #' 
 #' @return hierarchical list of queries and their respective scores
-find.marker.genes <-  function(object, gene.list)
+find.marker.genes <-  function(object, gene.list, datasets = "")
 {
-    results <- object@index$findMarkerGenes(gene.list, 5)
+    datasets <- select.datasets(object, datasets)
+    results <- object@index$findMarkerGenes(gene.list, datasets, 5)
+    
     return(results)
 }
 
@@ -197,13 +199,14 @@ find.marker.genes <-  function(object, gene.list)
 setMethod("markerGenes",
           signature(
               object = "SCFind",
-              gene.list = "character"),
+              gene.list = "character",
+              datasets = "character"),
           find.marker.genes)
 
 
 
 #' Find cell types associated with a given gene list
-#' 
+#' n
 #' Calculates p-values of a log-likelihood of a list of genes to be associated
 #' with each cell type. Log-likelihood is based on gene expression values.
 #'
@@ -213,8 +216,9 @@ setMethod("markerGenes",
 #' @name findCellTypes
 #'
 #' @return a named numeric vector containing p-values
-findCellTypes.geneList <- function(object, gene.list)
+findCellTypes.geneList <- function(object, gene.list, datasets = "")
 {
+
     if (is.null(object))
     {
         stop("Please define a scfind object using the `object` parameter!")
@@ -224,10 +228,12 @@ findCellTypes.geneList <- function(object, gene.list)
         stop("Please define a list of genes using the `gene.list` parameter!")
     }
     
-    return(object@index$findCellTypes(gene.list))
+    datasets <- select.datasets(object, datasets)
+    
+    return(object@index$findCellTypes(gene.list, datasets))
 }
 
 #' @rdname findCellType
 #' @aliases findCellType
-setMethod("findCellTypes", signature(object = "SCFind", gene.list = "character"), findCellTypes.geneList)
+setMethod("findCellTypes", signature(object = "SCFind", gene.list = "character", datasets = "character"), findCellTypes.geneList)
 
