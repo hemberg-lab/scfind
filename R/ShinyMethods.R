@@ -26,7 +26,8 @@ ui.scfind <- function(object)
                 ),
                    
                 mainPanel(
-                    plotOutput("cellTypesHisto", height = 800)
+                    plotOutput("cellTypesHisto", height = 800),
+                    dataTableOutput("cellTypesData")
                 )
             )
 
@@ -59,6 +60,7 @@ server.scfind <- function(object)
 
             gene.list <- reactive({
                 genes <-  unlist(strsplit(gsub("\\s", "", input$geneList), ","))
+                genes
             })
 
             checkbox.selection <- reactive({
@@ -71,7 +73,7 @@ server.scfind <- function(object)
                 }
                 else
                 {
-                    if(is.null(input$geneCheckbox))
+                    if (is.null(input$geneCheckbox))
                     {
                         genes <- gene.list()
                     }
@@ -83,6 +85,7 @@ server.scfind <- function(object)
                 genes
                 ## updateSelectInput(session, "geneCheckbox", selected  = genes)
             })
+
             
             output$geneCheckbox <- renderUI({
                 
@@ -113,42 +116,48 @@ server.scfind <- function(object)
             output$queryOptimizer <- renderDataTable({
                 datatable(recommended.queries(), selection = 'single')
             })
+
+            output$cellTypesData <- renderDataTable({
+                
+                
+            })
             
-            
+            cell.types <- reactive({
+                selection <- input$geneCheckbox
+                if (length(input$geneCheckbox) != 0){
+                    print(selection)
+                    result <- findCellTypes(object, selection, input$datasetCheckbox)
+                    ## print(result)
+                    result <- setNames(unlist(result, use.names=F), rep(names(result), lengths(result)))
+                    df <- data.frame(cell_type = names(result), cell_id = result)
+                    df
+                }
+                else
+                {
+                    data.frame(cell_type = c(), cell_id = c())
+                }
+            })
             
             output$cellTypesHisto <- renderPlot({
                 ## Render a barplot
                 ## print(length(input$geneCheckbox))
                 ## print(input$geneCheckbox)
-                selection <- checkbox.selection()
-                print(selection)
-                if (length(input$geneCheckbox) != 0)
+                df <- cell.types()
+                if (nrow(df) != 0)
                 {
-                    print(input$datasetCheckbox)
-                    result <- findCellTypes(object, selection, input$datasetCheckbox)
-                    ## print(result)
-                    result <- setNames(unlist(result, use.names=F), rep(names(result), lengths(result)))
-                    df <- data.frame(cell_type = names(result), cell_id = result)
-                    if (nrow(df) != 0)
-                    {
-                        g <- ggplot(df, aes(x=cell_type)) +
-                            xlab("Cell Type") +
-                            ylab("Cells") +
-                            geom_bar(color = "blue") +
-                            ggtitle(paste0(selection, collapse = ",")) +
-                            coord_flip() +
-                            theme_minimal()
-                    }
-                    else
-                    {
-                        g <- plot(0,type='n',axes=FALSE,ann=FALSE)
-                    }
-                    g
+                    g <- ggplot(df, aes(x=cell_type)) +
+                        xlab("Cell Type") +
+                        ylab("Cells") +
+                        geom_bar(color = "blue") +
+                        ggtitle(paste0(input$geneCheckbox, collapse = ",")) +
+                        coord_flip() +
+                        theme_minimal()
                 }
                 else
                 {
-                    plot(0,type='n',axes=FALSE,ann=FALSE)
+                    g <- plot(0,type='n',axes=FALSE,ann=FALSE)
                 }
+                g
             })
             
             
