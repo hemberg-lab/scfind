@@ -117,10 +117,7 @@ server.scfind <- function(object)
                 datatable(recommended.queries(), selection = 'single')
             })
 
-            output$cellTypesData <- renderDataTable({
-                
-                
-            })
+            
             
             cell.types <- reactive({
                 selection <- input$geneCheckbox
@@ -136,6 +133,13 @@ server.scfind <- function(object)
                 {
                     data.frame(cell_type = c(), cell_id = c())
                 }
+            })
+            
+            output$cellTypesData <- renderDataTable({
+                df <- cell.types()
+                cell.types.df <- aggregate(cell_id ~ cell_type, df, FUN = length)
+                datatable(cell.types.df, selection = 'single')
+                
             })
             
             output$cellTypesHisto <- renderPlot({
@@ -159,6 +163,8 @@ server.scfind <- function(object)
                 }
                 g
             })
+
+            
             
             
             session$onSessionEnded(function() {
