@@ -1119,7 +1119,7 @@ class EliasFanoDB
 
   // TODO(Nikos) this function can be optimized.. It uses the native quering mechanism
   // that casts the results into native R data structures
-  Rcpp::List findMarkerGenes(const Rcpp::CharacterVector& gene_list, const Rcpp::CharacterVector datasets_active,unsigned int min_support_cutoff = 5)
+  Rcpp::DataFrame findMarkerGenes(const Rcpp::CharacterVector& gene_list, const Rcpp::CharacterVector datasets_active,unsigned int min_support_cutoff = 5)
   {
     // Store the results in this list
     Rcpp::List results;
@@ -1374,14 +1374,11 @@ class EliasFanoDB
               });
 
     // Dump the list
-    results["# Genes"] = Rcpp::wrap(query_gene_cardinality);
-    results["Query"] = Rcpp::wrap(query);
-    results["Rank"] = Rcpp::wrap(query_rank);
-    results["# Cells"] = Rcpp::wrap(query_cell_cardinality);
-    results["# Cell Types"] = Rcpp::wrap(query_cell_type_cardinality);
-
-    
-    return results;
+    return Rcpp::DataFrame::create(Rcpp::Named("# Genes") = Rcpp::wrap(query_gene_cardinality),
+                                   Rcpp::Named("Query") = Rcpp::wrap(query),
+                                   Rcpp::Named("Rank") = Rcpp::wrap(query_rank),
+                                   Rcpp::Named("# Cells") = Rcpp::wrap(query_cell_cardinality),
+                                   Rcpp::Named("# Cell Types") = Rcpp::wrap(query_cell_type_cardinality));
   }
 
 
