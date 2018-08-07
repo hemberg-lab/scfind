@@ -4,6 +4,7 @@
 #include <bitset>
 #include <algorithm>
 #include <functional>
+#include <numeric>
 #include <iterator>
 #include <set>
 #include <cmath>
@@ -1123,9 +1124,11 @@ class EliasFanoDB
     // Store the results in this list
     Rcpp::List results;
     
-    std::vector<std::string> query_strings;
+    std::vector<std::string> query;
     std::vector<double> query_scores;
-    std::vector<int> cell_type_number;
+    std::vector<int> query_cell_type_cardinality;
+    std::vector<int> query_cell_cardinality;
+    std::vector<int> query_gene_cardinality;
 
     std::map<std::string, std::map<int, Transaction> > cells;
 
@@ -1172,7 +1175,7 @@ class EliasFanoDB
       }
     }
 
-    std::cout << "Query Done: found " << cells_present << " rules" << std::endl;
+    std::cerr << "Query Done: found " << cells_present << " rules" << std::endl;
     
     // Collect all transactions for fp-growth
     std::vector<Transaction> transactions;
@@ -1190,7 +1193,7 @@ class EliasFanoDB
       }
     }
     
-    std::cout << transactions.size() << " transactions" << std::endl;
+    std::cerr << transactions.size() << " transactions" << std::endl;
     // Run fp-growth algorithm
     const FPTree fptree{transactions, min_support_cutoff};
     const std::set<Pattern> patterns = fptree_growth(fptree);
@@ -1205,7 +1208,7 @@ class EliasFanoDB
       const auto& gene_set = item.first;
       int fp_support = item.second;
       
-      if(gene_set.size() == 1)
+      if (gene_set.size() == 1)
       {
         continue;
       }
@@ -1332,6 +1335,7 @@ class EliasFanoDB
       
       
       double query_score = 0;
+      int cells_in_query = 0;
       std::map<std::string, double> ct_tfidf;
       for ( auto const& _ct : ct_map)
       {
@@ -1343,18 +1347,40 @@ class EliasFanoDB
 
           tfidf += this->ef_data[this->metadata[g][cct->second]].idf;
         }
-        query_score += tfidf * log(ct_map[_ct.first].size());
+        query_score += tfidf * log(_ct.second.size());
+        cells_in_query += _ct.second.size();
       }
+      // Get the mean ct size
+      query_score /= ct_map.size();
       
       
+      query_cell_cardinality.push_back(cells_in_query);
+      query_gene_cardinality.push_back(gene_set.size());
+      query.push_back(view_string);
       query_scores.push_back(query_score);
-      query_strings.push_back(view_string);
-      cell_type_number.push_back(ct_map.size());
+      query_cell_type_cardinality.push_back(ct_map.size());
+      
     }
-    results["query"] = Rcpp::wrap(query_strings);
-    results["score"] = Rcpp::wrap(query_scores);
-    results["available_cell_types"] = Rcpp::wrap(cell_type_number);
 
+    std::vector<int> query_rank(query_scores.size());    
+    std::iota(query_rank.begin(), 
+              query_rank.end(), 
+              1);
+    
+    std::sort(query_rank.begin(), 
+              query_rank.end(), 
+              [&query_scores](const int& i1, const int& i2){
+                return query_scores[i1] < query_scores[i2];
+              });
+
+    // Dump the list
+    results["# Genes"] = Rcpp::wrap(query_gene_cardinality);
+    results["Query"] = Rcpp::wrap(query);
+    results["Rank"] = Rcpp::wrap(query_rank);
+    results["# Cells"] = Rcpp::wrap(query_cell_cardinality);
+    results["# Cell Types"] = Rcpp::wrap(query_cell_type_cardinality);
+
+    
     return results;
   }
 
