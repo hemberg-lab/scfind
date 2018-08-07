@@ -956,8 +956,17 @@ class EliasFanoDB
     for (auto const& ct : cts)
     {
       // TODO(Nikos) fix this, otherwise we will get a nice segfault no error control
-      ct_support.push_back(this->inverse_cell_type[this->cell_types_id.find(ct)->second].total_cells);
+      auto cit = this->cell_types_id.find(ct);
+      if(cit != this->cell_types_id.end())
+      {
+        ct_support.push_back(this->inverse_cell_type[cit->second].total_cells);
+      }
+      else
+      {
+        ct_support.push_back(0);
+      }
     }
+    
     
     return Rcpp::wrap(ct_support);
   }
@@ -1374,11 +1383,11 @@ class EliasFanoDB
               });
 
     // Dump the list
-    return Rcpp::DataFrame::create(Rcpp::Named("# Genes") = Rcpp::wrap(query_gene_cardinality),
+    return Rcpp::DataFrame::create(Rcpp::Named("Genes") = Rcpp::wrap(query_gene_cardinality),
                                    Rcpp::Named("Query") = Rcpp::wrap(query),
                                    Rcpp::Named("Rank") = Rcpp::wrap(query_rank),
-                                   Rcpp::Named("# Cells") = Rcpp::wrap(query_cell_cardinality),
-                                   Rcpp::Named("# Cell Types") = Rcpp::wrap(query_cell_type_cardinality));
+                                   Rcpp::Named("Cells") = Rcpp::wrap(query_cell_cardinality),
+                                   Rcpp::Named("Cell Types") = Rcpp::wrap(query_cell_type_cardinality));
   }
 
 
@@ -1506,7 +1515,8 @@ RCPP_MODULE(EliasFanoDB)
     .method("dumpGenes", &EliasFanoDB::dumpGenes)
     .method("getByteStream", &EliasFanoDB::getByteStream)
     .method("loadByteStream", &EliasFanoDB::loadByteStream)
-    .method("getTotalCellTypeSupport", &EliasFanoDB::getCellTypeSupport);
+    .method("getCellsInDB", &EliasFanoDB::getTotalCells)
+    .method("getCellTypeSupport", &EliasFanoDB::getCellTypeSupport);
   
 }
 

@@ -21,8 +21,10 @@ ui.scfind <- function(object)
                                        h3("Datasets"),
                                        choices = object@datasets,
                                        selected = object@datasets,
-                                       inline = T),
-                     dataTableOutput("queryOptimizer")
+                                       inline = T
+                                       ),
+                    dataTableOutput("queryOptimizer"),
+                    width = 14
                 ),
                    
                 mainPanel(
@@ -137,7 +139,23 @@ server.scfind <- function(object)
             
             output$cellTypesData <- renderDataTable({
                 df <- cell.types()
+                ## Hypergeometric test
                 cell.types.df <- aggregate(cell_id ~ cell_type, df, FUN = length)
+                query.hits <- nrow(df)
+                total.cells <- object@index$getCellsInDB()
+                cells.in.cell.type <- object@index$getCellTypeSupport(cell.types.df$cell_type)
+
+                message(paste(cell.types.df$cell_id, # total observed successes ( query.hits for cell type)
+                                             cells.in.cell.type, # total successes ( cell type size )
+                                             total.cells - cells.in.cell.type, # total failures( total cells excluding cell type)
+                                             query.hits
+                              ))
+                cell.types.df$pval <- phyper(cell.types.df$cell_id, # total observed successes ( query.hits for cell type)
+                                             cells.in.cell.type, # total successes ( cell type size )
+                                             total.cells - cells.in.cell.type, # total failures( total cells excluding cell type)
+                                             query.hits # sample size 
+                                             )
+                            
                 datatable(cell.types.df, selection = 'single')
                 
             })
