@@ -21,8 +21,10 @@ ui.scfind <- function(object)
                                        h3("Datasets"),
                                        choices = object@datasets,
                                        selected = object@datasets,
-                                       inline = T),
-                     dataTableOutput("queryOptimizer")
+                                       inline = T
+                                       ),
+                    dataTableOutput("queryOptimizer"),
+                    width = 14
                 ),
                    
                 mainPanel(
@@ -68,7 +70,7 @@ server.scfind <- function(object)
                 if (!is.null(selected.index))
                 {
                     available.queries <-  recommended.queries()
-                    selected.query <- available.queries[selected.index, 'query']
+                    selected.query <- available.queries[selected.index, 'Query']
                     genes <-  unlist(strsplit(gsub("\\s", "", selected.query), ","))
                 }
                 else
@@ -117,10 +119,7 @@ server.scfind <- function(object)
                 datatable(recommended.queries(), selection = 'single')
             })
 
-            output$cellTypesData <- renderDataTable({
-                
-                
-            })
+            
             
             cell.types <- reactive({
                 selection <- input$geneCheckbox
@@ -136,6 +135,29 @@ server.scfind <- function(object)
                 {
                     data.frame(cell_type = c(), cell_id = c())
                 }
+            })
+            
+            output$cellTypesData <- renderDataTable({
+                df <- cell.types()
+                ## Hypergeometric test
+                cell.types.df <- aggregate(cell_id ~ cell_type, df, FUN = length)
+                query.hits <- nrow(df)
+                total.cells <- object@index$getCellsInDB()
+                cells.in.cell.type <- object@index$getCellTypeSupport(cell.types.df$cell_type)
+
+                message(paste(cell.types.df$cell_id, # total observed successes ( query.hits for cell type)
+                                             cells.in.cell.type, # total successes ( cell type size )
+                                             total.cells - cells.in.cell.type, # total failures( total cells excluding cell type)
+                                             query.hits
+                              ))
+                cell.types.df$pval <- phyper(cell.types.df$cell_id, # total observed successes ( query.hits for cell type)
+                                             cells.in.cell.type, # total successes ( cell type size )
+                                             total.cells - cells.in.cell.type, # total failures( total cells excluding cell type)
+                                             query.hits # sample size 
+                                             )
+                            
+                datatable(cell.types.df, selection = 'single')
+                
             })
             
             output$cellTypesHisto <- renderPlot({
@@ -159,6 +181,8 @@ server.scfind <- function(object)
                 }
                 g
             })
+
+            
             
             
             session$onSessionEnded(function() {
