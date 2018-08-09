@@ -5,7 +5,8 @@
 #include <algorithm>
 
 #include <utility>
-
+#include <map>
+#include <vector>
 #include <set>
 
 
@@ -205,6 +206,7 @@ class EliasFanoDB
   // that casts the results into native R data structures
   Rcpp::DataFrame findMarkerGenes(const Rcpp::CharacterVector& gene_list, const Rcpp::CharacterVector datasets_active, unsigned int min_support_cutoff);
 
+  std::map<std::string, std::vector<int> > intersect_cells(std::set<std::string> gene_set, Rcpp::List genes_results);
 
   int dbSize();
 

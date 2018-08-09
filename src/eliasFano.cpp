@@ -445,7 +445,6 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
 
   std::map<std::string, std::map<int, Transaction> > cells;
 
-
   int cells_present = 0;
     
   // Perform an OR query on the database as a first step
@@ -467,8 +466,7 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
       {
         cells[ct] = std::map<int, Transaction>();
       }
-        
-      //
+
 
       std::vector<unsigned int> ids  = Rcpp::as<std::vector<unsigned int> >(gene_hits[ct]);
       auto& cell_index = cells[ct];
@@ -525,62 +523,9 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
     {
       continue;
     }
-    // Support scaled by genes
-    // double query_base_score = 1 + (log(item.second) * gene_set.size());
-      
-    // Get the cell type intersection of the involved cells
+    
     // TODO(Nikos) optimize wrapping 
-    std::map<std::string, std::vector<int> > ct_map;
-      
-    // First gene init set for intersections
-    auto git = gene_set.begin();
-     
-    const Rcpp::List& first_gene = genes_results[*git];
-    const std::vector<std::string> initial_cell_types = Rcpp::as<std::vector<std::string> >(first_gene.names());
-    for (auto const& ct : initial_cell_types)
-    {
-      ct_map[ct] = Rcpp::as< std::vector<int> >(first_gene[ct]);
-    }
-      
-    // std::cout << *git << ", cell types " << ct_map.size() << std::endl;
-
-    for (++git; git != gene_set.end(); ++git)
-    {
-      const Rcpp::List& g_res = genes_results[*git];
-      std::vector<std::string> cell_types = Rcpp::as<std::vector<std::string> >(g_res.names());
-      std::vector<std::string> cell_types_in_ct_map;
-      cell_types_in_ct_map.reserve(ct_map.size());
-      for (auto const& ct : ct_map)
-      {
-        cell_types_in_ct_map.push_back(ct.first);
-      }
-        
-      std::sort(cell_types_in_ct_map.begin(), cell_types_in_ct_map.end());
-      std::sort(cell_types.begin(), cell_types.end());
-        
-        
-      std::vector<std::string> ct_intersection;
-      std::set_intersection(cell_types_in_ct_map.begin(),
-                            cell_types_in_ct_map.end(),
-                            cell_types.begin(),
-                            cell_types.end(),
-                            std::back_inserter(ct_intersection));
-
-      // Update ct_map with the values that have been thrown out cause of the intersection
-      for(auto m_it = ct_map.begin(); m_it != ct_map.end();)
-      {
-        auto f_it = std::find(ct_intersection.begin(),ct_intersection.end(), m_it->first);
-        if (f_it == ct_intersection.end())
-        {
-          m_it = ct_map.erase(m_it);
-        }
-        else
-        {
-          ++m_it;
-        }
-      }
-        
-    }
+    std::map<std::string, std::vector<int> > ct_map = intersect_cells(gene_set, genes_results);
       
     if (ct_map.empty())
     {
@@ -595,6 +540,8 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
         const Rcpp::List& g_res = genes_results[gene];
         std::vector<int> cells;
         std::vector<int> cells_in_gct = Rcpp::as<std::vector<int>>(g_res[ct]);
+        
+        // We do not need sorting the index is already sorted
         // std::sort(current_cells.begin(), current_cells.end());
         // std::sort(cells_in_gct.begin(), cell_in_gct.end
         std::set_intersection(
@@ -606,7 +553,7 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
           
         // This invalidates the current cells reference, careful there
         ct_map[ct] = cells;
-          
+        
         if (cells.empty())
         {
           ct_map.erase(ct_map.find(ct));
@@ -614,27 +561,14 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
         }
       }
     }
-      
-      
-      
-
+    
+    
     // Remove all empty records
-    int total_support = 0;
     for (auto it = ct_map.begin(); it != ct_map.end();)
     {
-      if(it->second.empty())
-      {
-        // std::cerr << "deleted" << it->first << std::endl;
-        it = ct_map.erase(it);
-          
-      }
-      else
-      {
-        total_support+= it->second.size();
-        ++it;
-      }
+      it = it->second.empty() ? ct_map.erase(it) : ++it;
     }
-      
+    
     // Continue to the next pattern
     if (ct_map.empty())
     {
@@ -645,8 +579,6 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
      
     // Give query a score
     std::string view_string = str_join(std::vector<Item>(gene_set.begin(), gene_set.end()), ",");
-      
-      
     double query_score = 0;
     int cells_in_query = 0;
     std::map<std::string, double> ct_tfidf;
@@ -694,6 +626,66 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
                                  Rcpp::Named("Cell Types") = Rcpp::wrap(query_cell_type_cardinality));
 }
 
+
+// Returns a map of cell types and cell id's that contain all genes in the gene_set
+std::map<std::string, std::vector<int>> EliasFanoDB::intersect_cells(std::set<std::string> gene_set, Rcpp::List genes_results)
+{
+  
+  std::map<std::string, std::vector<int> > ct_map;
+  
+  // First gene init set for intersections
+  auto git = gene_set.begin();
+     
+  const Rcpp::List& first_gene = genes_results[*git];
+  const std::vector<std::string> initial_cell_types = Rcpp::as<std::vector<std::string> >(first_gene.names());
+  for (auto const& ct : initial_cell_types)
+  {
+    ct_map[ct] = Rcpp::as< std::vector<int> >(first_gene[ct]);
+  }
+      
+  // std::cout << *git << ", cell types " << ct_map.size() << std::endl;
+
+  for (++git; git != gene_set.end(); ++git)
+  {
+    const Rcpp::List& g_res = genes_results[*git];
+    std::vector<std::string> cell_types = Rcpp::as<std::vector<std::string> >(g_res.names());
+    std::vector<std::string> cell_types_in_ct_map;
+    cell_types_in_ct_map.reserve(ct_map.size());
+    for (auto const& ct : ct_map)
+    {
+      cell_types_in_ct_map.push_back(ct.first);
+    }
+        
+    std::sort(cell_types_in_ct_map.begin(), cell_types_in_ct_map.end());
+    std::sort(cell_types.begin(), cell_types.end());
+        
+        
+    std::vector<std::string> ct_intersection;
+    std::set_intersection(cell_types_in_ct_map.begin(),
+                          cell_types_in_ct_map.end(),
+                          cell_types.begin(),
+                          cell_types.end(),
+                          std::back_inserter(ct_intersection));
+
+    // Update ct_map with the values that have been thrown out cause of the intersection
+    for(auto m_it = ct_map.begin(); m_it != ct_map.end();)
+    {
+      auto f_it = std::find(ct_intersection.begin(),ct_intersection.end(), m_it->first);
+      if (f_it == ct_intersection.end())
+      {
+        m_it = ct_map.erase(m_it);
+      }
+      else
+      {
+        ++m_it;
+      }
+    }
+        
+  }
+
+  return ct_map;
+
+}
 
 int EliasFanoDB::dbSize()
 {
