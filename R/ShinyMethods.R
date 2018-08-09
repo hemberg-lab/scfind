@@ -152,7 +152,7 @@ server.scfind <- function(object)
                               ))
                 cell.types.df$pval <- phyper(cell.types.df$cell_id, # total observed successes ( query.hits for cell type)
                                              cells.in.cell.type, # total successes ( cell type size )
-                                             total.cells - cells.in.cell.type, # total failures( total cells excluding cell type)
+                                             sum(cells.in.cell.type) - cells.in.cell.type, # total failures( total cells excluding cell type)
                                              query.hits # sample size 
                                              )
                             
