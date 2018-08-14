@@ -8,48 +8,37 @@
 #include <map>
 #include <vector>
 #include <set>
-
+#include <unordered_map>
 
 
 #include "functions.h"
 
-#define SERIALIZATION_VERSION 4
-
-
-class CellType 
-{
- public:
-  std::string name;
-  int total_cells;
-  size_t operator()() const
-  {
-    return std::hash<std::string>{}(name);
-  }
-};
+#define SERIALIZATION_VERSION 5
 
 
 
-struct CellTypeCompare
-{
-  using is_transparent = std::true_type;
-  bool operator()(const CellType& lhs, const CellType& rhs) const
-  {
-    return lhs.name < rhs.name;
-  }
+
+
+// template<typename T>
+// struct TypeCompare
+// {
+//   using is_transparent = std::true_type;
+//   bool operator()(const T& lhs, const T& rhs) const
+//   {
+//     return lhs.name < rhs.name;
+//   }
   
-  bool operator()(const CellType& lhs, const std::string& name) const
-  {
-    return lhs.name < name;
-  }
+//   bool operator()(const T& lhs, const std::string& name) const
+//   {
+//     return lhs.name < name;
+//   }
   
-  bool operator()(const std::string& name, const CellType& rhs) const
-  {
-    return name < rhs.name;
-  }
-};
+//   bool operator()(const std::string& name, const T& rhs) const
+//   {
+//     return name < rhs.name;
+//   }
+// };
 
-
-typedef float IDFtype;
 
 
 typedef struct
@@ -57,7 +46,7 @@ typedef struct
   BoolVec H;
   BoolVec L;
   int l;
-  IDFtype idf; // tfidf
+  float idf; // tfidf
   Quantile expr;
 } EliasFano;
 
@@ -69,86 +58,107 @@ typedef struct
 } IndexRecord;
 
 
-struct Cell_ID
+class EliasFanoDB;
+RCPP_EXPOSED_CLASS(EliasFanoDB)
+
+typedef int EliasFanoID;
+typedef int CellTypeID;
+
+
+
+class GeneMeta
 {
-  unsigned int num;
-  const int cell_type;
-  // Hashing
-  size_t operator()() const
-  {
-    return std::hash<int>{}(cell_type) ^ std::hash<unsigned int>{}(num);
-  }
-  
-  size_t operator==(const struct Cell_ID& obj) const 
-  {
-    return (num == obj.num) && (cell_type == obj.cell_type);
-  }
+public:
+  int total_reads;
+  GeneMeta();
+  void merge(const GeneMeta& other);
 };
 
+class CellMeta
+{
+public:                                               
+  int reads;
+  int features;
+  CellMeta();
+};
 
-typedef struct Cell_ID CellID;
+class CellID
+{
+public:
+  CellTypeID cell_type;
+  int cell_id;
+  CellID(CellTypeID, int);
+  bool operator==(const CellID& obj) const
+  {
+    return (obj.cell_type == cell_type) && (obj.cell_id == cell_id);
+
+  }
+};
 
 namespace std
 {
   template<>
   struct hash<CellID>
   {
-    size_t operator()(const CellID& obj) const
+    inline size_t operator()(const CellID& cid) const
     {
-      // Return overloaded operator
-      return obj();
+      return hash<CellTypeID>()(cid.cell_type) ^ hash<int>()(cid.cell_id);
     }
   };
 
-  template<>
-  struct hash<CellType>
-  {
-    size_t operator()(const CellType& obj) const
-    {
-      return obj();
-    }
-  };
-  
 }
 
 
+class QueryScore
+{
+public:
+  friend class EliasFanoDB;
+  int cells_in_query;
+  double query_score;
+  QueryScore();
+  void cell_type_relevance(const EliasFanoDB&, std::map<std::string, std::vector<int> >, const std::set<std::string>&);
 
 
-class EliasFanoDB;
-RCPP_EXPOSED_CLASS(EliasFanoDB)
+};
 
-typedef int EliasFanoID;
-typedef int CellTypeID;
-typedef std::string Gene;
+
+
+
 typedef struct
 {
-  int reads;
-  int feature;
-}Cell;
-
-
+  std::string name;
+  int total_cells;
+} CellType;
 
 
 class EliasFanoDB
 {
-
  public:
-  typedef std::unordered_map<CellTypeID, EliasFanoID> EliasFanoIndex;
-  // gene -> cell type -> eliasFano
-  typedef std::unordered_map<Gene, EliasFanoIndex > CellTypeIndex;
+  
+  typedef std::string GeneName;
+  typedef std::unordered_map<CellTypeID, EliasFanoID> GeneContainer;
+  typedef std::map<GeneName, GeneContainer> GeneExpressionDB;
+
+  typedef std::map<GeneName, GeneMeta> GeneIndex;
+  
+  typedef std::unordered_map<CellID, CellMeta> CellIndex;
+  
+  typedef std::string CellTypeName;
+  typedef std::unordered_map<CellTypeName, CellTypeID> CellTypeIndex;
   typedef std::deque<EliasFano> ExpressionMatrix;
   
-  // Store the gene metadata, gene support in cells at the index
-  typedef std::map<std::string, unsigned int> GeneIndex;
-
  // private:
-  CellTypeIndex metadata;
-  ExpressionMatrix ef_data;
-  std::map<CellType, int, CellTypeCompare> cell_types_id;
-  std::deque<CellType> inverse_cell_type;
-  std::map<CellType, std::vector<Cell> > cells;
   
-  GeneIndex gene_counts;
+  GeneExpressionDB index;
+  CellIndex cells;
+  CellTypeIndex cell_types;
+  
+  std::deque<CellType> inverse_cell_type;
+  
+  GeneIndex genes;
+  
+  ExpressionMatrix ef_data;
+
   unsigned int total_cells;
   
   unsigned char quantization_bits;
@@ -156,30 +166,21 @@ class EliasFanoDB
 
   EliasFanoDB();
   
-  
-  
   bool global_indices;
+  
   int warnings;
   
   void dumpGenes();
 
   void clearDB();
 
-
   int loadByteStream(const Rcpp::RawVector& stream);
 
   Rcpp::RawVector getByteStream();
-  
-  
-
-  void insertToDB(int ef_index, const std::string& gene_name, const CellType& cell_type);
-   
 
   long eliasFanoCoding(const std::vector<int>& ids, const Rcpp::NumericVector& values);
   
-
   std::vector<int> eliasFanoDecoding(const EliasFano& ef);
-
 
   // This is invoked on slices of the expression matrix of the dataset 
   long encodeMatrix(const std::string& cell_type_name, const Rcpp::NumericMatrix& gene_matrix);
@@ -190,7 +191,6 @@ class EliasFanoDB
 
   Rcpp::NumericVector getCellTypeSupport(Rcpp::CharacterVector& cell_types);
   
-
   Rcpp::List queryGenes(const Rcpp::CharacterVector& gene_names, const Rcpp::CharacterVector& datasets_active);
   
   size_t dataMemoryFootprint();
