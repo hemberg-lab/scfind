@@ -102,7 +102,6 @@ void SerializationDB::deserializeEliasFano(EliasFano& ef, int quantization_bits)
       break;
     }
   }
-
     
   // Read L
   buffer.resize(L_size, 0);
@@ -213,18 +212,33 @@ void SerializationDB::deserializeDB(EliasFanoDB& efdb)
   gene_ids.reserve(genes_present);
   for (int i = 0; i < genes_present; ++i)
   {
-    int cell_support;
+    GeneMeta gene_meta;
     unsigned char gene_name_length;
     read(gene_name_length);
     readBuffer(buffer, gene_name_length);
     // Insert end of character string
     buffer[gene_name_length] = '\0';
-    read(cell_support);
-    efdb.gene_counts[buffer] = cell_support;
-    efdb.metadata[buffer] = EliasFanoDB::EliasFanoIndex();
+    read(gene_meta);
+    efdb.genes[buffer] = gene_meta;
+    efdb.index[buffer] = EliasFanoDB::GeneContainer();
     // std::cout << "gene" << buffer << std::endl;
     gene_ids.push_back(buffer);
   }
+
+
+  int number_of_cells;
+  read(number_of_cells);
+  
+  for (int i = 0; i < number_of_cells; i++)
+  {
+    CellID cell_id(0,0);
+    read(cell_id);
+    CellMeta cell;
+    read(cell);
+    efdb.cells.insert({cell_id, cell});
+  }
+  
+
 
   // Read cell type names
   int cell_types_present;
@@ -252,8 +266,8 @@ void SerializationDB::deserializeDB(EliasFanoDB& efdb)
     CellType ct;
     ct.name = buffer;
     ct.total_cells = total_cells;
-    int cell_type_id = efdb.cell_types_id.size();
-    efdb.cell_types_id[ct] = cell_type_id;
+    int cell_type_id = efdb.cell_types.size();
+    efdb.cell_types[buffer] = cell_type_id;
     efdb.inverse_cell_type.push_back(ct);
       
   }
@@ -283,7 +297,7 @@ void SerializationDB::deserializeDB(EliasFanoDB& efdb)
   for (auto const& r : records)
   {
     //std::cerr << r.gene << " " <<r.cell_type << " " << r.index << std::endl;
-    efdb.metadata[gene_ids[r.gene]][r.cell_type] = r.index;
+    efdb.index[gene_ids[r.gene]][r.cell_type] = r.index;
   }
     
 #ifdef DEBUG
@@ -291,7 +305,6 @@ void SerializationDB::deserializeDB(EliasFanoDB& efdb)
   std::cout << "Quantization bits " << (unsigned int)this->quantization_bits << std::endl;
   std::cout << "Present genes " << genes_present << std::endl;
   std::cout << "Present cell_types " << cell_types_present << std::endl;
-  std::cout << "Genes support " << gene_counts.size() << std::endl;
   std::cout << "Index size " << index_size << std::endl;
   std::cout << "Bytes left to read:" << this->serialized_bytestream.size() - byte_pointer << std::endl;
 #endif
@@ -321,7 +334,7 @@ void SerializationDB::serialize(const EliasFanoDB& efdb)
   write(efdb.quantization_bits);
     
   // Number of genes present in the database
-  int genes_present = efdb.gene_counts.size();
+  int genes_present = efdb.genes.size();
   write(genes_present);
 
     
@@ -329,7 +342,7 @@ void SerializationDB::serialize(const EliasFanoDB& efdb)
   // Read the gene names
   std::map<std::string, int> gene_ids;
     
-  for (auto const& g : efdb.gene_counts)
+  for (auto const& g : efdb.genes)
   {
     // Size of cell type can be from 0 to 255
     unsigned char gene_name_size = g.first.size();
@@ -340,10 +353,21 @@ void SerializationDB::serialize(const EliasFanoDB& efdb)
     write(g.second);
     gene_ids[g.first] = gene_id++;
   }
+
+  int number_of_cells = efdb.cells.size();
+  write(number_of_cells);
+  
+  for ( auto const& cell : efdb.cells)
+  {
+    write(cell.first);
+    write(cell.second);
+  }
+
+
   // Dump cell types
 
   int cell_type_id = 0;
-  int cell_types_present = efdb.cell_types_id.size();
+  int cell_types_present = efdb.cell_types.size();
   write(cell_types_present);
     
   for (auto const& ct : efdb.inverse_cell_type)
@@ -363,7 +387,7 @@ void SerializationDB::serialize(const EliasFanoDB& efdb)
   write(index_size);
   std::cout << "Index size " << index_size << std::endl;
     
-  for (auto const& g : efdb.metadata)
+  for (auto const& g : efdb.index)
   {
 
     for (auto const& ct : g.second)

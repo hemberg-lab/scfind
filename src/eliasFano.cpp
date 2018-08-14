@@ -728,7 +728,7 @@ int EliasFanoDB::mergeDB(const EliasFanoDB& db)
   {
     insertNewCellType(ct);
   }
-    
+  
   // Iterate through the data model
   for ( auto& gene: extdb.index)
   {
@@ -751,6 +751,19 @@ int EliasFanoDB::mergeDB(const EliasFanoDB& db)
       index[gene.first][cell_type_id] = new_id;
     }
   }
+
+  for (auto const& cell : extdb.cells)
+  {
+
+    CellID clone(cell.first);
+    int old_cell_type_id = clone.cell_type;
+    // Trace the new entry in the database
+    int new_cell_type_id = this->cell_types[extdb.inverse_cell_type[old_cell_type_id].name];
+    clone.cell_type = new_cell_type_id;
+    this->cells.insert({clone, cell.second});
+  }
+
+
   return 0;
 }
 
