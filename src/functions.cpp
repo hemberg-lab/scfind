@@ -20,15 +20,31 @@ std::string str_join( const std::vector<std::string>& elements, const char* cons
 
 // Accepts a vector, transforms and returns a quantization logical vector
 // This function aims for space efficiency of the expression vector
-Quantile lognormalcdf(std::vector<int> ids, const Rcpp::NumericVector& v, unsigned int bits)
+Quantile lognormalcdf(std::vector<int> ids, const Rcpp::NumericVector& v, unsigned int bits, bool raw_counts = true)
 {
+  
+  auto expr_tran = [](const double& x){
+    return x;
+  };
+  
+  // specify a log transform wrapper for the raw expression value
+  if(raw_counts)
+  {
+    expr_tran = [](const double& x){
+      return log(x);
+    }
+  }
+
   Quantile expr;
   expr.mu = std::accumulate(ids.begin(),ids.end(), 0, [&v](const double& mean, const int& index){
-      return  mean + v[index - 1];
+      return  mean + expr_tran(v[index - 1] + 1);
     }) / ids.size();
   
+  
+  
+
   expr.sigma = sqrt(std::accumulate(ids.begin(), ids.end(), 0, [&v, &expr](const double& variance, const int& index){
-        return pow(expr.mu - v[index - 1], 2);
+        return pow(expr.mu - expr_tran(v[index - 1]), 2);
       }) / ids.size());
   // initialize vector with zeros
   expr.quantile.resize(ids.size() * bits, 0);
@@ -37,12 +53,11 @@ Quantile lognormalcdf(std::vector<int> ids, const Rcpp::NumericVector& v, unsign
   int expr_quantile_i = 0;
   for (auto const& s : ids)
   {
-    unsigned int t = round(normalCDF(v[s], expr.mu, expr.sigma) * (1 << bits));  
+    unsigned int t = round(normalCDF(expr_tran(v[s]), expr.mu, expr.sigma) * (1 << bits));
     std::bitset<BITS> q = int2bin_core(t);
     for (int i = 0; i < bits; ++i)
     {
        expr.quantile[expr_quantile_i++] = q[i];
-      
     }
   }
   return expr;
