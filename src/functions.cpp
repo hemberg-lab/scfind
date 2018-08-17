@@ -23,27 +23,17 @@ std::string str_join( const std::vector<std::string>& elements, const char* cons
 Quantile lognormalcdf(std::vector<int> ids, const Rcpp::NumericVector& v, unsigned int bits, bool raw_counts = true)
 {
   
-  auto expr_tran = [](const double& x){
-    return x;
-  };
-  
-  // specify a log transform wrapper for the raw expression value
-  if(raw_counts)
-  {
-    expr_tran = [](const double& x){
-      return log(x);
-    }
-  }
+  std::function<double(const double&)> expr_tran = raw_counts ? [](const double& x) {return log(x);}: [](const double& x){return x;};  
 
   Quantile expr;
-  expr.mu = std::accumulate(ids.begin(),ids.end(), 0, [&v](const double& mean, const int& index){
+  expr.mu = std::accumulate(ids.begin(),ids.end(), 0, [&v, &expr_tran](const double& mean, const int& index){
       return  mean + expr_tran(v[index - 1] + 1);
     }) / ids.size();
   
   
   
 
-  expr.sigma = sqrt(std::accumulate(ids.begin(), ids.end(), 0, [&v, &expr](const double& variance, const int& index){
+  expr.sigma = sqrt(std::accumulate(ids.begin(), ids.end(), 0, [&v, &expr, &expr_tran](const double& variance, const int& index){
         return pow(expr.mu - expr_tran(v[index - 1]), 2);
       }) / ids.size());
   // initialize vector with zeros
