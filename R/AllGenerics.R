@@ -1,7 +1,7 @@
 
 #' The scfind main class object
 #' @export
-setClass("SCFind", representation(index = "hash", datasets = "character"))
+setClass("SCFind", representation(index = "Rcpp_EliasFanoDB", datasets = "character", serialized = "raw"))
 
 #' @examples TODO
 #' 
@@ -34,7 +34,7 @@ setGeneric(name = "mergeSCE", def = function(object, sce, dataset.name) {
 #' 
 #' @examples TODO
 #' 
-setGeneric(name = "queryGene", def = function(object, gene) {
+setGeneric(name = "queryGene", def = function(object, gene, datasets) {
     standardGeneric("queryGene")
 })
 
@@ -55,6 +55,34 @@ setGeneric(name = "queryGene", def = function(object, gene) {
 #' index <- buildCellIndex(sce)
 #' res <- findCell(index, genelist = c('SOX6', 'SNAI3'))
 #' 
-setGeneric(name = "findCellTypes", function(object, gene.list) {
+setGeneric(name = "findCellTypes", function(object, gene.list, datasets) {
     standardGeneric("findCellTypes")
 })
+
+
+#' @export
+setGeneric(name = "scfind_interactive", function(object) {
+    standardGeneric("scfind_interactive")
+})
+
+
+#' Generic to be used instead of readRDS
+#' @export
+setGeneric(name = "loadObject", function(filename){
+    standardGeneric("loadObject")
+})
+
+#' Generic to be used instead of saveRDS
+#' @export
+setGeneric(name = "saveObject", function(object, file){
+    standardGeneric("saveObject")
+})
+
+#' @export
+setGeneric(name = "markerGenes", function(object, gene.list, datasets)
+{
+    standardGeneric("markerGenes")
+})
+
+
+
