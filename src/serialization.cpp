@@ -363,9 +363,7 @@ void SerializationDB::serialize(const EliasFanoDB& efdb)
     write(cell.second);
   }
 
-
   // Dump cell types
-
   int cell_type_id = 0;
   int cell_types_present = efdb.cell_types.size();
   write(cell_types_present);

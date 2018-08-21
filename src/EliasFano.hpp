@@ -114,11 +114,18 @@ class QueryScore
 public:
   friend class EliasFanoDB;
   int cells_in_query;
+  int cell_types_in_query;
   double query_score;
+  std::vector<std::string> gene_names;
+  std::unordered_map<CellID , std::vector<double> > expression_mat;
+  
+
+  
   QueryScore();
-  void cell_type_relevance(const EliasFanoDB&, std::map<std::string, std::vector<int> >, const std::set<std::string>&);
-
-
+  void reset();
+  void cell_type_relevance(const EliasFanoDB&, const Rcpp::List&, const std::set<std::string>&);
+  void cell_tfidf(const EliasFanoDB&, const Rcpp::List&, const std::set<std::string>&);
+  void estimateExpresssion(const Rcpp::List& gene_results, const EliasFanoDB& db);
 };
 
 
@@ -173,7 +180,9 @@ class EliasFanoDB
   void dumpGenes();
 
   void clearDB();
-
+ 
+  const EliasFano& getEntry(const GeneName& gene_name, const CellTypeName& cell_type) const;
+ 
   int loadByteStream(const Rcpp::RawVector& stream);
 
   Rcpp::RawVector getByteStream();
@@ -191,6 +200,8 @@ class EliasFanoDB
 
   Rcpp::NumericVector getCellTypeSupport(Rcpp::CharacterVector& cell_types);
   
+  std::vector<double> getQuantizedExpressionLevels(const std::string& gene_name, const std::string& cell_type);
+  
   Rcpp::List queryGenes(const Rcpp::CharacterVector& gene_names, const Rcpp::CharacterVector& datasets_active);
   
   size_t dataMemoryFootprint();
@@ -206,7 +217,7 @@ class EliasFanoDB
   // that casts the results into native R data structures
   Rcpp::DataFrame findMarkerGenes(const Rcpp::CharacterVector& gene_list, const Rcpp::CharacterVector datasets_active, unsigned int min_support_cutoff);
 
-  std::map<std::string, std::vector<int> > intersect_cells(std::set<std::string> gene_set, Rcpp::List genes_results);
+  std::map<std::string, std::vector<int> > intersect_cells(std::set<std::string> gene_set, Rcpp::List genes_results) const ;
 
   int dbSize();
 
