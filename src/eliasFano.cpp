@@ -126,20 +126,25 @@ void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasF
     const auto ct_names = Rcpp::as<std::vector<std::string>>(cts.names());
     for(auto const& cell_type : ct_names)
     {
-      const Rcpp::IntegerVector& expr_vector  = cts[cell_type];
+      const Rcpp::IntegerVector& expr_indices  = cts[cell_type];
       const auto ctid_it = db.cell_types.find(cell_type);
       CellTypeID ct_id = ctid_it->second;
-      std::vector<double> expr = decompressValues(db.getEntry(gene, cell_type).expr, db.quantization_bits);
-      
+      std::vector<double> expr_values = decompressValues(db.getEntry(gene, cell_type).expr, db.quantization_bits);
+      if (expr_values.size() != expr_indices.size())
+      {
+        std::cerr << "Corrupted DB!" << std::endl;
+      }
       int expr_index = 0;
-      for (auto const& cell_id : expr_vector)
+      for (auto const& cell_id : expr_indices)
       {
         CellID cell(ct_id, cell_id);
-        auto ins_res = tfidf.insert(std::make_pair(cell, tmpl_cont));
-        auto tfidf_vec = ins_res.first->second;
         
-        tfidf_vec[gene_row] = (expr_vector[expr_index] / db.cells.at(cell).reads) * gene_idf;
+        auto ins_res = tfidf.insert(std::make_pair(cell, tmpl_cont));
+        auto& tfidf_vec = ins_res.first->second;
+        
+        tfidf_vec[gene_row] = (expr_values[expr_index++] / db.cells.at(cell).reads) * gene_idf;
         gene_score += tfidf_vec[gene_row];
+        
       }
     }
   }
@@ -206,7 +211,7 @@ long EliasFanoDB::eliasFanoCoding(const std::vector<int>& ids, const Rcpp::Numer
 
   BoolVec::iterator l_iter = ef.L.begin();
   ef.expr = lognormalcdf(ids, values, this->quantization_bits);
-    
+  
     
   for (auto expr = ids.begin(); expr != ids.end(); ++expr)
   {
