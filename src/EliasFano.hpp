@@ -116,16 +116,16 @@ public:
   int cells_in_query;
   int cell_types_in_query;
   double query_score;
-  std::vector<std::string> gene_names;
-  std::unordered_map<CellID , std::vector<double> > expression_mat;
+  std::map<std::string, double> gene_scores;
+  std::unordered_map<CellID , std::vector<double> > tfidf;
   
 
   
   QueryScore();
   void reset();
   void cell_type_relevance(const EliasFanoDB&, const Rcpp::List&, const std::set<std::string>&);
-  void cell_tfidf(const EliasFanoDB&, const Rcpp::List&, const std::set<std::string>&);
-  void estimateExpresssion(const Rcpp::List& gene_results, const EliasFanoDB& db);
+  void cell_tfidf(const EliasFanoDB&, const std::set<std::string>&);
+  void estimateExpression(const Rcpp::List& gene_results, const EliasFanoDB& db);
 };
 
 
@@ -196,7 +196,7 @@ class EliasFanoDB
 
   Rcpp::List total_genes();
 
-  Rcpp::NumericVector getTotalCells();
+  int getTotalCells() const;
 
   Rcpp::NumericVector getCellTypeSupport(Rcpp::CharacterVector& cell_types);
   

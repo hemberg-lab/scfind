@@ -3,6 +3,9 @@
 #include <iterator>
 #include <numeric>
 #include <functional>
+#include <exception>
+#include <stdexcept>
+
 // [[Rcpp::depends(RcppArmadillo)]]
 
 #include "scfind_types.h"
@@ -104,40 +107,57 @@ void QueryScore::reset()
   this->cells_in_query = 0;
 }
 
-void QueryScore::estimateExpresssion(const Rcpp::List& gene_results, const EliasFanoDB& db)
+void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasFanoDB& db)
 {
-  std::cout << "decompressing expression values... " ;
-  this->gene_names = Rcpp::as<std::vector<std::string>>(gene_results.names());
+  std::cout << "calculating tfidf for the reduced expression matrix... " ;
+  // Store temporarily the strings so we can insert those in the map
+  // TODO(Nikos) check if genes are unique in the set.. Possibly this can be done in the R side ?
+  auto tmp_strings = Rcpp::as<std::vector<std::string>>(gene_results.names());
+  const auto tmpl_cont = std::vector<double>(tmp_strings.size(), 0);
   int gene_row = 0;
-  for (int gene_row = 0; gene_row < this->gene_names.size(); ++gene_row)
+  for (int gene_row = 0; gene_row < tmp_strings.size(); ++gene_row)
   {
-    const std::string& gene = this->gene_names[gene_row];
+    const std::string& gene = tmp_strings[gene_row];
+    
+    float gene_idf = db.getTotalCells() / ((float)db.genes.at(gene).total_reads);
+    double& gene_score = this->gene_scores.insert(std::make_pair(gene, 0)).first->second;
+    
     const Rcpp::List& cts = gene_results[gene];
     const auto ct_names = Rcpp::as<std::vector<std::string>>(cts.names());
-
     for(auto const& cell_type : ct_names)
     {
       const Rcpp::IntegerVector& expr_vector  = cts[cell_type];
       const auto ctid_it = db.cell_types.find(cell_type);
       CellTypeID ct_id = ctid_it->second;
       std::vector<double> expr = decompressValues(db.getEntry(gene, cell_type).expr, db.quantization_bits);
+      
       int expr_index = 0;
       for (auto const& cell_id : expr_vector)
       {
         CellID cell(ct_id, cell_id);
-        auto ins_res = expression_mat.insert(std::make_pair(cell, std::vector<double>(this->gene_names.size(), 0)));
-        auto it = ins_res.first;
-        it->second[gene_row] = expr_vector[expr_index];
+        auto ins_res = tfidf.insert(std::make_pair(cell, tmpl_cont));
+        auto tfidf_vec = ins_res.first->second;
+        
+        tfidf_vec[gene_row] = (expr_vector[expr_index] / db.cells.at(cell).reads) * gene_idf;
+        gene_score += tfidf_vec[gene_row];
       }
     }
   }
   std::cout << "Done!" << std::endl;
-
 }
 
-void QueryScore::cell_tfidf(const EliasFanoDB& db, const Rcpp::List& genes_results, const std::set<std::string>& gene_set)
+void QueryScore::cell_tfidf(const EliasFanoDB& db, const std::set<std::string>& gene_set)
 {
- //  Todo()
+ 
+  this->query_score = 0;
+  for(auto const& g : gene_set)
+  {
+    this->query_score += gene_scores[g];
+  }
+
+  this->query_score /= gene_set.size();
+  // this->cells_in_query = tfidf.size();
+  
 }
 
 
@@ -247,35 +267,35 @@ std::vector<int> EliasFanoDB::eliasFanoDecoding(const EliasFano& ef)
 // TODO(Nikos) returning the first entry of the database is dodgy, fix that
 const EliasFano& EliasFanoDB::getEntry(const GeneName& gene_name, const CellTypeName& cell_type) const 
 {
-  auto g_it = index.find(gene_name);
-  if (g_it == index.end())
+  try
   {
-    std::cerr << "Gene not found" << std:: endl;
-    return this->ef_data[0];
-  }
-  else
+    return this->ef_data.at(this->index.at(gene_name).at(this->cell_types.at(cell_type)));                       
+  } 
+  catch(const std::out_of_range& e)
   {
+    std::cerr << e.what() << std::endl;
+    auto g_it = index.find(gene_name);
+    if (g_it == index.end())
+    {
+      std::cerr << gene_name << "Gene not found" << std::endl;
+    }
     auto ct_it = this->cell_types.find(cell_type);
     
     if (ct_it == this->cell_types.end())
     {
       std::cerr << "Cell type"<<cell_type<<" not found in the database" << std::endl;
-      return this->ef_data[0];
     }
     else
     {
       auto ef_it = g_it->second.find(ct_it->second);
-
+      
       if(ef_it == g_it->second.end())
       {
         std::cerr << "Cell type "<< cell_type<<" not found for gene " << gene_name << std::endl;
-        return this->ef_data[0];
-      }
-      else
-      {
-        return this->ef_data[ef_it->second];
+        
       }
     }
+    throw std::invalid_argument("Unable to retrieve entry from database");
   }
 }
 
@@ -380,9 +400,9 @@ Rcpp::List EliasFanoDB::total_genes()
   return t;
 }
 
-Rcpp::NumericVector EliasFanoDB::getTotalCells()
+int EliasFanoDB::getTotalCells() const
 {
-  return Rcpp::wrap(this->total_cells);
+  return this->total_cells;
 }
 
 Rcpp::NumericVector EliasFanoDB::getCellTypeSupport(Rcpp::CharacterVector& cell_types)
@@ -576,6 +596,7 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
     
   std::vector<std::string> query;
   std::vector<double> query_scores;
+  std::vector<double> query_tfidf;
   std::vector<int> query_cell_type_cardinality;
   std::vector<int> query_cell_cardinality;
   std::vector<int> query_gene_cardinality;
@@ -646,7 +667,7 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
   const std::set<Pattern> patterns = fptree_growth(fptree);
   
   QueryScore qs;
-  qs.estimateExpression(gene_results, *this);
+  qs.estimateExpression(genes_results, *this);
   // Iterate through the calculated frequent patterns
   for (auto const& item : patterns)
   {
@@ -669,14 +690,11 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
     query_cell_type_cardinality.push_back(qs.cell_types_in_query);
     
     qs.reset();
-    qs.cell_tfidf(*this, gene_results, gene_set);
+    qs.cell_tfidf(*this, gene_set);
+    query_tfidf.push_back(qs.query_score);
     
     query_gene_cardinality.push_back(gene_set.size());
     query.push_back(view_string);
-
-    
-    
-    
   }
 
   std::vector<int> query_rank(query_scores.size());    
@@ -694,6 +712,7 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
   return Rcpp::DataFrame::create(Rcpp::Named("Genes") = Rcpp::wrap(query_gene_cardinality),
                                  Rcpp::Named("Query") = Rcpp::wrap(query),
                                  Rcpp::Named("Rank") = Rcpp::wrap(query_rank),
+                                 Rcpp::Named("tfidf") = Rcpp::wrap(query_tfidf),
                                  Rcpp::Named("Cells") = Rcpp::wrap(query_cell_cardinality),
                                  Rcpp::Named("Cell Types") = Rcpp::wrap(query_cell_type_cardinality));
 }
