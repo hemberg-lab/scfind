@@ -91,6 +91,7 @@ std::vector<double> decompressValues(const Quantile& q, const unsigned char& qua
   {
     double cdf = (i + 0.5) / bins_size;
     bins[i] = lognormalinv(cdf, q.mu, q.sigma);
+    // std::cout << "Quantile:" << bins[i] << " for " << cdf << " " << q.mu << " " << q.sigma << std::endl;
     
   }
   

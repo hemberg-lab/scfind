@@ -8,7 +8,7 @@ SerializationDB::SerializationDB(): byte_pointer(0)
 int SerializationDB::loadByteStream(const Rcpp::RawVector& stream)
 {
   this->serialized_bytestream = std::vector<unsigned char>(stream.begin(), stream.end());
-  std::cerr << this->serialized_bytestream.size();
+  std::cout << this->serialized_bytestream.size() / (1 << 20)  << " MB "<< std::endl;
   return 1;
     
 }

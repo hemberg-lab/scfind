@@ -49,7 +49,7 @@ inline BitSet32 int2bin(unsigned int id)
 
 
 
-inline double normalCDF(double x, double mu, double sigma)
+inline double normalCDF(const double& x, const double& mu, const double& sigma)
 {
   // this is an inline function for the cdm of the normal distribution
   // it depends on the cmath library where it contains the erfc function
