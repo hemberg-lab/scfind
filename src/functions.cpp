@@ -22,20 +22,16 @@ std::string str_join( const std::vector<std::string>& elements, const char* cons
 
 // Accepts a vector, transforms and returns a quantization logical vector
 // This function aims for space efficiency of the expression vector
-Quantile lognormalcdf(std::vector<int> ids, const Rcpp::NumericVector& v, unsigned int bits, bool raw_counts)
+Quantile lognormalcdf(const std::vector<int>& ids, const Rcpp::NumericVector& v, unsigned int bits, bool raw_counts)
 {
   
-  std::function<double(const double&)> expr_tran = raw_counts ? [](const double& x) {return log(x);}: [](const double& x){return x;};  
+  std::function<double(const double&)> expr_tran = raw_counts ? [](const double& x) {return log(x + 1);}: [](const double& x){return x;};  
 
   Quantile expr;
-  expr.mu = std::accumulate(ids.begin(),ids.end(), 0, [&v, &expr_tran](const double& mean, const int& index){
-      return  mean + expr_tran(v[index - 1] + 1);
+  expr.mu = std::accumulate(ids.begin(),ids.end(), 0.0, [&v, &expr_tran](const double& mean, const int& index){
+      return  mean + expr_tran(v[index - 1]);
     }) / ids.size();
-  
-  
-  
-
-  expr.sigma = sqrt(std::accumulate(ids.begin(), ids.end(), 0, [&v, &expr, &expr_tran](const double& variance, const int& index){
+  expr.sigma = sqrt(std::accumulate(ids.begin(), ids.end(), 0.0, [&v, &expr, &expr_tran](const double& variance, const int& index){
         return pow(expr.mu - expr_tran(v[index - 1]), 2);
       }) / ids.size());
   // initialize vector with zeros
@@ -70,9 +66,9 @@ float inverf(float x)
 }
 
 
-double lognormalinv(double p, double mu, double sigma)
+double lognormalinv(const double& p, const double& mu, const double& sigma)
 {
-  return exp((inverf(1 + 2*p) * 2 * sqrt(sigma)) + mu);
+  return exp((inverf(2*p - 1) * sqrt(2) * sigma) + mu);
 }
 
 
@@ -80,34 +76,33 @@ double lognormalinv(double p, double mu, double sigma)
 std::vector<double> decompressValues(const Quantile& q, const unsigned char& quantization_bits)
 {
   int vector_size = q.quantile.size() / quantization_bits;
-  std::vector<double> result(vector_size, 0);
+  std::vector<double> result(vector_size);
   
 
   if(quantization_bits > 16)
   {
     std::cerr << "Too much depth in the quantization bits!" << std::endl;
   }
-  std::vector<double> bins((1<< quantization_bits));
+  std::vector<double> bins((1 << quantization_bits));
   double bins_size = bins.size();
   // min value
-  double prev = 0;
-  for(int i = 0; i < bins.size(); ++i)
-  {
-    double cdf = (((i + 1) / bins_size) - prev) / 2;
-    bins[i] = lognormalinv(cdf, q.mu, q.sigma);
-    prev = cdf;
-  }
   
-  // bins.front() = q_1;
-  // bins.back() = (2*q.mu) - q_1;
+  for(int i = 0; i < bins_size; ++i)
+  {
+    double cdf = (i + 0.5) / bins_size;
+    bins[i] = lognormalinv(cdf, q.mu, q.sigma);
+    // std::cout << "Quantile:" << bins[i] << " for " << cdf << " " << q.mu << " " << q.sigma << std::endl;
+    
+  }
   
   for (size_t i = 0; i < result.size(); ++i)
   {
     int quantile = 0;
     for (size_t j = 0; j < quantization_bits; ++j)
     {
-      quantile &= (1 << q.quantile[(quantization_bits * i) + j]);
+      quantile |= (1 << q.quantile[(quantization_bits * i) + j]);
     }
+    result[i] = bins[quantile];
   }
   return result;
 }

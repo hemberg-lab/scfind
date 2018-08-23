@@ -27,9 +27,9 @@ public:
   {
     if (this->byte_pointer + new_length >= this->serialized_bytestream.size())
     {
-      // Is there a chance the buffer to be bigger than 16MB
+      // TODO(Nikos) Is there a chance the buffer to be bigger than 16MB ?
       // Grow the buffer by 16MB
-      std::cout << "expanding stream" << std::endl;
+      // std::cout << "expanding stream" << std::endl;
       this->serialized_bytestream.resize(this->serialized_bytestream.size() + (1 << 24));
     }
   }

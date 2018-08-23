@@ -13,7 +13,7 @@
 
 #include "functions.h"
 
-#define SERIALIZATION_VERSION 5
+#define SERIALIZATION_VERSION 6
 
 
 
