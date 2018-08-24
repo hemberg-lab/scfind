@@ -195,7 +195,9 @@ class EliasFanoDB
   long encodeMatrix(const std::string& cell_type_name, const Rcpp::NumericMatrix& gene_matrix);
 
   Rcpp::List total_genes();
-
+  
+  Rcpp::CharacterVector getGenesInDB();
+  
   int getTotalCells() const;
 
   Rcpp::NumericVector getCellTypeSupport(Rcpp::CharacterVector& cell_types);
