@@ -66,6 +66,7 @@ server.scfind <- function(object)
             })
 
             checkbox.selection <- reactive({
+                
                 selected.index <- input$queryOptimizer_rows_selected
                 if (!is.null(selected.index))
                 {
@@ -116,14 +117,15 @@ server.scfind <- function(object)
 
 
             output$queryOptimizer <- renderDataTable({
+                
                 datatable(recommended.queries(), selection = 'single')
             })
 
             
             
             cell.types <- reactive({
-                selection <- input$geneCheckbox
-                if (length(input$geneCheckbox) != 0){
+                selection <- checkbox.selection()
+                if (length(selection) != 0){
                     print(selection)
                     result <- findCellTypes(object, selection, input$datasetCheckbox)
                     ## print(result)
@@ -138,6 +140,7 @@ server.scfind <- function(object)
             })
             
             output$cellTypesData <- renderDataTable({
+                
                 df <- cell.types()
                 ## Hypergeometric test
                 cell.types.df <- aggregate(cell_id ~ cell_type, df, FUN = length)
