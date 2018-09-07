@@ -48,6 +48,10 @@ typedef struct
   int l;
   float idf; // tfidf
   Quantile expr;
+  int getSize() const
+  {
+    return L.size() / l;
+  }
 } EliasFano;
 
 typedef struct
@@ -137,6 +141,35 @@ typedef struct
   int total_cells;
 } CellType;
 
+typedef struct
+{
+  int tp;
+  int fp;
+  int tn;
+  int fn;
+  float inv_precision() const
+  {
+    return  (tp + fp) / float(tp);
+  }
+  float inv_recall() const
+  {
+    return (tn + fp) /  float(tp);
+  }
+  float recall() const
+  {
+    return 1 / inv_recall();
+  }
+
+  float precision() const
+  {
+    return 1 / inv_recall();
+  }
+  float f1() const
+  {
+    return 2/(inv_precision() + inv_recall());
+  }
+} CellTypeMarker;
+
 
 class EliasFanoDB
 {
@@ -219,10 +252,34 @@ class EliasFanoDB
   // that casts the results into native R data structures
   Rcpp::DataFrame findMarkerGenes(const Rcpp::CharacterVector& gene_list, const Rcpp::CharacterVector datasets_active, unsigned int min_support_cutoff);
 
+
+  Rcpp::DataFrame _findCellTypeMarkers(const Rcpp::CharacterVector& cell_types, 
+                                       const Rcpp::CharacterVector& background, 
+                                       int gene_number, 
+                                       const std::vector<GeneName>&);
+
+  Rcpp::DataFrame findCellTypeMarkers(const Rcpp::CharacterVector& cell_types, 
+                                      const Rcpp::CharacterVector& background, 
+                                      int gene_number);
+
+  Rcpp::DataFrame evaluateCellTypeMarkers(const Rcpp::CharacterVector& cell_types, 
+                                          const Rcpp::CharacterVector& gene_set, 
+                                          const Rcpp::CharacterVector& background);
+  
+
+  
+  
+  std::map<GeneName, CellTypeMarker> _cellTypeScore(const std::string& cell_type, const std::vector<std::string>& universe, const std::vector <GeneName>&) const;
+  const std::set<std::string> _getActiveCellTypes(std::vector<std::string> universe) const;
+    
+  const std::vector<CellTypeName> _getCellTypes() const;
+  
+
   std::map<std::string, std::vector<int> > intersect_cells(std::set<std::string> gene_set, Rcpp::List genes_results) const ;
 
   int dbSize();
-
+  
+  void dumpEFsize(int);
   int sample(int index);
 
   std::vector<int> decode(int index);
