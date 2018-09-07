@@ -153,7 +153,7 @@ typedef struct
   }
   float inv_recall() const
   {
-    return (tn + fp) /  float(tp);
+    return (fn + tp) /  float(tp);
   }
   float recall() const
   {
@@ -162,7 +162,7 @@ typedef struct
 
   float precision() const
   {
-    return 1 / inv_recall();
+    return 1 / inv_precision();
   }
   float f1() const
   {
