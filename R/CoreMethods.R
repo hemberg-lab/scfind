@@ -203,6 +203,59 @@ setMethod("markerGenes",
               datasets = "character"),
           find.marker.genes)
 
+#' find top cell marker genes using the f1 metric on precision and recall
+#' @param object SCFind object
+#' @param cell.types the cell types that we want to extract the marker genes
+#' @param background.cell.types the universe of cell to consider
+#'
+#' @return a dataframe with the results
+cell.type.marker <- function(object, cell.types, background.cell.types, top.k = 5)
+{
+    message("Considering the whole DB..")
+    if(is.null(background.cell.types))
+    {
+        background.cell.types <- cellTypeNames(object)
+    }
+    return(object@index$cellTypeMarkers(cell.types, background.cell.types, top.k))
+}
+
+setMethod("cellTypeMarkers",
+          signature(
+              object = "SCFind",
+              cell.types = "character"),
+          cell.type.marker)
+#' get all existing cell type names in the database
+#' @param object SCFind object
+#'
+#' @return a character list
+get.cell.types.names <- function(object){
+
+    return(object@index$getCellTypes())
+}
+
+setMethod("cellTypeNames",
+          signature(
+              object = "SCFind"),
+          get.cell.types.names)
+
+evaluate.cell.type.markers <- function(object, gene.list, cell.types, background.cell.types){
+    if(is.null(background.cell.types))
+    {
+        message("Considering the whole DB..")
+        background.cell.types <- cellTypeNames(object)
+    }
+    return(object@index$evaluateCellTypeMarkers(cell.types, gene.list, background.cell.types))
+}
+
+setMethod("evaluateMarkers",
+          signature(
+              object = "SCFind",
+              gene.list = "character"
+              ),
+          evaluate.cell.type.markers)
+              
+
+
 
 
 #' Find cell types associated with a given gene list

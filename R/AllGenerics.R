@@ -61,6 +61,29 @@ setGeneric(name = "findCellTypes", function(object, gene.list, datasets) {
 
 
 #' @export
+#'
+setGeneric(name = "cellTypeMarkers" ,  function(object,
+                                               cell.types,
+                                               background.cell.types = NULL,
+                                               top.k = 5){
+    standardGeneric("cellTypeMarkers")
+
+})
+
+#' @export
+#'
+setGeneric(name = "cellTypeNames", function(object){
+   standardGeneric("cellTypeNames")
+})
+
+#' @export
+#'
+setGeneric(name = "evaluateMarkers", function(object, gene.list, cell.types, background.cell.types = NULL){
+    standardGeneric("evaluateMarkers")
+})
+
+
+#' @export
 setGeneric(name = "scfind_interactive", function(object) {
     standardGeneric("scfind_interactive")
 })

@@ -1138,6 +1138,7 @@ RCPP_MODULE(EliasFanoDB)
     .method("genes", &EliasFanoDB::getGenesInDB)
     .method("cellTypeMarkers", &EliasFanoDB::findCellTypeMarkers)
     .method("getCellTypes", &EliasFanoDB::_getCellTypes)
+    .method("evaluateCellTypeMarkers", &EliasFanoDB::evaluateCellTypeMarkers)
     .method("getCellTypeSupport", &EliasFanoDB::getCellTypeSupport);
   
 }

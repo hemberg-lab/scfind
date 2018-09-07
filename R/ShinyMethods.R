@@ -56,13 +56,15 @@ server.scfind <- function(object)
 {
 
     return(
-        function(input,output,session)
+        function(input, output, session)
         {
             
 
             gene.list <- reactive({
-                genes <-  unlist(strsplit(gsub("\\s", "", input$geneList), ","))
-                genes
+                text <- gsub("\\s", "", input$geneList)
+                gene.list.input <- unlist(strsplit(text, ","))
+                print(gene.list.input)
+                gene.list.input
             })
 
             checkbox.selection <- reactive({
@@ -85,6 +87,7 @@ server.scfind <- function(object)
                         genes <- input$geneCheckbox
                     }
                 }
+                print(genes)
                 genes
                 ## updateSelectInput(session, "geneCheckbox", selected  = genes)
             })
@@ -126,9 +129,7 @@ server.scfind <- function(object)
             cell.types <- reactive({
                 selection <- checkbox.selection()
                 if (length(selection) != 0){
-                    print(selection)
                     result <- findCellTypes(object, selection, input$datasetCheckbox)
-                    ## print(result)
                     result <- setNames(unlist(result, use.names=F), rep(names(result), lengths(result)))
                     df <- data.frame(cell_type = names(result), cell_id = result)
                     df
@@ -139,20 +140,15 @@ server.scfind <- function(object)
                 }
             })
             
-            output$cellTypesData <- renderDataTable({
-                
+            output$cellTypesData <- renderDataTable({                
                 df <- cell.types()
+                print(df)
                 ## Hypergeometric test
                 cell.types.df <- aggregate(cell_id ~ cell_type, df, FUN = length)
                 query.hits <- nrow(df)
                 total.cells <- object@index$getCellsInDB()
                 cells.in.cell.type <- object@index$getCellTypeSupport(cell.types.df$cell_type)
-
-                message(paste(cell.types.df$cell_id, # total observed successes ( query.hits for cell type)
-                                             cells.in.cell.type, # total successes ( cell type size )
-                                             total.cells - cells.in.cell.type, # total failures( total cells excluding cell type)
-                                             query.hits
-                              ))
+                
                 cell.types.df$pval <- phyper(cell.types.df$cell_id, # total observed successes ( query.hits for cell type)
                                              cells.in.cell.type, # total successes ( cell type size )
                                              sum(cells.in.cell.type) - cells.in.cell.type, # total failures( total cells excluding cell type)
