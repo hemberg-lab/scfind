@@ -33,6 +33,7 @@ setGeneric(name = "mergeSCE", def = function(object, sce, dataset.name) {
 #' @export
 #' 
 #' @examples TODO
+#'
 #' 
 setGeneric(name = "queryGene", def = function(object, gene, datasets) {
     standardGeneric("queryGene")
@@ -84,8 +85,8 @@ setGeneric(name = "evaluateMarkers", function(object, gene.list, cell.types, bac
 
 
 #' @export
-setGeneric(name = "scfind_interactive", function(object) {
-    standardGeneric("scfind_interactive")
+setGeneric(name = "scfindShiny", function(object) {
+    standardGeneric("scfindShiny")
 })
 
 

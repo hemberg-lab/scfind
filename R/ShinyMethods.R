@@ -221,4 +221,4 @@ scfind.interactive <- function(object) {
 
 #' @rdname scfind.interactive
 #' @aliases scfind.interactive
-setMethod("scfind_interactive", signature(object = "SCFind"), scfind.interactive)
+setMethod("scfindShiny", signature(object = "SCFind"), scfind.interactive)

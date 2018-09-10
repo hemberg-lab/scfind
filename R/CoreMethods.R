@@ -1,5 +1,6 @@
-#' Builds an scfind index from a SingleCellExperiment object
-#' 
+#' Builds an \code{SCFind} object from a \code{SingleCellExperiment} object
+#'
+#' This function will index a \code{SingleCellExperiment} as an SCFind index.
 #'
 #' @param sce object of SingleCellExperiment class
 #' @param dataset.name name of the dataset that will be prepended in each cell_type
@@ -8,7 +9,7 @@
 #' 
 #' @name buildCellTypeIndex
 #'
-#' @return a `data.frame` containing calculated gene index
+#' @return an SCFind object
 #'
 #' @importFrom SingleCellExperiment SingleCellExperiment
 #' @importFrom SummarizedExperiment rowData rowData<- colData colData<- assayNames assays
@@ -17,10 +18,10 @@
 #' @importFrom Rcpp sourceCpp
 #' @useDynLib scfind 
 #' 
-buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name, cell.type.label)
+buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name = 'counts', cell.type.label = 'cell_type1')
 {
 
-    if(grepl(dataset.name,'.'))
+    if (grepl(dataset.name,'.'))
     {
         error("The dataset name should not contain any dots")
     }
@@ -74,14 +75,22 @@ buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name, cell.type.l
 }
 
 #' @rdname buildCellTypeIndex
-#' @aliases buildCellTypeIndex
+#' @aliases buildCellTypeIndex buildIndex
 setMethod("buildCellTypeIndex",
           signature(sce = "SingleCellExperiment"),
           buildCellTypeIndex.SCESet)
 
-#' Add documentation
+#' This function serializes the DB and save the object as an rds file
 #'
-#' 
+#' This function can be used to enable the user save the loaded file in a database
+#' to avoid re-indexing and re-merging individual assays.
+#'
+#' After serializing and saving it clears the redundant bytestream from memory
+#' because the memory is already loaded in memory
+#' @param object an SCFind object
+#' @param file the target filename that the object is going to be stored
+#'
+#' @return the \code{SCFind} object
 #' @name saveObject
 save.serialized.object <- function(object, file){
     #loadModule('EliasFanoDB')
@@ -90,6 +99,7 @@ save.serialized.object <- function(object, file){
     a <- saveRDS(object, file)
     # Clear the serialized stream
     object@serialized <- raw()
+    gc()
     return(object)
 }
 
@@ -98,9 +108,11 @@ save.serialized.object <- function(object, file){
 setMethod("saveObject",  definition = save.serialized.object)
 
 
-#' Add documentation
+#' This function loads a saved \code{SCFind} object and deserializes
+#' the object and loads it into an in-memory database.
 #'
-#' 
+#' After loading the database it clears the loaded bytestream from the memory.
+#'
 #' @name loadObject
 load.serialized.object <- function(filename){
     object <-  readRDS(filename)
@@ -108,9 +120,6 @@ load.serialized.object <- function(filename){
     loadModule('EliasFanoDB')
     object@index <-  new(EliasFanoDB)
     success <- object@index$loadByteStream(object@serialized)
-    
-    
-    message("Loaded object, cleaning")
     object@serialized <- raw()
     gc()
     return(object)
@@ -122,8 +131,18 @@ setMethod("loadObject",  definition = load.serialized.object)
 
 
 
-#' Merges external index to existing object
+#' Merges an external index into the existing object
 #'
+#' This function is useful to merge \code{SCFind} indices.
+#' After this operation object that was merged can be discarded.
+#' 
+#' The only semantic limitation for merging two databases is to
+#' have different dataset names in the two different indices.
+#' If that is not case user may run into problems masking datasets
+#' from the different datasets while there is a possibility of having
+#' different cell types under the same name. This will most likely cause
+#' undefined behavior during queries.
+#' 
 #' @param object the root scfind object
 #' @param new.object external scfind object to be merged
 #'
@@ -148,7 +167,7 @@ merge.dataset.from.object <- function(object, new.object)
 #'
 #' 
 #' @rdname mergeDataset
-#' @aliases mergeDataset
+#' @aliases mergeDataset mergeObjects
 setMethod("mergeDataset",
           signature(
               object = "SCFind",
@@ -158,9 +177,12 @@ setMethod("mergeDataset",
 
 #' Merges a SingleCellExperiment object into the SCFind index
 #'
+#' It creates an \code{SCFind} for the individual assay and then invokes
+#' the \code{mergeDataset} method obeying the same semantic rules.
+#'
 #' @param object the root scfind object
-#' @param sce
-#' @param dataset.name
+#' @param sce the \code{SingleCellExperiment} object to be merged
+#' @param dataset.name a dataset name for the assay
 #' @name mergeSCE
 #' @return the new object with the sce object merged
 merge.dataset.from.sce <- function(object, sce, dataset.name)
@@ -180,14 +202,20 @@ setMethod("mergeSCE",
           merge.dataset.from.sce)
 
 
-#' query optimization function
+#' Query Optimization Function for SCFind objects.
+#'
+#' This function can be used with quite long gene lists
+#' that otherwise would have no cell hits in the database
+#' 
+#' 
 #' @param object SCFind object
-#' @param gene.list
+#' @param gene.list A list of Genes existing in the database
+#' @param datasets the datasets of the objects to be considered
 #' 
 #' @return hierarchical list of queries and their respective scores
-find.marker.genes <-  function(object, gene.list, datasets = "")
+find.marker.genes <-  function(object, gene.list, datasets)
 {
-    datasets <- select.datasets(object, datasets)
+    datasets <- select.datasets(object, datasets) 
     results <- object@index$findMarkerGenes(gene.list, datasets, 5)
     
     return(results)
@@ -199,16 +227,19 @@ find.marker.genes <-  function(object, gene.list, datasets = "")
 setMethod("markerGenes",
           signature(
               object = "SCFind",
-              gene.list = "character",
-              datasets = "character"),
+              gene.list = "character"),
           find.marker.genes)
 
-#' find top cell marker genes using the f1 metric on precision and recall
+#' Find marker genes for a specific cell type
+#' TODO(the genes can be ordered by precision recall or the f1 metric)
+#'
 #' @param object SCFind object
 #' @param cell.types the cell types that we want to extract the marker genes
-#' @param background.cell.types the universe of cell to consider
+#' @param background.cell.types the universe of cell.types to consider
+#' @param top.k how many genes to retrieve
 #'
-#' @return a dataframe with the results
+#' @return a data.frame that each row represent a gene score for a specific cell type
+#' 
 cell.type.marker <- function(object, cell.types, background.cell.types, top.k = 5)
 {
     message("Considering the whole DB..")
@@ -224,7 +255,11 @@ setMethod("cellTypeMarkers",
               object = "SCFind",
               cell.types = "character"),
           cell.type.marker)
-#' get all existing cell type names in the database
+
+
+#' Return a vector with all existing cell type names in the database
+#' 
+#' 
 #' @param object SCFind object
 #'
 #' @return a character list
@@ -238,6 +273,16 @@ setMethod("cellTypeNames",
               object = "SCFind"),
           get.cell.types.names)
 
+
+#' Evaluate a user specific query by calculating the precision recall metrics
+#'
+#' @param object the \code{SCFind} object
+#' @param gene.list the list of genes to be evaluated
+#' @param cell.types a list of cell types for the list to evaluated
+#' @param background.cell.types
+#'
+#' @return a DataFrame that each row represent a gene score for a specific cell type
+#'
 evaluate.cell.type.markers <- function(object, gene.list, cell.types, background.cell.types){
     if(is.null(background.cell.types))
     {
@@ -258,32 +303,21 @@ setMethod("evaluateMarkers",
 
 
 
-#' Find cell types associated with a given gene list
-#' n
-#' Calculates p-values of a log-likelihood of a list of genes to be associated
-#' with each cell type. Log-likelihood is based on gene expression values.
-#'
-#' @param gene_index a data.frame with cell types in columns and genes in rows
-#' @param gene_list genes that need to be searched in the gene_index
+#' Find cell types associated with a given gene list. All cells
+#' returned express all of the genes in the given gene list
 #' 
+#' @param object the \code{SCFind} object
+#' @param gene.list genes to be searched in the gene.index
+#' @param datasets
 #' @name findCellTypes
 #'
 #' @return a named numeric vector containing p-values
-findCellTypes.geneList <- function(object, gene.list, datasets = "")
+findCellTypes.geneList <- function(object, gene.list, datasets)
 {
-
-    if (is.null(object))
-    {
-        stop("Please define a scfind object using the `object` parameter!")
-    }
-    if (is.null(gene.list))
-    {
-        stop("Please define a list of genes using the `gene.list` parameter!")
-    }
     
     datasets <- select.datasets(object, datasets)
-    
     return(object@index$findCellTypes(gene.list, datasets))
+    
 }
 
 #' @rdname findCellType

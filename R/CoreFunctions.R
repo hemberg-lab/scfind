@@ -124,7 +124,7 @@ contigency.table <- function(query.results)
 select.datasets <- function(object, datasets)
 {
     
-    if (datasets == "")
+    if (is.null(datasets))
     {
         ## Select all available datasets
         datasets <- object@datasets

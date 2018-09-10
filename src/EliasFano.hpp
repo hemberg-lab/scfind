@@ -155,6 +155,7 @@ typedef struct
   {
     return (fn + tp) /  float(tp);
   }
+
   float recall() const
   {
     return 1 / inv_recall();
@@ -164,6 +165,7 @@ typedef struct
   {
     return 1 / inv_precision();
   }
+
   float f1() const
   {
     return 2/(inv_precision() + inv_recall());
