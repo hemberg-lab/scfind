@@ -65,8 +65,9 @@ setGeneric(name = "findCellTypes", function(object, gene.list, datasets) {
 #'
 setGeneric(name = "cellTypeMarkers" ,  function(object,
                                                cell.types,
-                                               background.cell.types = NULL,
-                                               top.k = 5){
+                                               background.cell.types,
+                                               top.k = 5,
+                                               sort.field = 'f1'){
     standardGeneric("cellTypeMarkers")
 
 })
@@ -79,7 +80,10 @@ setGeneric(name = "cellTypeNames", function(object){
 
 #' @export
 #'
-setGeneric(name = "evaluateMarkers", function(object, gene.list, cell.types, background.cell.types = NULL){
+setGeneric(name = "evaluateMarkers", function(object, gene.list,
+                                              cell.types,
+                                              background.cell.types,
+                                              sort.field = 'f1'){
     standardGeneric("evaluateMarkers")
 })
 

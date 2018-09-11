@@ -237,23 +237,32 @@ setMethod("markerGenes",
 #' @param cell.types the cell types that we want to extract the marker genes
 #' @param background.cell.types the universe of cell.types to consider
 #' @param top.k how many genes to retrieve
+#' @param sort.field the dataframe will be sorted according to this field
 #'
 #' @return a data.frame that each row represent a gene score for a specific cell type
 #' 
-cell.type.marker <- function(object, cell.types, background.cell.types, top.k = 5)
+cell.type.marker <- function(object, cell.types, background.cell.types, top.k, sort.field)
 {
-    message("Considering the whole DB..")
-    if(is.null(background.cell.types))
+    if(missing(background.cell.types))
     {
+        message("Considering the whole DB..")
         background.cell.types <- cellTypeNames(object)
     }
-    return(object@index$cellTypeMarkers(cell.types, background.cell.types, top.k))
+    all.cell.types <- object@index$cellTypeMarkers(cell.types, background.cell.types)
+    if (!(sort.field %in% colnames(all.cell.types)))
+    {
+        message(paste("Column", sort.field, "not found"))
+        sort.field <- 'f1'
+    }
+    all.cell.types <- all.cell.types[order(all.cell.types[[sort.field]], decreasing = T)[1:top.k],]
+    return(all.cell.types)
 }
 
 setMethod("cellTypeMarkers",
           signature(
               object = "SCFind",
-              cell.types = "character"),
+              cell.types = "character"
+          ),
           cell.type.marker)
 
 
@@ -279,17 +288,27 @@ setMethod("cellTypeNames",
 #' @param object the \code{SCFind} object
 #' @param gene.list the list of genes to be evaluated
 #' @param cell.types a list of cell types for the list to evaluated
-#' @param background.cell.types
+#' @param background.cell.types the universe of cell.types to consider
+#' @param sort.field the dataframe will be sorted according to this field
 #'
 #' @return a DataFrame that each row represent a gene score for a specific cell type
 #'
-evaluate.cell.type.markers <- function(object, gene.list, cell.types, background.cell.types){
-    if(is.null(background.cell.types))
+evaluate.cell.type.markers <- function(object, gene.list, cell.types, background.cell.types, sort.field){
+    if(missing(background.cell.types))
     {
         message("Considering the whole DB..")
         background.cell.types <- cellTypeNames(object)
     }
-    return(object@index$evaluateCellTypeMarkers(cell.types, gene.list, background.cell.types))
+    all.cell.types <- object@index$evaluateCellTypeMarkers(cell.types, gene.list, background.cell.types)
+
+    if(!(sort.field %in% colnames(all.cell.types)))
+    {
+        message(paste("Column", sort.field, "not found"))
+        sort.field <- 'f1'
+    }
+    all.cell.types <- all.cell.types[order(all.cell.types[[sort.field]]),]
+    return(all.cell.types)
+    
 }
 
 setMethod("evaluateMarkers",

@@ -632,6 +632,8 @@ Rcpp::List EliasFanoDB::findCellTypes(const Rcpp::CharacterVector& gene_names, c
 
 
 
+
+
 // TODO(Nikos) this function can be optimized.. It uses the native quering mechanism
 // that casts the results into native R data structures
 Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_list, const Rcpp::CharacterVector datasets_active,unsigned int min_support_cutoff = 5)
@@ -803,7 +805,7 @@ const std::set<std::string> EliasFanoDB::_getActiveCellTypes(std::vector<std::st
 }
 
 
-Rcpp::DataFrame EliasFanoDB::findCellTypeMarkers(const Rcpp::CharacterVector& cell_types, const Rcpp::CharacterVector& background, int gene_number)
+Rcpp::DataFrame EliasFanoDB::findCellTypeMarkers(const Rcpp::CharacterVector& cell_types, const Rcpp::CharacterVector& background)
 {
   std::vector<GeneName> gene_set;
   gene_set.reserve(this->genes.size());
@@ -811,11 +813,11 @@ Rcpp::DataFrame EliasFanoDB::findCellTypeMarkers(const Rcpp::CharacterVector& ce
   {
     gene_set.push_back(g.first);
   }
-  return _findCellTypeMarkers(cell_types, background, gene_number, gene_set);
+  return _findCellTypeMarkers(cell_types, background, gene_set);
 }
 
 
-Rcpp::DataFrame EliasFanoDB::_findCellTypeMarkers(const Rcpp::CharacterVector& cell_types, const Rcpp::CharacterVector& background, int gene_number, const std::vector<EliasFanoDB::GeneName>& gene_set)
+Rcpp::DataFrame EliasFanoDB::_findCellTypeMarkers(const Rcpp::CharacterVector& cell_types, const Rcpp::CharacterVector& background, const std::vector<EliasFanoDB::GeneName>& gene_set)
 {
   std::vector<std::string> 
     bk_cts(Rcpp::as< std::vector<std::string> >(background)),
@@ -824,26 +826,17 @@ Rcpp::DataFrame EliasFanoDB::_findCellTypeMarkers(const Rcpp::CharacterVector& c
   
   
   std::vector<int> tp, fp, tn, fn;
-  std::vector<float> precision, recall;
+  std::vector<float> precision, recall, f1;
   for (auto const& ct : cts)
   {
     auto marker_genes = this->_cellTypeScore(ct, bk_cts, gene_set);
     if (marker_genes.empty())
     {
       std::cerr << "Marker genes could not be found for cell type " << ct << std::endl;
+      continue;
     }
     
-    std::vector< std::pair<GeneName,CellTypeMarker> > top_k(gene_number);
-    std::partial_sort_copy(
-      marker_genes.begin(), 
-      marker_genes.end(), 
-      top_k.begin(), 
-      top_k.end(),
-      [](const std::pair<GeneName, CellTypeMarker >& p1, const std::pair<GeneName, CellTypeMarker>& p2)
-      {
-        return (p1.second.f1() > p2.second.f1());
-      });
-    for (auto& t : top_k)
+    for (auto& t : marker_genes)
     {
       const CellTypeMarker& ctm = t.second;
       genes.push_back(t.first);
@@ -854,6 +847,7 @@ Rcpp::DataFrame EliasFanoDB::_findCellTypeMarkers(const Rcpp::CharacterVector& c
       fn.push_back(ctm.fn);
       precision.push_back(ctm.precision());
       recall.push_back(ctm.recall());
+      f1.push_back(ctm.f1());
     }
   }
   return Rcpp::DataFrame::create(
@@ -864,7 +858,8 @@ Rcpp::DataFrame EliasFanoDB::_findCellTypeMarkers(const Rcpp::CharacterVector& c
     Rcpp::Named("fp") = Rcpp::wrap(fp),
     Rcpp::Named("fn") = Rcpp::wrap(fn),
     Rcpp::Named("precision") = Rcpp::wrap(precision),
-    Rcpp::Named("recall") = Rcpp::wrap(recall)
+    Rcpp::Named("recall") = Rcpp::wrap(recall),
+    Rcpp::Named("f1") = Rcpp::wrap(f1)
                          );
   
 }
@@ -874,7 +869,7 @@ Rcpp::DataFrame EliasFanoDB::evaluateCellTypeMarkers(const Rcpp::CharacterVector
                                                      const Rcpp::CharacterVector& gene_set,  
                                                      const Rcpp::CharacterVector& background)
 {
-  return _findCellTypeMarkers(cell_types, background, gene_set.size(), Rcpp::as<std::vector<GeneName>>(gene_set));
+  return _findCellTypeMarkers(cell_types, background, Rcpp::as<std::vector<GeneName>>(gene_set));
 }
 
 
@@ -889,13 +884,9 @@ std::map<EliasFanoDB::GeneName, CellTypeMarker> EliasFanoDB::_cellTypeScore(cons
   }
 
   const CellTypeID cell_type_id = ct_it->second;
-  
-  
   int total_cells_in_ct = this->inverse_cell_type[cell_type_id].total_cells;
-  
-  
   const auto active_cell_types = this->_getActiveCellTypes(universe);
-  
+
   // Calculate background universe total cells
   const std::deque<CellType>& all_cts = this->inverse_cell_type;
   const CellTypeIndex& cts_index = this->cell_types;

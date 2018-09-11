@@ -257,12 +257,10 @@ class EliasFanoDB
 
   Rcpp::DataFrame _findCellTypeMarkers(const Rcpp::CharacterVector& cell_types, 
                                        const Rcpp::CharacterVector& background, 
-                                       int gene_number, 
                                        const std::vector<GeneName>&);
 
   Rcpp::DataFrame findCellTypeMarkers(const Rcpp::CharacterVector& cell_types, 
-                                      const Rcpp::CharacterVector& background, 
-                                      int gene_number);
+                                      const Rcpp::CharacterVector& background);
 
   Rcpp::DataFrame evaluateCellTypeMarkers(const Rcpp::CharacterVector& cell_types, 
                                           const Rcpp::CharacterVector& gene_set, 
