@@ -47,7 +47,7 @@ void QueryScore::cell_type_relevance(const EliasFanoDB& db, const Rcpp::List& ge
       
       
       auto current_cells = std::move(ct_map[ct]);
-      auto current_cells_results = std::move(std::vector<int>());
+      auto current_cells_results = std::vector<int>();
       
       const Rcpp::List& g_res = genes_results[gene];
       std::vector<int> cells_in_gct = Rcpp::as<std::vector<int> >(g_res[ct]);
@@ -108,17 +108,20 @@ void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasF
   std::cout << "calculating tfidf for the reduced expression matrix... " << std::endl;
   // Store temporarily the strings so we can insert those in the map
   // TODO(Nikos) check if genes are unique in the set.. Possibly this can be done in the R side ?
-  const auto tmp_strings = Rcpp::as<std::vector<std::string>>(gene_results.names());
+  
+  const auto& tmp_strings = Rcpp::as<std::vector<std::string>>(gene_results.names());
   const auto tmpl_cont = std::vector<double>(tmp_strings.size(), 0);
   int gene_row = 0;
-  for (int gene_row = 0; gene_row < tmp_strings.size(); ++gene_row)
+  for (size_t gene_row = 0; gene_row < tmp_strings.size(); ++gene_row)
   {
 
     const std::string& gene = tmp_strings[gene_row];
-    std::cerr << "Gene: " << gene << std::endl;
+    // std::cerr << "Gene: " << gene << std::endl;
     
     float gene_idf = db.getTotalCells() / ((float)db.genes.at(gene).total_reads);
-    double& gene_score = this->gene_scores.insert(std::make_pair(gene, 0)).first->second;
+    // get the current score of the gene
+    GeneScore g = {0, gene_row, 0};
+    double& gene_score = this->genes.insert(std::make_pair(gene, g)).first->second.tfidf;
     
     const Rcpp::List& cts = gene_results[gene];
     const auto ct_names = Rcpp::as<std::vector<std::string>>(cts.names());
@@ -137,8 +140,10 @@ void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasF
       {
         CellID cell(ct_id, cell_id);
         
-        auto ins_res = tfidf.insert(std::make_pair(cell, tmpl_cont));
-        auto& tfidf_vec = ins_res.first->second;
+        auto ins_res = tfidf.insert(std::make_pair(cell, std::make_pair(tmpl_cont, 0)));
+        auto& tfidf_vec = ins_res.first->second.first;
+        auto& gene_support = ins_res.first->second.second;
+        gene_support++;
         
         tfidf_vec[gene_row] = (expr_values[expr_index++] / db.cells.at(cell).reads) * gene_idf;
         gene_score += tfidf_vec[gene_row];
@@ -146,6 +151,23 @@ void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasF
       }
     }
   }
+  // iterate through cells
+  std::vector<int> genes_subset(this->genes.size(), 0);
+  for (auto const& c : this->tfidf)
+  {
+    size_t i = 0;
+    for (auto const& v : c.second.first)
+    {
+      genes_subset[i++] += v > 0 ? c.second.second - 1 : 0;
+    }
+  }
+
+  for (auto& v : this->genes)
+  {
+    v.second.cartesian_product_sets = genes_subset[v.second.index];
+    std::cerr << v.first << " " << genes_subset[v.second.index] << std::endl;
+  }
+  
   std::cout << "Done!" << std::endl;
 }
 
@@ -156,12 +178,11 @@ void QueryScore::cell_tfidf(const EliasFanoDB& db, const std::set<std::string>& 
   float min = gene_scores[*(gene_set.begin())];
   for(auto const& g : gene_set)
   {
-    min = gene_scores[g] < min ? gene_scores[g] : min;
-    this->query_score += gene_scores[g];
+    float tfidf = genes[g].tfidf;
+    min = gene_scores[g] < min ? tfidf : min;
+    this->query_score += tfidf;
   }
-
-
-  // this->cells_in_query = tfidf.size();
+  this->cells_in_query *= min;
   
 }
 
@@ -503,6 +524,18 @@ size_t EliasFanoDB::dataMemoryFootprint()
   return bytes;
 }
 
+size_t EliasFanoDB::quantizationMemoryFootprint()
+{
+  size_t bytes = 0;
+  for (auto & d : ef_data)
+  {
+    bytes += int((d.expr.quantile.size() / 8) + 12);
+  }
+  bytes += ef_data.size() * 32; // overhead of l idf and deque struct
+  return bytes;
+}
+
+
 size_t EliasFanoDB::dbMemoryFootprint()
 {
   size_t bytes = dataMemoryFootprint();
@@ -709,14 +742,18 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
     
   std::cerr << transactions.size() << " transactions" << std::endl;
   // Run fp-growth algorithm
-  const FPTree fptree{transactions, min_support_cutoff};
-  const std::set<Pattern> patterns = fptree_growth(fptree);
-  
+
   QueryScore qs;
   qs.estimateExpression(genes_results, *this);
+  
+  std::cerr << "Running fp-growth tree with " << min_support_cutoff << " cutoff"<< std::endl;
+  const FPTree fptree{transactions, min_support_cutoff};
+  const std::set<Pattern> patterns = fptree_growth(fptree);
+  std::cerr << "Found " << patterns.size() << " geneset patterns " << std::endl;
+  
   // Iterate through the calculated frequent patterns
   
-  std::cerr << "Found " << patterns.size() << " geneset patterns " << std::endl;
+  
   for (auto const& item : patterns)
   {
     

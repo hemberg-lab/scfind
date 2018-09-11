@@ -116,12 +116,18 @@ namespace std
 class QueryScore
 {
 public:
+  typedef struct 
+  {
+    double tfidf;
+    size_t index;
+    int cartesian_product_sets;
+  } GeneScore;
   friend class EliasFanoDB;
   int cells_in_query;
   int cell_types_in_query;
   double query_score;
-  std::map<std::string, double> gene_scores;
-  std::unordered_map<CellID , std::vector<double> > tfidf;
+  std::map<std::string, GeneScore> genes;
+  std::unordered_map<CellID , std::pair<std::vector<double>, int> > tfidf;
   
 
   
@@ -243,6 +249,8 @@ class EliasFanoDB
   
   size_t dataMemoryFootprint();
 
+  size_t quantizationMemoryFootprint();
+  
   size_t dbMemoryFootprint();
 
 
