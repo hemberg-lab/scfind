@@ -175,12 +175,13 @@ void QueryScore::cell_tfidf(const EliasFanoDB& db, const std::set<std::string>& 
 {
  
   this->query_score = 0;
-  float min = gene_scores[*(gene_set.begin())];
+  float min = genes[*(gene_set.begin())].tfidf;
   for(auto const& g : gene_set)
   {
     float tfidf = genes[g].tfidf;
-    min = gene_scores[g] < min ? tfidf : min;
+    min = tfidf < min ? tfidf : min;
     this->query_score += tfidf;
+
   }
   this->cells_in_query *= min;
   
