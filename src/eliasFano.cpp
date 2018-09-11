@@ -430,11 +430,20 @@ Rcpp::List EliasFanoDB::total_genes()
   return t;
 }
 
-Rcpp::IntegerVector EliasFanoDB::totalCells(const Rcpp::CharacterVector& genes)
+Rcpp::IntegerVector EliasFanoDB::totalCells(const Rcpp::CharacterVector& genes, 
+                                            const Rcpp::CharacterVector& datasets_active)
 {
   Rcpp::IntegerVector t(genes.size(), 0);
+  std::vector<std::string> datasets = Rcpp::as<std::vector<std::string>>(datasets_active);
   t.names() = genes;
   std::vector<std::string> str = Rcpp::as<std::vector<std::string>> (genes);
+  
+  // Building the inverse index for index cell_types
+ std::unordered_map<CellTypeID, CellTypeName> inv_ct;
+  for (auto const& ct : this->cell_types){
+    inv_ct[ct.second] = ct.first;
+  }
+
   int i = 0;
   for (auto const& g : str)
   {
@@ -443,6 +452,14 @@ Rcpp::IntegerVector EliasFanoDB::totalCells(const Rcpp::CharacterVector& genes)
     {
       for (auto const& ct : git->second)
       {
+        const std::string& ct_name = inv_ct[ct.first];
+        std::string ct_dataset = ct_name.substr(0, ct_name.find("."));
+        auto find_dataset = std::find(datasets.begin(), datasets.end(), ct_dataset);
+        // check if the cells are in active datasets
+        if (find_dataset == datasets.end())
+        {
+          continue;
+        }
         t[i] += this->ef_data[ct.second].getSize();
       }
     }
