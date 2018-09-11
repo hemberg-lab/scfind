@@ -183,7 +183,7 @@ void QueryScore::cell_tfidf(const EliasFanoDB& db, const std::set<std::string>& 
     this->query_score += tfidf;
 
   }
-  this->cells_in_query *= min;
+  this->query_score *= min;
   
 }
 
