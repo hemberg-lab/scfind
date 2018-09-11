@@ -340,14 +340,6 @@ EliasFanoDB::EliasFanoDB():
     
 }
 
-Rcpp::DataFrame cellTypeMarkers()
-{
-  
-  
-  
-  return Rcpp::DataFrame();  
-}
-
 
 // This is invoked on slices of the expression matrix of the dataset 
 long EliasFanoDB::encodeMatrix(const std::string& cell_type_name, const Rcpp::NumericMatrix& gene_matrix)
@@ -436,6 +428,29 @@ Rcpp::List EliasFanoDB::total_genes()
     t.push_back(Rcpp::wrap(d.first));
   }
   return t;
+}
+
+Rcpp::IntegerVector EliasFanoDB::totalCells(const Rcpp::CharacterVector& genes)
+{
+  Rcpp::IntegerVector t(genes.size(), 0);
+  t.names() = genes;
+  std::vector<std::string> str = Rcpp::as<std::vector<std::string>> (genes);
+  int i = 0;
+  for (auto const& g : str)
+  {
+    auto git = this->index.find(g);
+    if(git != this->index.end())
+    {
+      for (auto const& ct : git->second)
+      {
+        t[i] += this->ef_data[ct.second].getSize();
+      }
+    }
+  
+    i++;
+  }
+  return t;
+  
 }
 
 int EliasFanoDB::getTotalCells() const
@@ -1167,6 +1182,7 @@ RCPP_MODULE(EliasFanoDB)
     .method("loadByteStream", &EliasFanoDB::loadByteStream)
     .method("getCellsInDB", &EliasFanoDB::getTotalCells)
     .method("genes", &EliasFanoDB::getGenesInDB)
+    .method("genesSupport", &EliasFanoDB::totalCells)
     .method("cellTypeMarkers", &EliasFanoDB::findCellTypeMarkers)
     .method("getCellTypes", &EliasFanoDB::_getCellTypes)
     .method("evaluateCellTypeMarkers", &EliasFanoDB::evaluateCellTypeMarkers)

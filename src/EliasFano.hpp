@@ -237,6 +237,8 @@ class EliasFanoDB
 
   Rcpp::List total_genes();
   
+  Rcpp::IntegerVector totalCells(const Rcpp::CharacterVector&);
+  
   Rcpp::CharacterVector getGenesInDB();
   
   int getTotalCells() const;

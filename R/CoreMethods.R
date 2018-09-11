@@ -341,5 +341,5 @@ findCellTypes.geneList <- function(object, gene.list, datasets)
 
 #' @rdname findCellType
 #' @aliases findCellType
-setMethod("findCellTypes", signature(object = "SCFind", gene.list = "character", datasets = "character"), findCellTypes.geneList)
+setMethod("findCellTypes", signature(object = "SCFind", gene.list = "character"), findCellTypes.geneList)
 
