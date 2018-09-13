@@ -120,6 +120,12 @@ contigency.table <- function(query.results)
     
 }
 
+query.result.as.dataframe <- function(query.result)
+{
+    result <- setNames(unlist(query.result, use.names=F), rep(names(query.result), lengths(query.result)))
+    return(data.frame(cell_type = names(result), cell_id = result))
+    
+}
 
 select.datasets <- function(object, datasets)
 {

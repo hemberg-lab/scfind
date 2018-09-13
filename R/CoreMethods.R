@@ -243,7 +243,7 @@ setMethod("markerGenes",
 #' 
 cell.type.marker <- function(object, cell.types, background.cell.types, top.k, sort.field)
 {
-    if(missing(background.cell.types))
+    if (missing(background.cell.types))
     {
         message("Considering the whole DB..")
         background.cell.types <- cellTypeNames(object)
@@ -257,7 +257,6 @@ cell.type.marker <- function(object, cell.types, background.cell.types, top.k, s
     all.cell.types <- all.cell.types[order(all.cell.types[[sort.field]], decreasing = T)[1:top.k],]
     return(all.cell.types)
 }
-
 setMethod("cellTypeMarkers",
           signature(
               object = "SCFind",
@@ -272,8 +271,8 @@ setMethod("cellTypeMarkers",
 #' @param object SCFind object
 #'
 #' @return a character list
-get.cell.types.names <- function(object){
-
+get.cell.types.names <- function(object)
+{
     return(object@index$getCellTypes())
 }
 
@@ -320,6 +319,39 @@ setMethod("evaluateMarkers",
               
 
 
+#' Runs a query and performs the hypergeometric test for the retrieved cell types
+#'
+#' 
+#' @param object the \code{SCFind} object
+#' @param gene.list the list of genes to be queried
+#' @param dataset the datasets that will be tested as background for the hypergeometric test
+#'
+#' @return a DataFrame that contains all cell types with the respective cell cardinality and the hypergeometric test
+cell.types.phyper.test <- function(object, gene.list, datasets)
+{
+    result <- findCellTypes(object, gene.list, datasets)
+    
+    df <- query.result.as.dataframe(result)
+
+    cell.types.df <- aggregate(cell_id ~ cell_type, df, FUN = length)
+    query.hits <- nrow(df)
+    total.cells <- object@index$getCellsInDB()
+    cells.in.cell.type <- object@index$getCellTypeSupport(cell.types.df$cell_type)
+    
+    cell.types.df$pval <- phyper(cell.types.df$cell_id, # total observed successes ( query.hits for cell type)
+                                 cells.in.cell.type, # total successes ( cell type size )
+                                 sum(cells.in.cell.type) - cells.in.cell.type, # total failures( total cells excluding cell type)
+                                 query.hits # sample size 
+                                 )
+    return(cell.types.df)
+      
+}
+
+
+setMethod("hyperQueryCellTypes",
+          signature(object = "SCFind",
+                    gene.list = "character"),
+          cell.types.phyper.test)
 
 
 #' Find cell types associated with a given gene list. All cells
@@ -327,7 +359,7 @@ setMethod("evaluateMarkers",
 #' 
 #' @param object the \code{SCFind} object
 #' @param gene.list genes to be searched in the gene.index
-#' @param datasets
+#' @param datasets the datasets that will be considered
 #' @name findCellTypes
 #'
 #' @return a named numeric vector containing p-values

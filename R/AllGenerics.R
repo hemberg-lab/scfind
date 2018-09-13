@@ -107,6 +107,14 @@ setGeneric(name = "saveObject", function(object, file){
 })
 
 #' @export
+setGeneric(name = "hyperQueryCellTypes", function(object,
+                                                  gene.list,
+                                                  datasets){
+    standardGeneric("hyperQueryCellTypes")
+
+})
+
+#' @export
 setGeneric(name = "markerGenes", function(object, gene.list, datasets)
 {
     standardGeneric("markerGenes")
