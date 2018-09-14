@@ -508,6 +508,16 @@ int EliasFanoDB::getTotalCells(const Rcpp::CharacterVector& datasets) const
   return total_number_of_cells;
 }
 
+int EliasFanoDB::numberOfCellTypes(const Rcpp::CharacterVector& datasets) const
+{
+  std::vector<std::string> act = Rcpp::as<std::vector<std::string> >(datasets);
+  std::set<std::string> act_set(act.begin(), act.end());
+  CellTypeIndex active_cell_types = getCellTypeIDs(act_set);
+  
+  return active_cell_types.size();
+}
+
+
 Rcpp::NumericVector EliasFanoDB::getCellTypeSupport(Rcpp::CharacterVector& cell_types)
 {
   std::vector<std::string> cts = Rcpp::as<std::vector<std::string>>(cell_types);
@@ -1216,6 +1226,9 @@ int EliasFanoDB::mergeDB(const EliasFanoDB& db)
 
 
 
+
+
+
 RCPP_MODULE(EliasFanoDB)
 {
   Rcpp::class_<EliasFanoDB>("EliasFanoDB")
@@ -1228,6 +1241,7 @@ RCPP_MODULE(EliasFanoDB)
     .method("efMemoryFootprint", &EliasFanoDB::dataMemoryFootprint)
     .method("dbMemoryFootprint", &EliasFanoDB::dbMemoryFootprint)
     .method("findMarkerGenes", &EliasFanoDB::findMarkerGenes)
+    .method("numberOfCellTypes", &EliasFanoDB::numberOfCellTypes)
     .method("getByteStream", &EliasFanoDB::getByteStream)
     .method("loadByteStream", &EliasFanoDB::loadByteStream)
     .method("getTotalCells", &EliasFanoDB::getTotalCells)

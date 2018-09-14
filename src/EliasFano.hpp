@@ -245,6 +245,8 @@ class EliasFanoDB
   
   int getTotalCells(const Rcpp::CharacterVector&) const;
 
+  int numberOfCellTypes(const Rcpp::CharacterVector&) const;
+
   int cellsInDB() const;
   
   CellTypeIndex getCellTypeIDs(const std::set<std::string>& datasets) const;
@@ -260,7 +262,8 @@ class EliasFanoDB
   size_t quantizationMemoryFootprint();
   
   size_t dbMemoryFootprint();
-
+  
+  
 
   // And query
   Rcpp::List findCellTypes(const Rcpp::CharacterVector& gene_names, const Rcpp::CharacterVector& datasets_active);

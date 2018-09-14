@@ -130,11 +130,11 @@ phyper.test <- function(object, result, datasets)
     total.cells <- object@index$getTotalCells(datasets)
     cells.in.cell.type <- object@index$getCellTypeSupport(cell.types.df$cell_type)
     
-    cell.types.df$pval <- phyper(cell.types.df$cell_id, # total observed successes ( query.hits for cell type)
+    cell.types.df$pval <- p.adjust(1 - phyper(cell.types.df$cell_id, # total observed successes ( query.hits for cell type)
                                  cells.in.cell.type, # total successes ( cell type size )
                                  sum(cells.in.cell.type) - cells.in.cell.type, # total failures( total cells excluding cell type)
                                  query.hits # sample size 
-                                 )
+                                 ), n = object@index$numberOfCellTypes(datasets))
     return(cell.types.df)
 
 }
