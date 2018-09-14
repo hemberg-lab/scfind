@@ -135,7 +135,7 @@ public:
   void reset();
   void cell_type_relevance(const EliasFanoDB&, const Rcpp::List&, const std::set<std::string>&);
   void cell_tfidf(const EliasFanoDB&, const std::set<std::string>&);
-  void estimateExpression(const Rcpp::List& gene_results, const EliasFanoDB& db);
+  void estimateExpression(const Rcpp::List& gene_results, const EliasFanoDB& db, const Rcpp::CharacterVector& datasets);
 };
 
 
@@ -237,12 +237,18 @@ class EliasFanoDB
 
   Rcpp::List total_genes();
   
+  // Get a vector that represents support for a set of genes with respect to a specific dataset
   Rcpp::IntegerVector totalCells(const Rcpp::CharacterVector&, const Rcpp::CharacterVector&);
   
+  // 
   Rcpp::CharacterVector getGenesInDB();
   
-  int getTotalCells() const;
+  int getTotalCells(const Rcpp::CharacterVector&) const;
 
+  int cellsInDB() const;
+  
+  CellTypeIndex getCellTypeIDs(const std::set<std::string>& datasets) const;
+  
   Rcpp::NumericVector getCellTypeSupport(Rcpp::CharacterVector& cell_types);
   
   std::vector<double> getQuantizedExpressionLevels(const std::string& gene_name, const std::string& cell_type);

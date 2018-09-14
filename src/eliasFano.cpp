@@ -103,7 +103,7 @@ void QueryScore::reset()
   this->cells_in_query = 0;
 }
 
-void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasFanoDB& db)
+void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasFanoDB& db, const Rcpp::CharacterVector& datasets)
 {
   std::cout << "calculating tfidf for the reduced expression matrix... " << std::endl;
   // Store temporarily the strings so we can insert those in the map
@@ -112,13 +112,13 @@ void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasF
   const auto& tmp_strings = Rcpp::as<std::vector<std::string>>(gene_results.names());
   const auto tmpl_cont = std::vector<double>(tmp_strings.size(), 0);
   int gene_row = 0;
+  int total_cells_in_universe = db.getTotalCells(datasets);
   for (size_t gene_row = 0; gene_row < tmp_strings.size(); ++gene_row)
   {
 
     const std::string& gene = tmp_strings[gene_row];
     // std::cerr << "Gene: " << gene << std::endl;
-    
-    float gene_idf = db.getTotalCells() / ((float)db.genes.at(gene).total_reads);
+    float gene_idf = total_cells_in_universe / ((float)db.genes.at(gene).total_reads);
     // get the current score of the gene
     GeneScore g = {0, gene_row, 0};
     double& gene_score = this->genes.insert(std::make_pair(gene, g)).first->second.tfidf;
@@ -470,9 +470,42 @@ Rcpp::IntegerVector EliasFanoDB::totalCells(const Rcpp::CharacterVector& genes,
   
 }
 
-int EliasFanoDB::getTotalCells() const
+EliasFanoDB::CellTypeIndex EliasFanoDB::getCellTypeIDs(const std::set<std::string>& datasets) const 
+{
+  CellTypeIndex cts;
+  for(auto const& ct : this->inverse_cell_type)
+  {
+    auto index = ct.name.find_last_of(".");
+    if(index != std::string::npos)
+    {
+      auto dataset = ct.name.substr(0, index);
+      const auto it = datasets.find(dataset);
+      if (it != datasets.end())
+      {
+        cts[ct.name] = this->cell_types.find(ct.name)->second;
+      }
+    }
+
+  }
+  return cts;
+}
+
+int EliasFanoDB::cellsInDB() const
 {
   return this->total_cells;
+}
+
+int EliasFanoDB::getTotalCells(const Rcpp::CharacterVector& datasets) const
+{
+  std::vector<std::string> act = Rcpp::as<std::vector<std::string> >(datasets);
+  std::set<std::string> act_set(act.begin(), act.end());
+  CellTypeIndex active_cell_types = getCellTypeIDs(act_set);
+  int total_number_of_cells = 0;
+  for (auto const& ct : active_cell_types)
+  {
+    total_number_of_cells += this->inverse_cell_type[ct.second].total_cells;
+  }
+  return total_number_of_cells;
 }
 
 Rcpp::NumericVector EliasFanoDB::getCellTypeSupport(Rcpp::CharacterVector& cell_types)
@@ -777,7 +810,7 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
   // Run fp-growth algorithm
 
   QueryScore qs;
-  qs.estimateExpression(genes_results, *this);
+  qs.estimateExpression(genes_results, *this, datasets_active);
   
   std::cerr << "Running fp-growth tree with " << min_support_cutoff << " cutoff"<< std::endl;
   const FPTree fptree{transactions, min_support_cutoff};
@@ -1197,7 +1230,8 @@ RCPP_MODULE(EliasFanoDB)
     .method("findMarkerGenes", &EliasFanoDB::findMarkerGenes)
     .method("getByteStream", &EliasFanoDB::getByteStream)
     .method("loadByteStream", &EliasFanoDB::loadByteStream)
-    .method("getCellsInDB", &EliasFanoDB::getTotalCells)
+    .method("getTotalCells", &EliasFanoDB::getTotalCells)
+    .method("getTotalCells", &EliasFanoDB::getTotalCells)
     .method("genes", &EliasFanoDB::getGenesInDB)
     .method("genesSupport", &EliasFanoDB::totalCells)
     .method("cellTypeMarkers", &EliasFanoDB::findCellTypeMarkers)
