@@ -49,7 +49,7 @@ inline BitSet32 int2bin(unsigned int id)
 
 
 
-inline double normalCDF(double x, double mu, double sigma)
+inline double normalCDF(const double& x, const double& mu, const double& sigma)
 {
   // this is an inline function for the cdm of the normal distribution
   // it depends on the cmath library where it contains the erfc function
@@ -61,10 +61,13 @@ inline double normalCDF(double x, double mu, double sigma)
 
 // Accepts a vector, transforms and returns a quantization logical vector
 // This function aims for space efficiency of the expression vector
-Quantile lognormalcdf(std::vector<int> ids, const Rcpp::NumericVector& v, unsigned int bits);
+Quantile lognormalcdf(const std::vector<int>& ids, const Rcpp::NumericVector& v, unsigned int bits, bool raw_counts = true);
 
 
 int byteToBoolVector(const std::vector<char> buf, std::vector<bool>& bool_vec);
 
 int getSizeBoolVector(const std::vector<bool>& v);
+
+
+std::vector<double> decompressValues(const Quantile& q, const unsigned char& quantization_bits);
 
