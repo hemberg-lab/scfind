@@ -28,7 +28,7 @@ ui.scfind <- function(object)
                 ),
                    
                 mainPanel(
-                    plotOutput("cellTypesHisto", height = 800),
+                    plotOutput("geneSupportHisto", height = 800),
                     dataTableOutput("cellTypesData")
                 )
             )
@@ -51,7 +51,7 @@ ui.scfind <- function(object)
 #' @importFrom shiny renderPlot stopApp checkboxGroupInput
 #' @importFrom DT renderDataTable datatable
 #' @importFrom data.table as.data.table data.table
-#' @importFrom ggplot2 ggplot geom_bar ggtitle xlab ylab aes coord_flip theme_minimal
+#' @importFrom ggplot2 ggplot geom_bar geom_col ggtitle xlab ylab aes coord_flip theme_minimal
 server.scfind <- function(object)
 {
 
@@ -128,10 +128,11 @@ server.scfind <- function(object)
             
             cell.types <- reactive({
                 selection <- checkbox.selection()
+                
+                print(paste("Selection",selection))
+                
                 if (length(selection) != 0){
-                    result <- findCellTypes(object, selection, input$datasetCheckbox)
-                    result <- setNames(unlist(result, use.names=F), rep(names(result), lengths(result)))
-                    df <- data.frame(cell_type = names(result), cell_id = result)
+                    df <- query.result.as.dataframe(findCellTypes(object, selection, input$datasetCheckbox))
                     df
                 }
                 else
@@ -139,6 +140,16 @@ server.scfind <- function(object)
                     data.frame(cell_type = c(), cell_id = c())
                 }
             })
+
+            gene.support <- reactive({
+                gene.selection <- gene.list()
+                dataset.selection <- input$datasetCheckbox
+                gene.support <- as.data.frame(object@index$genesSupport(gene.selection, dataset.selection))
+                dimnames(gene.support)[[2]] <- 'support'
+                gene.support$genes <- rownames(gene.support)
+                gene.support
+            })
+            
             
             output$cellTypesData <- renderDataTable({                
                 df <- cell.types()
@@ -146,18 +157,18 @@ server.scfind <- function(object)
                 
             })
             
-            output$cellTypesHisto <- renderPlot({
+            output$geneSupportHisto <- renderPlot({
                 ## Render a barplot
                 ## print(length(input$geneCheckbox))
                 ## print(input$geneCheckbox)
-                df <- cell.types()
+                df <- gene.support()
+                print(df)
                 if (nrow(df) != 0)
                 {
-                    g <- ggplot(df, aes(x=cell_type)) +
-                        xlab("Cell Type") +
+                    g <- ggplot(df, aes(x=genes, y= support)) +
+                        xlab("Gene") +
                         ylab("Cells") +
-                        geom_bar(color = "blue") +
-                        ggtitle(paste0(input$geneCheckbox, collapse = ",")) +
+                        geom_col(color = "blue") +
                         coord_flip() +
                         theme_minimal()
                 }

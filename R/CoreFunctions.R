@@ -125,25 +125,39 @@ phyper.test <- function(object, result, datasets)
 {
     df <- query.result.as.dataframe(result)
     datasets <- select.datasets(object, datasets)
-    cell.types.df <- aggregate(cell_id ~ cell_type, df, FUN = length)
-    query.hits <- nrow(df)
-    total.cells <- object@index$getTotalCells(datasets)
-    cells.in.cell.type <- object@index$getCellTypeSupport(cell.types.df$cell_type)
     
-    cell.types.df$pval <- p.adjust(1 - phyper(cell.types.df$cell_id, # total observed successes ( query.hits for cell type)
-                                 cells.in.cell.type, # total successes ( cell type size )
-                                 sum(cells.in.cell.type) - cells.in.cell.type, # total failures( total cells excluding cell type)
+    cell.types.df <- aggregate(cell_id ~ cell_type, df, FUN = length)
+    colnames(cell.types.df)[colnames(cell.types.df) == 'cell_id'] <- 'cell_hits'
+    cell.types.df$total_cells<- object@index$getCellTypeSupport(cell.types.df$cell_type)
+    query.hits <- nrow(df)
+    print(df)
+    
+    cell.types.df$pval <- p.adjust(1 - phyper(cell.types.df$cell_hits, # total observed successes ( query.hits for cell type)
+                                 cell.types.df$total_cells, # total successes ( cell type size )
+                                 sum(cell.types.df$total_cells) - cell.types.df$total_cells, # total failures( total cells excluding cell type)
                                  query.hits # sample size 
                                  ), n = object@index$numberOfCellTypes(datasets))
+
+
     return(cell.types.df)
 
 }
 
 query.result.as.dataframe <- function(query.result)
 {
-    result <- setNames(unlist(query.result, use.names=F), rep(names(query.result), lengths(query.result)))
-
-    return(data.frame(cell_type = names(result), cell_id = result))
+    if (is.data.frame(query.result))
+    {
+        return(query.result)
+    }
+    if (length(query.result) == 0)
+    {
+        return(data.frame(cell_type = c() , cell_id = c()))
+    }
+    else
+    {
+        result <- setNames(unlist(query.result, use.names=F), rep(names(query.result), lengths(query.result)))
+        return(data.frame(cell_type = names(result), cell_id = result))
+    }            
     
 }
 
