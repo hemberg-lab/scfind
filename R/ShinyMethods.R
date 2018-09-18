@@ -129,8 +129,6 @@ server.scfind <- function(object)
             cell.types <- reactive({
                 selection <- checkbox.selection()
                 
-                print(paste("Selection",selection))
-                
                 if (length(selection) != 0){
                     df <- query.result.as.dataframe(findCellTypes(object, selection, input$datasetCheckbox))
                     df

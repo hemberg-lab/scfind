@@ -238,7 +238,7 @@ class EliasFanoDB
   Rcpp::List total_genes();
   
   // Get a vector that represents support for a set of genes with respect to a specific dataset
-  Rcpp::IntegerVector totalCells(const Rcpp::CharacterVector&, const Rcpp::CharacterVector&);
+  Rcpp::IntegerVector totalCells(const Rcpp::CharacterVector&, const Rcpp::CharacterVector&) const;
   
   // 
   Rcpp::CharacterVector getGenesInDB();

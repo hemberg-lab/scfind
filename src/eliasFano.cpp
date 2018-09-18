@@ -113,6 +113,21 @@ void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasF
   const auto tmpl_cont = std::vector<double>(tmp_strings.size(), 0);
   int gene_row = 0;
   int total_cells_in_universe = db.getTotalCells(datasets);
+  
+  Rcpp::IntegerVector gene_support = db.totalCells(gene_results.names(), datasets);
+  std::vector<int> gs = Rcpp::as<std::vector<int>>(gene_support);
+  std::vector<std::string> gs_names = Rcpp::as<std::vector<std::string>>(gene_support.names());
+  std::vector<std::pair<std::string, int>> gs_pairs;
+  gs_pairs.reserve(gs_names.size());
+  std::transform(
+    gs.begin(), 
+    gs.end(), 
+    gs_names.begin(),
+    std::back_inserter(gs_pairs),
+    [](const int& support, const std::string& gene_name){
+      return std::make_pair(gene_name, support);
+    });
+  
   for (size_t gene_row = 0; gene_row < tmp_strings.size(); ++gene_row)
   {
 
@@ -162,10 +177,33 @@ void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasF
     }
   }
 
+ 
   for (auto& v : this->genes)
   {
     v.second.cartesian_product_sets = genes_subset[v.second.index];
-    std::cerr << v.first << " " << genes_subset[v.second.index] << std::endl;
+    v.second.cartesian_product_sets /= this->genes.size();
+    const auto& current_gene_name = v.first;
+    int union_sum = std::accumulate(
+      gs_pairs.begin(), 
+      gs_pairs.end(), 
+      0, 
+      [&current_gene_name](const int& sum, const std::pair<std::string,int>& gs_pair){
+        if(gs_pair.first == current_gene_name)
+        {
+          return sum;
+        }
+        return sum + gs_pair.second;
+      });
+    float mean_overlap = float(union_sum) / tfidf.size(); // normalize by cell size
+    // how much the genes contribute to the overlap
+    mean_overlap /= this->genes.size();
+    v.second.cartesian_product_sets *= mean_overlap;
+  }
+
+  for (auto& v : this->genes)
+  {
+    
+    std::cerr << "Cutoff proposed for gene " << v.first << ": " << v.second.cartesian_product_sets << std::endl;
   }
   
   std::cout << "Done!" << std::endl;
@@ -431,7 +469,7 @@ Rcpp::List EliasFanoDB::total_genes()
 }
 
 Rcpp::IntegerVector EliasFanoDB::totalCells(const Rcpp::CharacterVector& genes, 
-                                            const Rcpp::CharacterVector& datasets_active)
+                                            const Rcpp::CharacterVector& datasets_active) const
 {
   Rcpp::IntegerVector t(genes.size(), 0);
   std::vector<std::string> datasets = Rcpp::as<std::vector<std::string>>(datasets_active);
@@ -439,8 +477,9 @@ Rcpp::IntegerVector EliasFanoDB::totalCells(const Rcpp::CharacterVector& genes,
   std::vector<std::string> str = Rcpp::as<std::vector<std::string>> (genes);
   
   // Building the inverse index for index cell_types
- std::unordered_map<CellTypeID, CellTypeName> inv_ct;
-  for (auto const& ct : this->cell_types){
+  std::unordered_map<CellTypeID, CellTypeName> inv_ct;
+  for (auto const& ct : this->cell_types)
+  {
     inv_ct[ct.second] = ct.first;
   }
 
@@ -448,7 +487,7 @@ Rcpp::IntegerVector EliasFanoDB::totalCells(const Rcpp::CharacterVector& genes,
   for (auto const& g : str)
   {
     auto git = this->index.find(g);
-    if(git != this->index.end())
+    if (git != this->index.end())
     {
       for (auto const& ct : git->second)
       {

@@ -130,7 +130,6 @@ phyper.test <- function(object, result, datasets)
     colnames(cell.types.df)[colnames(cell.types.df) == 'cell_id'] <- 'cell_hits'
     cell.types.df$total_cells<- object@index$getCellTypeSupport(cell.types.df$cell_type)
     query.hits <- nrow(df)
-    print(df)
     
     cell.types.df$pval <- p.adjust(1 - phyper(cell.types.df$cell_hits, # total observed successes ( query.hits for cell type)
                                  cell.types.df$total_cells, # total successes ( cell type size )
