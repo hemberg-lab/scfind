@@ -74,6 +74,7 @@ server.scfind <- function(object)
                 {
                     available.queries <-  recommended.queries()
                     selected.query <- available.queries[selected.index, 'Query']
+                    print(paste0('selected query', selected.query))
                     genes <-  unlist(strsplit(gsub("\\s", "", selected.query), ","))
                 }
                 else

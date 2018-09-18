@@ -860,6 +860,15 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
 
   QueryScore qs;
   qs.estimateExpression(genes_results, *this, datasets_active);
+  std::vector<int> cutoffs;
+  
+  for (auto const& v : qs.genes)
+  {
+     cutoffs.push_back(v.second.cartesian_product_sets);
+  }
+
+  std::sort(cutoffs.begin(), cutoffs.end());
+  min_support_cutoff = cutoffs[cutoffs.size()/2];
   
   std::cerr << "Running fp-growth tree with " << min_support_cutoff << " cutoff"<< std::endl;
   const FPTree fptree{transactions, min_support_cutoff};
