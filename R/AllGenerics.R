@@ -33,6 +33,7 @@ setGeneric(name = "mergeSCE", def = function(object, sce, dataset.name) {
 #' @export
 #' 
 #' @examples TODO
+#'
 #' 
 setGeneric(name = "queryGene", def = function(object, gene, datasets) {
     standardGeneric("queryGene")
@@ -61,8 +62,35 @@ setGeneric(name = "findCellTypes", function(object, gene.list, datasets) {
 
 
 #' @export
-setGeneric(name = "scfind_interactive", function(object) {
-    standardGeneric("scfind_interactive")
+#'
+setGeneric(name = "cellTypeMarkers" ,  function(object,
+                                               cell.types,
+                                               background.cell.types,
+                                               top.k = 5,
+                                               sort.field = 'f1'){
+    standardGeneric("cellTypeMarkers")
+
+})
+
+#' @export
+#'
+setGeneric(name = "cellTypeNames", function(object){
+   standardGeneric("cellTypeNames")
+})
+
+#' @export
+#'
+setGeneric(name = "evaluateMarkers", function(object, gene.list,
+                                              cell.types,
+                                              background.cell.types,
+                                              sort.field = 'f1'){
+    standardGeneric("evaluateMarkers")
+})
+
+
+#' @export
+setGeneric(name = "scfindShiny", function(object) {
+    standardGeneric("scfindShiny")
 })
 
 
@@ -76,6 +104,14 @@ setGeneric(name = "loadObject", function(filename){
 #' @export
 setGeneric(name = "saveObject", function(object, file){
     standardGeneric("saveObject")
+})
+
+#' @export
+setGeneric(name = "hyperQueryCellTypes", function(object,
+                                                  gene.list,
+                                                  datasets){
+    standardGeneric("hyperQueryCellTypes")
+
 })
 
 #' @export

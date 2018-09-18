@@ -47,7 +47,7 @@ void QueryScore::cell_type_relevance(const EliasFanoDB& db, const Rcpp::List& ge
       
       
       auto current_cells = std::move(ct_map[ct]);
-      auto current_cells_results = std::move(std::vector<int>());
+      auto current_cells_results = std::vector<int>();
       
       const Rcpp::List& g_res = genes_results[gene];
       std::vector<int> cells_in_gct = Rcpp::as<std::vector<int> >(g_res[ct]);
@@ -103,22 +103,40 @@ void QueryScore::reset()
   this->cells_in_query = 0;
 }
 
-void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasFanoDB& db)
+void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasFanoDB& db, const Rcpp::CharacterVector& datasets)
 {
   std::cout << "calculating tfidf for the reduced expression matrix... " << std::endl;
   // Store temporarily the strings so we can insert those in the map
   // TODO(Nikos) check if genes are unique in the set.. Possibly this can be done in the R side ?
-  const auto tmp_strings = Rcpp::as<std::vector<std::string>>(gene_results.names());
+  
+  const auto& tmp_strings = Rcpp::as<std::vector<std::string>>(gene_results.names());
   const auto tmpl_cont = std::vector<double>(tmp_strings.size(), 0);
   int gene_row = 0;
-  for (int gene_row = 0; gene_row < tmp_strings.size(); ++gene_row)
+  int total_cells_in_universe = db.getTotalCells(datasets);
+  
+  Rcpp::IntegerVector gene_support = db.totalCells(gene_results.names(), datasets);
+  std::vector<int> gs = Rcpp::as<std::vector<int>>(gene_support);
+  std::vector<std::string> gs_names = Rcpp::as<std::vector<std::string>>(gene_support.names());
+  std::vector<std::pair<std::string, int>> gs_pairs;
+  gs_pairs.reserve(gs_names.size());
+  std::transform(
+    gs.begin(), 
+    gs.end(), 
+    gs_names.begin(),
+    std::back_inserter(gs_pairs),
+    [](const int& support, const std::string& gene_name){
+      return std::make_pair(gene_name, support);
+    });
+  
+  for (size_t gene_row = 0; gene_row < tmp_strings.size(); ++gene_row)
   {
 
     const std::string& gene = tmp_strings[gene_row];
-    std::cerr << "Gene: " << gene << std::endl;
-    
-    float gene_idf = db.getTotalCells() / ((float)db.genes.at(gene).total_reads);
-    double& gene_score = this->gene_scores.insert(std::make_pair(gene, 0)).first->second;
+    // std::cerr << "Gene: " << gene << std::endl;
+    float gene_idf = total_cells_in_universe / ((float)db.genes.at(gene).total_reads);
+    // get the current score of the gene
+    GeneScore g = {0, gene_row, 0};
+    double& gene_score = this->genes.insert(std::make_pair(gene, g)).first->second.tfidf;
     
     const Rcpp::List& cts = gene_results[gene];
     const auto ct_names = Rcpp::as<std::vector<std::string>>(cts.names());
@@ -137,8 +155,10 @@ void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasF
       {
         CellID cell(ct_id, cell_id);
         
-        auto ins_res = tfidf.insert(std::make_pair(cell, tmpl_cont));
-        auto& tfidf_vec = ins_res.first->second;
+        auto ins_res = tfidf.insert(std::make_pair(cell, std::make_pair(tmpl_cont, 0)));
+        auto& tfidf_vec = ins_res.first->second.first;
+        auto& gene_support = ins_res.first->second.second;
+        gene_support++;
         
         tfidf_vec[gene_row] = (expr_values[expr_index++] / db.cells.at(cell).reads) * gene_idf;
         gene_score += tfidf_vec[gene_row];
@@ -146,6 +166,46 @@ void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasF
       }
     }
   }
+  // iterate through cells
+  std::vector<int> genes_subset(this->genes.size(), 0);
+  for (auto const& c : this->tfidf)
+  {
+    size_t i = 0;
+    for (auto const& v : c.second.first)
+    {
+      genes_subset[i++] += v > 0 ? c.second.second - 1 : 0;
+    }
+  }
+
+ 
+  for (auto& v : this->genes)
+  {
+    v.second.cartesian_product_sets = genes_subset[v.second.index];
+    v.second.cartesian_product_sets /= this->genes.size();
+    const auto& current_gene_name = v.first;
+    int union_sum = std::accumulate(
+      gs_pairs.begin(), 
+      gs_pairs.end(), 
+      0, 
+      [&current_gene_name](const int& sum, const std::pair<std::string,int>& gs_pair){
+        if(gs_pair.first == current_gene_name)
+        {
+          return sum;
+        }
+        return sum + gs_pair.second;
+      });
+    float mean_overlap = float(union_sum) / tfidf.size(); // normalize by cell size
+    // how much the genes contribute to the overlap
+    mean_overlap /= this->genes.size();
+    v.second.cartesian_product_sets *= mean_overlap;
+  }
+
+  for (auto& v : this->genes)
+  {
+    
+    std::cerr << "Cutoff proposed for gene " << v.first << ": " << v.second.cartesian_product_sets << std::endl;
+  }
+  
   std::cout << "Done!" << std::endl;
 }
 
@@ -153,13 +213,15 @@ void QueryScore::cell_tfidf(const EliasFanoDB& db, const std::set<std::string>& 
 {
  
   this->query_score = 0;
+  float min = genes[*(gene_set.begin())].tfidf;
   for(auto const& g : gene_set)
   {
-    this->query_score += gene_scores[g];
-  }
+    float tfidf = genes[g].tfidf;
+    min = tfidf < min ? tfidf : min;
+    this->query_score += tfidf;
 
-  this->query_score /= gene_set.size();
-  // this->cells_in_query = tfidf.size();
+  }
+  this->query_score *= min;
   
 }
 
@@ -227,11 +289,13 @@ long EliasFanoDB::eliasFanoCoding(const std::vector<int>& ids, const Rcpp::Numer
     ef.H.resize(m, false);
     ef.H[m - 1] = true;
   }
+  
   ef_data.push_back(ef);
   // std::cerr <<"New index" << ef_data.size() - 1 << std::endl;
   // return the index of the ef_data in the deque
   return ef_data.size() - 1;
 }
+
 
 std::vector<int> EliasFanoDB::eliasFanoDecoding(const EliasFano& ef)
 {
@@ -313,6 +377,7 @@ EliasFanoDB::EliasFanoDB():
 {
     
 }
+
 
 // This is invoked on slices of the expression matrix of the dataset 
 long EliasFanoDB::encodeMatrix(const std::string& cell_type_name, const Rcpp::NumericMatrix& gene_matrix)
@@ -403,10 +468,94 @@ Rcpp::List EliasFanoDB::total_genes()
   return t;
 }
 
-int EliasFanoDB::getTotalCells() const
+Rcpp::IntegerVector EliasFanoDB::totalCells(const Rcpp::CharacterVector& genes, 
+                                            const Rcpp::CharacterVector& datasets_active) const
+{
+  Rcpp::IntegerVector t(genes.size(), 0);
+  std::vector<std::string> datasets = Rcpp::as<std::vector<std::string>>(datasets_active);
+  t.names() = genes;
+  std::vector<std::string> str = Rcpp::as<std::vector<std::string>> (genes);
+  
+  // Building the inverse index for index cell_types
+  std::unordered_map<CellTypeID, CellTypeName> inv_ct;
+  for (auto const& ct : this->cell_types)
+  {
+    inv_ct[ct.second] = ct.first;
+  }
+
+  int i = 0;
+  for (auto const& g : str)
+  {
+    auto git = this->index.find(g);
+    if (git != this->index.end())
+    {
+      for (auto const& ct : git->second)
+      {
+        const std::string& ct_name = inv_ct[ct.first];
+        std::string ct_dataset = ct_name.substr(0, ct_name.find("."));
+        auto find_dataset = std::find(datasets.begin(), datasets.end(), ct_dataset);
+        // check if the cells are in active datasets
+        if (find_dataset == datasets.end())
+        {
+          continue;
+        }
+        t[i] += this->ef_data[ct.second].getSize();
+      }
+    }
+  
+    i++;
+  }
+  return t;
+  
+}
+
+EliasFanoDB::CellTypeIndex EliasFanoDB::getCellTypeIDs(const std::set<std::string>& datasets) const 
+{
+  CellTypeIndex cts;
+  for(auto const& ct : this->inverse_cell_type)
+  {
+    auto index = ct.name.find_last_of(".");
+    if(index != std::string::npos)
+    {
+      auto dataset = ct.name.substr(0, index);
+      const auto it = datasets.find(dataset);
+      if (it != datasets.end())
+      {
+        cts[ct.name] = this->cell_types.find(ct.name)->second;
+      }
+    }
+
+  }
+  return cts;
+}
+
+int EliasFanoDB::cellsInDB() const
 {
   return this->total_cells;
 }
+
+int EliasFanoDB::getTotalCells(const Rcpp::CharacterVector& datasets) const
+{
+  std::vector<std::string> act = Rcpp::as<std::vector<std::string> >(datasets);
+  std::set<std::string> act_set(act.begin(), act.end());
+  CellTypeIndex active_cell_types = getCellTypeIDs(act_set);
+  int total_number_of_cells = 0;
+  for (auto const& ct : active_cell_types)
+  {
+    total_number_of_cells += this->inverse_cell_type[ct.second].total_cells;
+  }
+  return total_number_of_cells;
+}
+
+int EliasFanoDB::numberOfCellTypes(const Rcpp::CharacterVector& datasets) const
+{
+  std::vector<std::string> act = Rcpp::as<std::vector<std::string> >(datasets);
+  std::set<std::string> act_set(act.begin(), act.end());
+  CellTypeIndex active_cell_types = getCellTypeIDs(act_set);
+  
+  return active_cell_types.size();
+}
+
 
 Rcpp::NumericVector EliasFanoDB::getCellTypeSupport(Rcpp::CharacterVector& cell_types)
 {
@@ -489,6 +638,18 @@ size_t EliasFanoDB::dataMemoryFootprint()
   bytes += ef_data.size() * 32; // overhead of l idf and deque struct
   return bytes;
 }
+
+size_t EliasFanoDB::quantizationMemoryFootprint()
+{
+  size_t bytes = 0;
+  for (auto & d : ef_data)
+  {
+    bytes += int((d.expr.quantile.size() / 8) + 12);
+  }
+  bytes += ef_data.size() * 32; // overhead of l idf and deque struct
+  return bytes;
+}
+
 
 size_t EliasFanoDB::dbMemoryFootprint()
 {
@@ -621,6 +782,8 @@ Rcpp::List EliasFanoDB::findCellTypes(const Rcpp::CharacterVector& gene_names, c
 
 
 
+
+
 // TODO(Nikos) this function can be optimized.. It uses the native quering mechanism
 // that casts the results into native R data structures
 Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_list, const Rcpp::CharacterVector datasets_active,unsigned int min_support_cutoff = 5)
@@ -694,14 +857,27 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
     
   std::cerr << transactions.size() << " transactions" << std::endl;
   // Run fp-growth algorithm
+
+  QueryScore qs;
+  qs.estimateExpression(genes_results, *this, datasets_active);
+  std::vector<int> cutoffs;
+  
+  for (auto const& v : qs.genes)
+  {
+     cutoffs.push_back(v.second.cartesian_product_sets);
+  }
+
+  std::sort(cutoffs.begin(), cutoffs.end());
+  min_support_cutoff = cutoffs[cutoffs.size()/2];
+  
+  std::cerr << "Running fp-growth tree with " << min_support_cutoff << " cutoff"<< std::endl;
   const FPTree fptree{transactions, min_support_cutoff};
   const std::set<Pattern> patterns = fptree_growth(fptree);
+  std::cerr << "Found " << patterns.size() << " geneset patterns " << std::endl;
   
-  QueryScore qs;
-  qs.estimateExpression(genes_results, *this);
   // Iterate through the calculated frequent patterns
   
-  std::cerr << "Found " << patterns.size() << " geneset patterns " << std::endl;
+  
   for (auto const& item : patterns)
   {
     
@@ -760,6 +936,199 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
 
 
 
+const std::set<std::string> EliasFanoDB::_getActiveCellTypes(std::vector<std::string> universe) const
+{
+  std::set<std::string> active_cell_types;
+  std::vector<std::string> db_cell_types(this->_getCellTypes());
+  std::sort(universe.begin(), universe.end());
+  std::sort(db_cell_types.begin(), db_cell_types.end());
+  std::set_intersection(
+    db_cell_types.begin(), 
+    db_cell_types.end(), 
+    universe.begin(), 
+    universe.end(), 
+    std::inserter(active_cell_types, active_cell_types.begin()));
+  if (universe.size() != active_cell_types.size())
+  {
+    std::vector<std::string> cts_not_found;
+    std::set_difference(
+      universe.begin(), 
+      universe.end(), 
+      active_cell_types.begin(), 
+      active_cell_types.end(), 
+      std::back_inserter(cts_not_found));
+    for(auto const& ct : cts_not_found)
+    {
+      std::cerr << "Ignoring cell type "<< ct <<". Not found in DB" << std::endl;
+    }
+  }
+
+  return active_cell_types;
+
+}
+
+
+Rcpp::DataFrame EliasFanoDB::findCellTypeMarkers(const Rcpp::CharacterVector& cell_types, const Rcpp::CharacterVector& background)
+{
+  std::vector<GeneName> gene_set;
+  gene_set.reserve(this->genes.size());
+  for (auto const& g : this->genes)
+  {
+    gene_set.push_back(g.first);
+  }
+  return _findCellTypeMarkers(cell_types, background, gene_set);
+}
+
+
+Rcpp::DataFrame EliasFanoDB::_findCellTypeMarkers(const Rcpp::CharacterVector& cell_types, const Rcpp::CharacterVector& background, const std::vector<EliasFanoDB::GeneName>& gene_set)
+{
+  std::vector<std::string> 
+    bk_cts(Rcpp::as< std::vector<std::string> >(background)),
+    cts(Rcpp::as< std::vector<std::string> >(cell_types)),
+    genes, df_cell_type;
+  
+  
+  std::vector<int> tp, fp, tn, fn;
+  std::vector<float> precision, recall, f1;
+  for (auto const& ct : cts)
+  {
+    auto marker_genes = this->_cellTypeScore(ct, bk_cts, gene_set);
+    if (marker_genes.empty())
+    {
+      std::cerr << "Marker genes could not be found for cell type " << ct << std::endl;
+      continue;
+    }
+    
+    for (auto& t : marker_genes)
+    {
+      const CellTypeMarker& ctm = t.second;
+      genes.push_back(t.first);
+      df_cell_type.push_back(ct);
+      tp.push_back(ctm.tp);
+      fp.push_back(ctm.fp);
+      tn.push_back(ctm.tn);
+      fn.push_back(ctm.fn);
+      precision.push_back(ctm.precision());
+      recall.push_back(ctm.recall());
+      f1.push_back(ctm.f1());
+    }
+  }
+  return Rcpp::DataFrame::create(
+    Rcpp::Named("cellType") = Rcpp::wrap(df_cell_type),
+    Rcpp::Named("genes") = Rcpp::wrap(genes),
+    Rcpp::Named("tp") = Rcpp::wrap(tp),
+    Rcpp::Named("tn") = Rcpp::wrap(tn),
+    Rcpp::Named("fp") = Rcpp::wrap(fp),
+    Rcpp::Named("fn") = Rcpp::wrap(fn),
+    Rcpp::Named("precision") = Rcpp::wrap(precision),
+    Rcpp::Named("recall") = Rcpp::wrap(recall),
+    Rcpp::Named("f1") = Rcpp::wrap(f1)
+                         );
+  
+}
+
+
+Rcpp::DataFrame EliasFanoDB::evaluateCellTypeMarkers(const Rcpp::CharacterVector& cell_types, 
+                                                     const Rcpp::CharacterVector& gene_set,  
+                                                     const Rcpp::CharacterVector& background)
+{
+  return _findCellTypeMarkers(cell_types, background, Rcpp::as<std::vector<GeneName>>(gene_set));
+}
+
+
+
+std::map<EliasFanoDB::GeneName, CellTypeMarker> EliasFanoDB::_cellTypeScore(const std::string& cell_type, const std::vector<std::string>& universe, const std::vector<EliasFanoDB::GeneName>& gene_names) const
+{
+  auto ct_it = this->cell_types.find(cell_type);
+  if ( ct_it == this->cell_types.end())
+  {
+    std::cerr <<"Cell type "<< cell_type << " not found. exiting..." << std::endl;
+    return std::map<EliasFanoDB::GeneName, CellTypeMarker>();
+  }
+
+  const CellTypeID cell_type_id = ct_it->second;
+  int total_cells_in_ct = this->inverse_cell_type[cell_type_id].total_cells;
+  const auto active_cell_types = this->_getActiveCellTypes(universe);
+
+  // Calculate background universe total cells
+  const std::deque<CellType>& all_cts = this->inverse_cell_type;
+  const CellTypeIndex& cts_index = this->cell_types;
+  const int act_total_cells = std::accumulate(active_cell_types.begin(), 
+                                              active_cell_types.end(),
+                                              0,
+                                              [&all_cts, &cts_index](const int& sum, const CellTypeName& name){
+                                                const auto ct_id = cts_index.find(name);
+                                                return sum + all_cts[ct_id->second].total_cells;
+                                              });
+  
+  std::map<GeneName, CellTypeMarker> scores;
+  CellTypeMarker ctm_template = {0, 0, 0, 0};
+  
+  for (auto const& gene_name : gene_names)
+  {  
+    const auto index_it = this->index.find(gene_name);
+    if (index_it == this->index.end())
+    {
+      std::cerr << "Gene " << gene_name << " not found in the database, Ignoring... " << std::endl;
+      continue;
+    }
+
+    const auto& gene_entry = *index_it;
+    // Make sure the cell type is in the batch
+    auto ctm = gene_entry.second.find(cell_type_id);
+    if (ctm == gene_entry.second.end())
+    {
+      continue;
+    }
+
+    auto dit = scores.insert(std::make_pair(gene_entry.first, ctm_template));
+    CellTypeMarker& gene_ctm_score = dit.first->second;
+    // this->cellTypeMarkerGeneMetrics(gene_ctm_score);
+    const EliasFano& ex_vec = this->ef_data[ctm->second];
+    // std::cout << ctm->second << " size: " << this->ef_data[ctm->second]. << std::endl;
+    int cells_in_ct = ex_vec.getSize();
+    gene_ctm_score.tp = cells_in_ct;
+    gene_ctm_score.fn = total_cells_in_ct - gene_ctm_score.tp;
+    for (auto const& ct : gene_entry.second)
+    {
+      auto bct_it = active_cell_types.find(all_cts[ct.first].name);
+      // if we are not interested in the cell type continue
+      if ( bct_it == active_cell_types.end())
+      {
+        continue;
+      }
+      // if this is the current cell type we are assesing continue as well
+      // if ( bct_it->first == cell_type_id) // not needed if we subtract the cells_in_ct later
+      // {
+      //   continue;
+      // }
+      
+      int bkg_cell_number = this->ef_data[ct.second].getSize();
+      gene_ctm_score.fp += bkg_cell_number;
+    }
+
+    // total cells in the universe - total cells expressing gene - total cells not in cell type
+    gene_ctm_score.tn = act_total_cells - gene_ctm_score.fp - total_cells_in_ct;
+    // subtract the cells in the cell_type of interest
+    gene_ctm_score.fp -= cells_in_ct;
+
+
+
+  }
+  return scores;
+}
+
+
+const std::vector<EliasFanoDB::CellTypeName> EliasFanoDB::_getCellTypes() const
+{
+  std::vector<CellTypeName> cts;
+  cts.reserve(this->cell_types.size());
+  for (auto const& ct : this->inverse_cell_type)
+  {
+    cts.push_back(ct.name);
+  }
+  return cts;
+}
 // Returns a map of cell types and cell id's that contain all genes in the gene_set
 std::map<std::string, std::vector<int>> EliasFanoDB::intersect_cells(std::set<std::string> gene_set, Rcpp::List genes_results) const
 {
@@ -904,6 +1273,10 @@ int EliasFanoDB::mergeDB(const EliasFanoDB& db)
 }
 
 
+
+
+
+
 RCPP_MODULE(EliasFanoDB)
 {
   Rcpp::class_<EliasFanoDB>("EliasFanoDB")
@@ -916,10 +1289,16 @@ RCPP_MODULE(EliasFanoDB)
     .method("efMemoryFootprint", &EliasFanoDB::dataMemoryFootprint)
     .method("dbMemoryFootprint", &EliasFanoDB::dbMemoryFootprint)
     .method("findMarkerGenes", &EliasFanoDB::findMarkerGenes)
+    .method("numberOfCellTypes", &EliasFanoDB::numberOfCellTypes)
     .method("getByteStream", &EliasFanoDB::getByteStream)
     .method("loadByteStream", &EliasFanoDB::loadByteStream)
-    .method("getCellsInDB", &EliasFanoDB::getTotalCells)
+    .method("getTotalCells", &EliasFanoDB::getTotalCells)
+    .method("getTotalCells", &EliasFanoDB::getTotalCells)
     .method("genes", &EliasFanoDB::getGenesInDB)
+    .method("genesSupport", &EliasFanoDB::totalCells)
+    .method("cellTypeMarkers", &EliasFanoDB::findCellTypeMarkers)
+    .method("getCellTypes", &EliasFanoDB::_getCellTypes)
+    .method("evaluateCellTypeMarkers", &EliasFanoDB::evaluateCellTypeMarkers)
     .method("getCellTypeSupport", &EliasFanoDB::getCellTypeSupport);
   
 }

@@ -3,19 +3,20 @@
 \docType{methods}
 \name{buildCellTypeIndex}
 \alias{buildCellTypeIndex}
-\alias{buildCellTypeIndex}
 \alias{buildCellTypeIndex.SCESet}
 \alias{buildCellTypeIndex,SingleCellExperiment-method}
-\alias{buildCellTypeIndex}
-\title{Builds an scfind index from a SingleCellExperiment object}
+\alias{buildIndex}
+\title{Builds an \code{SCFind} object from a \code{SingleCellExperiment} object}
 \usage{
 buildCellTypeIndex(sce, dataset.name = "", assay.name = "logcounts",
   cell.type.label = "cell_type1")
 
-buildCellTypeIndex.SCESet(sce, dataset.name, assay.name, cell.type.label)
+buildCellTypeIndex.SCESet(sce, dataset.name, assay.name = "counts",
+  cell.type.label = "cell_type1")
 
-\S4method{buildCellTypeIndex}{SingleCellExperiment}(sce, dataset.name = "",
-  assay.name = "logcounts", cell.type.label = "cell_type1")
+\S4method{buildCellTypeIndex}{SingleCellExperiment}(sce,
+  dataset.name = "", assay.name = "counts",
+  cell.type.label = "cell_type1")
 }
 \arguments{
 \item{sce}{object of SingleCellExperiment class}
@@ -27,10 +28,10 @@ buildCellTypeIndex.SCESet(sce, dataset.name, assay.name, cell.type.label)
 \item{cell.type.label}{the cell.type metadata of the colData SingleCellExperiment that will be used for the index}
 }
 \value{
-a `data.frame` containing calculated gene index
+an SCFind object
 }
 \description{
-Builds an scfind index from a SingleCellExperiment object
+This function will index a \code{SingleCellExperiment} as an SCFind index.
 }
 \examples{
 TODO

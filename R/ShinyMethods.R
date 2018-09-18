@@ -28,7 +28,7 @@ ui.scfind <- function(object)
                 ),
                    
                 mainPanel(
-                    plotOutput("cellTypesHisto", height = 800),
+                    plotOutput("geneSupportHisto", height = 800),
                     dataTableOutput("cellTypesData")
                 )
             )
@@ -51,18 +51,20 @@ ui.scfind <- function(object)
 #' @importFrom shiny renderPlot stopApp checkboxGroupInput
 #' @importFrom DT renderDataTable datatable
 #' @importFrom data.table as.data.table data.table
-#' @importFrom ggplot2 ggplot geom_bar ggtitle xlab ylab aes coord_flip theme_minimal
+#' @importFrom ggplot2 ggplot geom_bar geom_col ggtitle xlab ylab aes coord_flip theme_minimal
 server.scfind <- function(object)
 {
 
     return(
-        function(input,output,session)
+        function(input, output, session)
         {
             
 
             gene.list <- reactive({
-                genes <-  unlist(strsplit(gsub("\\s", "", input$geneList), ","))
-                genes
+                text <- gsub("\\s", "", input$geneList)
+                gene.list.input <- unlist(strsplit(text, ","))
+                print(gene.list.input)
+                gene.list.input
             })
 
             checkbox.selection <- reactive({
@@ -72,6 +74,7 @@ server.scfind <- function(object)
                 {
                     available.queries <-  recommended.queries()
                     selected.query <- available.queries[selected.index, 'Query']
+                    print(paste0('selected query', selected.query))
                     genes <-  unlist(strsplit(gsub("\\s", "", selected.query), ","))
                 }
                 else
@@ -85,6 +88,7 @@ server.scfind <- function(object)
                         genes <- input$geneCheckbox
                     }
                 }
+                print(genes)
                 genes
                 ## updateSelectInput(session, "geneCheckbox", selected  = genes)
             })
@@ -125,12 +129,9 @@ server.scfind <- function(object)
             
             cell.types <- reactive({
                 selection <- checkbox.selection()
+                
                 if (length(selection) != 0){
-                    print(selection)
-                    result <- findCellTypes(object, selection, input$datasetCheckbox)
-                    ## print(result)
-                    result <- setNames(unlist(result, use.names=F), rep(names(result), lengths(result)))
-                    df <- data.frame(cell_type = names(result), cell_id = result)
+                    df <- query.result.as.dataframe(findCellTypes(object, selection, input$datasetCheckbox))
                     df
                 }
                 else
@@ -138,43 +139,35 @@ server.scfind <- function(object)
                     data.frame(cell_type = c(), cell_id = c())
                 }
             })
-            
-            output$cellTypesData <- renderDataTable({
-                
-                df <- cell.types()
-                ## Hypergeometric test
-                cell.types.df <- aggregate(cell_id ~ cell_type, df, FUN = length)
-                query.hits <- nrow(df)
-                total.cells <- object@index$getCellsInDB()
-                cells.in.cell.type <- object@index$getCellTypeSupport(cell.types.df$cell_type)
 
-                message(paste(cell.types.df$cell_id, # total observed successes ( query.hits for cell type)
-                                             cells.in.cell.type, # total successes ( cell type size )
-                                             total.cells - cells.in.cell.type, # total failures( total cells excluding cell type)
-                                             query.hits
-                              ))
-                cell.types.df$pval <- phyper(cell.types.df$cell_id, # total observed successes ( query.hits for cell type)
-                                             cells.in.cell.type, # total successes ( cell type size )
-                                             sum(cells.in.cell.type) - cells.in.cell.type, # total failures( total cells excluding cell type)
-                                             query.hits # sample size 
-                                             )
-                            
-                datatable(cell.types.df, selection = 'single')
+            gene.support <- reactive({
+                gene.selection <- gene.list()
+                dataset.selection <- input$datasetCheckbox
+                gene.support <- as.data.frame(object@index$genesSupport(gene.selection, dataset.selection))
+                dimnames(gene.support)[[2]] <- 'support'
+                gene.support$genes <- rownames(gene.support)
+                gene.support
+            })
+            
+            
+            output$cellTypesData <- renderDataTable({                
+                df <- cell.types()
+                datatable(phyper.test(object, df, input$datasetCheckbox), selection = 'single')
                 
             })
             
-            output$cellTypesHisto <- renderPlot({
+            output$geneSupportHisto <- renderPlot({
                 ## Render a barplot
                 ## print(length(input$geneCheckbox))
                 ## print(input$geneCheckbox)
-                df <- cell.types()
+                df <- gene.support()
+                print(df)
                 if (nrow(df) != 0)
                 {
-                    g <- ggplot(df, aes(x=cell_type)) +
-                        xlab("Cell Type") +
+                    g <- ggplot(df, aes(x=genes, y= support)) +
+                        xlab("Gene") +
                         ylab("Cells") +
-                        geom_bar(color = "blue") +
-                        ggtitle(paste0(input$geneCheckbox, collapse = ",")) +
+                        geom_col(color = "blue") +
                         coord_flip() +
                         theme_minimal()
                 }
@@ -225,4 +218,4 @@ scfind.interactive <- function(object) {
 
 #' @rdname scfind.interactive
 #' @aliases scfind.interactive
-setMethod("scfind_interactive", signature(object = "SCFind"), scfind.interactive)
+setMethod("scfindShiny", signature(object = "SCFind"), scfind.interactive)

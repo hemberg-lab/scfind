@@ -48,6 +48,10 @@ typedef struct
   int l;
   float idf; // tfidf
   Quantile expr;
+  int getSize() const
+  {
+    return L.size() / l;
+  }
 } EliasFano;
 
 typedef struct
@@ -112,12 +116,18 @@ namespace std
 class QueryScore
 {
 public:
+  typedef struct 
+  {
+    double tfidf;
+    size_t index;
+    int cartesian_product_sets;
+  } GeneScore;
   friend class EliasFanoDB;
   int cells_in_query;
   int cell_types_in_query;
   double query_score;
-  std::map<std::string, double> gene_scores;
-  std::unordered_map<CellID , std::vector<double> > tfidf;
+  std::map<std::string, GeneScore> genes;
+  std::unordered_map<CellID , std::pair<std::vector<double>, int> > tfidf;
   
 
   
@@ -125,7 +135,7 @@ public:
   void reset();
   void cell_type_relevance(const EliasFanoDB&, const Rcpp::List&, const std::set<std::string>&);
   void cell_tfidf(const EliasFanoDB&, const std::set<std::string>&);
-  void estimateExpression(const Rcpp::List& gene_results, const EliasFanoDB& db);
+  void estimateExpression(const Rcpp::List& gene_results, const EliasFanoDB& db, const Rcpp::CharacterVector& datasets);
 };
 
 
@@ -136,6 +146,37 @@ typedef struct
   std::string name;
   int total_cells;
 } CellType;
+
+typedef struct
+{
+  int tp;
+  int fp;
+  int tn;
+  int fn;
+  float inv_precision() const
+  {
+    return  (tp + fp) / float(tp);
+  }
+  float inv_recall() const
+  {
+    return (fn + tp) /  float(tp);
+  }
+
+  float recall() const
+  {
+    return 1 / inv_recall();
+  }
+
+  float precision() const
+  {
+    return 1 / inv_precision();
+  }
+
+  float f1() const
+  {
+    return 2/(inv_precision() + inv_recall());
+  }
+} CellTypeMarker;
 
 
 class EliasFanoDB
@@ -196,10 +237,20 @@ class EliasFanoDB
 
   Rcpp::List total_genes();
   
+  // Get a vector that represents support for a set of genes with respect to a specific dataset
+  Rcpp::IntegerVector totalCells(const Rcpp::CharacterVector&, const Rcpp::CharacterVector&) const;
+  
+  // 
   Rcpp::CharacterVector getGenesInDB();
   
-  int getTotalCells() const;
+  int getTotalCells(const Rcpp::CharacterVector&) const;
 
+  int numberOfCellTypes(const Rcpp::CharacterVector&) const;
+
+  int cellsInDB() const;
+  
+  CellTypeIndex getCellTypeIDs(const std::set<std::string>& datasets) const;
+  
   Rcpp::NumericVector getCellTypeSupport(Rcpp::CharacterVector& cell_types);
   
   std::vector<double> getQuantizedExpressionLevels(const std::string& gene_name, const std::string& cell_type);
@@ -208,8 +259,11 @@ class EliasFanoDB
   
   size_t dataMemoryFootprint();
 
+  size_t quantizationMemoryFootprint();
+  
   size_t dbMemoryFootprint();
-
+  
+  
 
   // And query
   Rcpp::List findCellTypes(const Rcpp::CharacterVector& gene_names, const Rcpp::CharacterVector& datasets_active);
@@ -219,10 +273,32 @@ class EliasFanoDB
   // that casts the results into native R data structures
   Rcpp::DataFrame findMarkerGenes(const Rcpp::CharacterVector& gene_list, const Rcpp::CharacterVector datasets_active, unsigned int min_support_cutoff);
 
+
+  Rcpp::DataFrame _findCellTypeMarkers(const Rcpp::CharacterVector& cell_types, 
+                                       const Rcpp::CharacterVector& background, 
+                                       const std::vector<GeneName>&);
+
+  Rcpp::DataFrame findCellTypeMarkers(const Rcpp::CharacterVector& cell_types, 
+                                      const Rcpp::CharacterVector& background);
+
+  Rcpp::DataFrame evaluateCellTypeMarkers(const Rcpp::CharacterVector& cell_types, 
+                                          const Rcpp::CharacterVector& gene_set, 
+                                          const Rcpp::CharacterVector& background);
+  
+
+  
+  
+  std::map<GeneName, CellTypeMarker> _cellTypeScore(const std::string& cell_type, const std::vector<std::string>& universe, const std::vector <GeneName>&) const;
+  const std::set<std::string> _getActiveCellTypes(std::vector<std::string> universe) const;
+    
+  const std::vector<CellTypeName> _getCellTypes() const;
+  
+
   std::map<std::string, std::vector<int> > intersect_cells(std::set<std::string> gene_set, Rcpp::List genes_results) const ;
 
   int dbSize();
-
+  
+  void dumpEFsize(int);
   int sample(int index);
 
   std::vector<int> decode(int index);
