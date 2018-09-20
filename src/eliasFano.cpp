@@ -196,14 +196,15 @@ void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasF
       });
     float mean_overlap = float(union_sum) / tfidf.size(); // normalize by cell size
     // how much the genes contribute to the overlap
-    mean_overlap /= this->genes.size();
+    mean_overlap /= log(this->genes.size());
     v.second.cartesian_product_sets *= mean_overlap;
   }
 
+  int i = 0;
   for (auto& v : this->genes)
   {
     
-    std::cerr << "Cutoff proposed for gene " << v.first << ": " << v.second.cartesian_product_sets << std::endl;
+    std::cerr << "Cutoff proposed for gene " << v.first << ": " << v.second.cartesian_product_sets <<" with support " << gs_pairs[i++].second << std::endl;
   }
   
   std::cout << "Done!" << std::endl;
@@ -405,11 +406,7 @@ long EliasFanoDB::encodeMatrix(const std::string& cell_type_name, const Rcpp::Nu
   // This can be scaled!
   for (unsigned int gene_row = 0; gene_row < gene_matrix.nrow(); ++gene_row)
   {
-    // Insert the gene gene metadata database
-    auto gene_it = this->genes.insert(std::make_pair(gene_names[gene_row], GeneMeta())).first;
-    // Insert the gene in the index
-    auto db_entry = this->index.insert(std::make_pair(gene_names[gene_row], GeneContainer())).first;
-
+    
     // Collect indices of sparse vector for this gene
     const Rcpp::NumericVector& expression_vector = gene_matrix(gene_row, Rcpp::_);
     std::deque<int> sparse_index;
@@ -429,6 +426,16 @@ long EliasFanoDB::encodeMatrix(const std::string& cell_type_name, const Rcpp::Nu
         sparse_index.push_back(i);
       }
     }
+    if (sparse_index.empty())
+    {
+      continue;
+    }
+    
+    // Insert the gene gene metadata database
+    auto gene_it = this->genes.insert(std::make_pair(gene_names[gene_row], GeneMeta())).first;
+    // Insert the gene in the index
+    auto db_entry = this->index.insert(std::make_pair(gene_names[gene_row], GeneContainer())).first;
+    
     // Cast it as a vector
     std::vector<int> ids(sparse_index.begin(), sparse_index.end());
 
@@ -897,8 +904,8 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
     
     // cell_type_relevance
     qs.reset();
-    qs.cell_type_relevance(*this, genes_results, gene_set);
-    query_scores.push_back(qs.query_score);
+    // qs.cell_type_relevance(*this, genes_results, gene_set);
+    // query_scores.push_back(qs.query_score);
     query_cell_cardinality.push_back(qs.cells_in_query);
     query_cell_type_cardinality.push_back(qs.cell_types_in_query);
     
@@ -912,21 +919,21 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
     query.push_back(view_string);
   }
 
-  std::vector<int> query_rank(query_scores.size());    
-  std::iota(query_rank.begin(), 
-            query_rank.end(), 
-            1);
+  // std::vector<int> query_rank(query_scores.size());    
+  // std::iota(query_rank.begin(), 
+  //           query_rank.end(), 
+  //           1);
   
-  std::sort(query_rank.begin(), 
-            query_rank.end(), 
-            [&query_scores](const int& i1, const int& i2){
-              return query_scores[i1] < query_scores[i2];
-            });
+  // std::sort(query_rank.begin(), 
+  //           query_rank.end(), 
+  //           [&query_scores](const int& i1, const int& i2){
+  //             return query_scores[i1] < query_scores[i2];
+  //           });
 
   // Dump the list
   return Rcpp::DataFrame::create(Rcpp::Named("Genes") = Rcpp::wrap(query_gene_cardinality),
                                  Rcpp::Named("Query") = Rcpp::wrap(query),
-                                 Rcpp::Named("Rank") = Rcpp::wrap(query_rank),
+                                 // Rcpp::Named("Rank") = Rcpp::wrap(query_rank),
                                  Rcpp::Named("tfidf") = Rcpp::wrap(query_tfidf),
                                  Rcpp::Named("Cells") = Rcpp::wrap(query_cell_cardinality),
                                  Rcpp::Named("Cell Types") = Rcpp::wrap(query_cell_type_cardinality));
