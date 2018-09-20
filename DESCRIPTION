@@ -24,7 +24,7 @@ License: GPL-3
 Imports:
     SingleCellExperiment, methods, Rcpp (>= 0.8.5), SummarizedExperiment, shiny, data.table, DT
 LinkingTo: Rcpp, RcppArmadillo
-Depends: R(>= 3.3), methods, Rcpp
+Depends: R(>= 3.4), methods, Rcpp
 RcppModules: EliasFanoDB
 Encoding: UTF-8
 LazyLoad: yes
