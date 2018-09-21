@@ -380,6 +380,23 @@ EliasFanoDB::EliasFanoDB():
 }
 
 
+int EliasFanoDB::queryZeroGeneSupport(const Rcpp::CharacterVector& datasets) const
+{
+  int zs = 0;
+  for(auto const& g : this->index)
+  {
+    auto cell_support = this->totalCells(Rcpp::wrap(g.first), datasets);
+    // std::vector<int> cell_support =  Rcpp::as<std::vector<int>>();
+    if (cell_support[0] == 0){
+      zs++;
+      std::cerr << "Gene " << g.first << " found no support with " <<  g.second.size() << " cell types"<< std::endl;
+    }
+    
+  }
+  return zs;
+}
+
+
 // This is invoked on slices of the expression matrix of the dataset 
 long EliasFanoDB::encodeMatrix(const std::string& cell_type_name, const Rcpp::NumericMatrix& gene_matrix)
 {
@@ -415,7 +432,6 @@ long EliasFanoDB::encodeMatrix(const std::string& cell_type_name, const Rcpp::Nu
     {
       i++; // 1 based indexing!
       
- 
       if (*expr > 0)
       {
         // Not Thread safe as well
@@ -445,10 +461,8 @@ long EliasFanoDB::encodeMatrix(const std::string& cell_type_name, const Rcpp::Nu
     // Insert the entry to index
     if (ef_index != -1)
     {
-      
       db_entry->second.insert(std::make_pair(cell_type_id, ef_index));
     }
-    
   }
   
   int i = 0; // 1 based indexing
@@ -906,7 +920,7 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
     qs.reset();
     // qs.cell_type_relevance(*this, genes_results, gene_set);
     // query_scores.push_back(qs.query_score);
-    query_cell_cardinality.push_back(qs.cells_in_query);
+    query_cell_cardinality.push_back(item.second);
     query_cell_type_cardinality.push_back(qs.cell_types_in_query);
     
     // query tfidf
@@ -1210,6 +1224,7 @@ std::vector<int> EliasFanoDB::decode(int index)
   }
   return eliasFanoDecoding(ef_data[index]);
 }
+
   
 int EliasFanoDB::insertNewCellType(const CellType& cell_type)
 { 
@@ -1290,6 +1305,7 @@ RCPP_MODULE(EliasFanoDB)
     .constructor()
     .method("indexMatrix", &EliasFanoDB::encodeMatrix)
     .method("queryGenes", &EliasFanoDB::queryGenes)
+    .method("zgs", &EliasFanoDB::queryZeroGeneSupport)
     .method("decode", &EliasFanoDB::decode)
     .method("mergeDB", &EliasFanoDB::mergeDB)  
     .method("findCellTypes", &EliasFanoDB::findCellTypes)
@@ -1299,7 +1315,6 @@ RCPP_MODULE(EliasFanoDB)
     .method("numberOfCellTypes", &EliasFanoDB::numberOfCellTypes)
     .method("getByteStream", &EliasFanoDB::getByteStream)
     .method("loadByteStream", &EliasFanoDB::loadByteStream)
-    .method("getTotalCells", &EliasFanoDB::getTotalCells)
     .method("getTotalCells", &EliasFanoDB::getTotalCells)
     .method("genes", &EliasFanoDB::getGenesInDB)
     .method("genesSupport", &EliasFanoDB::totalCells)
