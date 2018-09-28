@@ -223,3 +223,17 @@ scfind.interactive <- function(object) {
 #' @rdname scfind.interactive
 #' @aliases scfind.interactive
 setMethod("scfindShiny", signature(object = "SCFind"), scfind.interactive)
+
+
+
+
+scfind.get.genes.in.db <- function(object){
+    
+    return(object@index$genes())
+
+}
+
+
+#' @rdname scfind.get.genes.in.db
+#' @aliases scfind.get.genes.in.db
+setMethod("scfindGenes", signature(object = "SCFind"), scfind.get.genes.in.db)
