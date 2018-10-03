@@ -1225,8 +1225,27 @@ int EliasFanoDB::mergeDB(const EliasFanoDB& db)
 }
 
 
-
-
+// Rcpp will take care of the wrapping
+Rcpp::List EliasFanoDB::getCellMeta(const std::string& ct, const int& num) const
+{
+  const auto ct_it = this->cell_types.find(ct);
+  const CellID cid(ct_it->second, num);
+  const auto cmeta_it = this->cells.find(cid);
+  const CellMeta& cmeta = cmeta_it->second;
+  return Rcpp::List::create(
+    Rcpp::Named("total_reads") = Rcpp::wrap(cmeta.getReads()),
+    Rcpp::Named("total_features") = Rcpp::wrap(cmeta.getFeatures()));
+                            
+                            
+}
+    
+Rcpp::List EliasFanoDB::getCellTypeMeta(const std::string& ct_name) const 
+{
+    const auto ct_it = this->cell_types.find(ct_name);
+  const CellType& ctmeta = this->inverse_cell_type[ct_it->second];
+  return Rcpp::List::create(Rcpp::Named("total_cells") = ctmeta.getTotalCells());
+  
+}
 
 
 RCPP_MODULE(EliasFanoDB)
@@ -1236,7 +1255,7 @@ RCPP_MODULE(EliasFanoDB)
     .method("indexMatrix", &EliasFanoDB::encodeMatrix)
     .method("queryGenes", &EliasFanoDB::queryGenes)
     .method("decode", &EliasFanoDB::decode)
-    .method("mergeDB", &EliasFanoDB::mergeDB)  
+    .method("mergeDB", &EliasFanoDB::mergeDB)
     .method("findCellTypes", &EliasFanoDB::findCellTypes)
     .method("efMemoryFootprint", &EliasFanoDB::dataMemoryFootprint)
     .method("dbMemoryFootprint", &EliasFanoDB::dbMemoryFootprint)
@@ -1250,9 +1269,10 @@ RCPP_MODULE(EliasFanoDB)
     .method("genesSupport", &EliasFanoDB::totalCells)
     .method("cellTypeMarkers", &EliasFanoDB::findCellTypeMarkers)
     .method("getCellTypes", &EliasFanoDB::_getCellTypes)
+    .method("getCellMeta", &EliasFanoDB::getCellMeta)
+    .method("getCellTypeMeta", &EliasFanoDB::getCellTypeMeta)
     .method("evaluateCellTypeMarkers", &EliasFanoDB::evaluateCellTypeMarkers)
-    .method("getCellTypeSupport", &EliasFanoDB::getCellTypeSupport);
-  
+    .method("getCellTypeSupport", &EliasFanoDB::getCellTypeSupport);  
 }
 
 

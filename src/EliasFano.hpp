@@ -83,6 +83,15 @@ class CellMeta
 public:                                               
   int reads;
   int features;
+  int getReads()const 
+  {
+    return reads;
+  }
+  
+  int getFeatures() const
+  {
+    return features;
+  }
   CellMeta();
 };
 
@@ -141,11 +150,16 @@ public:
 
 
 
-typedef struct
+class CellType
 {
+public:
   std::string name;
   int total_cells;
-} CellType;
+  int getTotalCells()const 
+  {
+    return total_cells;
+  }
+};
 
 typedef struct
 {
@@ -293,6 +307,10 @@ class EliasFanoDB
     
   const std::vector<CellTypeName> _getCellTypes() const;
   
+  
+  Rcpp::List getCellMeta(const std::string&, const int&) const;
+
+  Rcpp::List getCellTypeMeta(const std::string&) const;
 
   std::map<std::string, std::vector<int> > intersect_cells(std::set<std::string> gene_set, Rcpp::List genes_results) const ;
 
@@ -306,6 +324,6 @@ class EliasFanoDB
   int insertNewCellType(const CellType& cell_type);
   
   int mergeDB(const EliasFanoDB& db);
-
+  
 
 };
