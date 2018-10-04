@@ -246,13 +246,15 @@ class EliasFanoDB
   
   std::vector<int> eliasFanoDecoding(const EliasFano& ef);
 
+  int queryZeroGeneSupport(const Rcpp::CharacterVector&) const;
+
   // This is invoked on slices of the expression matrix of the dataset 
   long encodeMatrix(const std::string& cell_type_name, const Rcpp::NumericMatrix& gene_matrix);
 
   Rcpp::List total_genes();
   
   // Get a vector that represents support for a set of genes with respect to a specific dataset
-  Rcpp::IntegerVector totalCells(const Rcpp::CharacterVector&, const Rcpp::CharacterVector&);
+  Rcpp::IntegerVector totalCells(const Rcpp::CharacterVector&, const Rcpp::CharacterVector&) const;
   
   // 
   Rcpp::CharacterVector getGenesInDB();
