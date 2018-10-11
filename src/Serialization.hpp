@@ -23,7 +23,7 @@ public:
   }
 
   template<typename T>
-    int expandStream(const T& new_length)
+  int expandStream(const T& new_length)
   {
     if (this->byte_pointer + new_length >= this->serialized_bytestream.size())
     {
@@ -32,6 +32,7 @@ public:
       // std::cout << "expanding stream" << std::endl;
       this->serialized_bytestream.resize(this->serialized_bytestream.size() + (1 << 24));
     }
+    return 0;
   }
 
   template<typename T>
