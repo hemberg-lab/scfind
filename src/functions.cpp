@@ -120,6 +120,8 @@ int byteToBoolVector(const std::vector<char> buf, std::vector<bool>& bool_vec)
       bool_vec[c++] = ((b >> i) & 1);
     }
   }
+
+  return 0;
     
 }
 
