@@ -216,7 +216,7 @@ scfind.interactive <- function(object) {
     shinyApp(
         ui = ui.scfind(object),
         server = server.scfind(object),
-        options = list(launch.browser = TRUE)
+        options = list(launch.browser = FALSE)
     )
 }
 
