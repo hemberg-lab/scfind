@@ -200,7 +200,7 @@ void SerializationDB::deserializeDB(EliasFanoDB& efdb)
   read(genes_present);
     
 
-  if (not(genes_present > 0 and genes_present < 100000))
+  if (not (genes_present > 0) )
   {
     std::cerr << "something went wrong" << std::endl;
     return;
@@ -244,7 +244,7 @@ void SerializationDB::deserializeDB(EliasFanoDB& efdb)
   int cell_types_present;
   read(cell_types_present);
 
-  if(not(cell_types_present > 0 and cell_types_present < 50000))
+  if(not(cell_types_present > 0))
   {
     std::cerr << "something went wrong with the cell types" << std::endl;
     return;
