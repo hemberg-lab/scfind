@@ -113,7 +113,7 @@ server.scfind <- function(object)
 
 
             
-            output$geneCheckbox <-  renderUI({
+            output$datasetCheckbox <-  renderUI({
                 datasets <- object@datasets
                 box.selection <-  object@datasets
                 if (initial.datasets == "initial")
