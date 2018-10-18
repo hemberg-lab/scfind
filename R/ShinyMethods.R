@@ -96,18 +96,19 @@ server.scfind <- function(object)
             
             
             output$geneCheckbox <- renderUI({
+                genes.in.list <- gene.list()
+                ## else fallback
+                selection <- gene.list()
+                
                 if(last.query.state() == "query_optimizer")
                 {
-                    checkboxGroupInput("geneCheckbox", h4("Select Genes"), choices = gene.list(), selected = qo.output(), inline = T)
+                    selection <- qo.output()
                 }
                 else if (last.query.state() == "checkbox")
                 {
-                    checkboxGroupInput("geneCheckbox", h4("Select Genes"), choices = gene.list(), selected = input$geneCheckbox, inline = T)                    
+                    selection <-  input$geneCheckbox
                 }
-                else
-                {
-                    checkboxGroupInput("geneCheckbox", h4("Select Genes"), choices = gene.list(), selected = gene.list(), inline = T)
-                }
+                checkboxGroupInput("geneCheckbox", h4(paste("Select Genes", length(selection), "/", length(genes.in.list))), choices = genes.in.list, selected = selection, inline = T)
                 
             })
 
@@ -139,15 +140,17 @@ server.scfind <- function(object)
             
             cell.types <- reactive({
                 selection <- input$geneCheckbox
-                
                 if (length(selection) != 0){
                     df <- query.result.as.dataframe(findCellTypes(object, selection, input$datasetCheckbox))
-                    df
+                    print("yo")
+                    print(df)
                 }
                 else
                 {
-                    data.frame(cell_type = c(), cell_id = c())
+                    df <- data.frame(cell_type = c(), cell_id = c())
                 }
+
+                df
             })
 
             gene.support <- reactive({
@@ -162,15 +165,18 @@ server.scfind <- function(object)
             
             output$cellTypesData <- renderDataTable({       
                 df <- cell.types()
+                
                 if (nrow(df) != 0)
                 {
                     rdt <- phyper.test(object, df, input$datasetCheckbox)
-                }else
+                }
+                else
                 {
 
                     rdt <- data.table()
                 }
-                
+                print(nrow(df))
+                print(rdt)
                 datatable(rdt, selection = 'single')
             })
             
