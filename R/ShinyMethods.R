@@ -162,7 +162,16 @@ server.scfind <- function(object)
             
             output$cellTypesData <- renderDataTable({       
                 df <- cell.types()
-                datatable(phyper.test(object, df, input$datasetCheckbox), selection = 'single')
+                if (nrow(df) != 0)
+                {
+                    rdt <- phyper.test(object, df, input$datasetCheckbox)
+                }else
+                {
+
+                    rdt <- data.table()
+                }
+                
+                datatable(rdt, selection = 'single')
             })
             
             output$geneSupportHisto <- renderPlot({
