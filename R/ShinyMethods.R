@@ -1,46 +1,33 @@
 #' UI handler for the shiny front end of scfind
 #'
-#' @param object SCFind object
-#'
 #' @name ui.scfind
 #' @aliases ui.scfind
 #'
 #' @importFrom shiny titlePanel sidebarLayout textInput mainPanel plotOutput fluidPage h1 h2 h3 h4 sidebarPanel uiOutput checkboxGroupInput plotOutput
 #' @importFrom DT dataTableOutput
-#' 
-ui.scfind <- function(object)
+ui.scfind <- function()
 {
-    return(
-        fluidPage(
-            titlePanel("Scfind index"),
-            sidebarLayout(
-                sidebarPanel(
-                    textInput("geneList", label = h3("Gene List"), value = ""),
-                    uiOutput("geneCheckbox"),
-                    checkboxGroupInput("datasetCheckbox",
-                                       h3("Datasets"),
-                                       choices = object@datasets,
-                                       selected = object@datasets,
-                                       inline = T
-                                       ),
-                    plotOutput("geneSupportHisto", height = 400),
-                    dataTableOutput("queryOptimizer")
-                ),
-                mainPanel(
-                    dataTableOutput("cellTypesData")
-                )
+    fluidPage(
+        titlePanel("Scfind index"),
+        sidebarLayout(
+            sidebarPanel(
+                textInput("geneList", label = h3("Gene List"), value = ""),
+                uiOutput("geneCheckbox"),
+                uiOutput("datasetCheckbox"),
+                plotOutput("geneSupportHisto", height = 400),
+                dataTableOutput("queryOptimizer")
+            ),
+            mainPanel(
+                dataTableOutput("cellTypesData")
             )
         )
     )
 }
 
 
-
 #' Server handler for scfind
 #'
-#' @param input handler item for the ShinyApp
-#' @param output handel item for the ShinyApp
-#' @param session handler item for the stateful ShinyApp
+#' @param object An SCFind object that the shiny app will be deployed upon
 #'
 #' @name server.scfind
 #' @aliases server.scfind
@@ -57,15 +44,15 @@ server.scfind <- function(object)
         {
 
             last.query.state <- reactiveVal("genelist")
+            initial.datasets <- "initial"
             gene.list <- reactiveVal(c())
+
+            
             observeEvent(
                 input$geneCheckbox,
                 {
                     last.query.state("checkbox")
                 })
-
-
-
             
             observeEvent(
                 input$queryOptimizer_rows_selected,
@@ -73,7 +60,6 @@ server.scfind <- function(object)
                     last.query.state("query_optimizer")
                 })
            
-            
             observeEvent(input$geneList,{
                 text <- gsub("\\s", "", input$geneList)
                 gene.list.input <- unlist(strsplit(text, ","))
@@ -106,8 +92,8 @@ server.scfind <- function(object)
                 ## print(paste0('selected query', selected.query))
                 unlist(strsplit(gsub("\\s", "", selected.query), ","))
             })
-            
 
+            
             
             output$geneCheckbox <- renderUI({
                 if(last.query.state() == "query_optimizer")
@@ -122,12 +108,31 @@ server.scfind <- function(object)
                 {
                     checkboxGroupInput("geneCheckbox", h4("Select Genes"), choices = gene.list(), selected = gene.list(), inline = T)
                 }
-                ## Select genes
                 
             })
+
+
+            
+            output$geneCheckbox <-  renderUI({
+                datasets <- object@datasets
+                box.selection <-  object@datasets
+                if (initial.datasets == "initial")
+                {
+                    ## set the flag down
+                    initial.datasets <- "initialized"
+                }
+                else
+                {
+                    box.selection <-  input@datasetCheckbox
+                }
+                checkboxGroupInput("datasetCheckbox", h3(paste("Datasets", length(box.selection), "/", length(datasets))), choices = datasets, selected = box.selection, inline = T)
+            })
+           
+            
+
+            
             
             output$queryOptimizer <- renderDataTable({
-                
                 datatable(recommended.queries(), selection = 'single')
             })
 
@@ -191,6 +196,11 @@ server.scfind <- function(object)
         })
 }
 
+#' @rdname scfindShinyServer
+#' @aliases scfindShinyServer
+setMethod("scfindShinyServer", signature(object = "SCFind"), server.scfind)
+
+
 
 #' Opens \code{scfind} index in an interactive session in a web browser.
 #'
@@ -214,7 +224,7 @@ scfind.interactive <- function(object) {
     
     
     shinyApp(
-        ui = ui.scfind(object),
+        ui = ui.scfind(),
         server = server.scfind(object),
         options = list(launch.browser = FALSE)
     )
