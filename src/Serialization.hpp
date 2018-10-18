@@ -4,6 +4,7 @@
 
 #include <Rcpp.h>
 #include <iostream>
+#include <cassert>
 #include <vector>
 
 

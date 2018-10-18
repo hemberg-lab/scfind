@@ -125,3 +125,9 @@ setGeneric(name = "markerGenes", function(object, gene.list, datasets)
 setGeneric(name = "scfindGenes", function(object){
     standardGeneric("scfindGenes")
 })
+
+#' @export
+setGeneric(name = "scfindShinyServer", function(object){
+    standardGeneric("scfindShinyServer")
+})
+
