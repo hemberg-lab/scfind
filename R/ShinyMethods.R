@@ -3,25 +3,49 @@
 #' @name ui.scfind
 #' @aliases ui.scfind
 #'
-#' @importFrom shiny titlePanel sidebarLayout textInput mainPanel plotOutput fluidPage h1 h2 h3 h4 sidebarPanel uiOutput checkboxGroupInput plotOutput
+#' @importFrom shiny  sidebarLayout textInput navbarPage navbarMenu plotOutput fluidPage fluidRow column navbarPage navbarMenu tabPanel h1 h2 h3 h4 a tags$h4 sidebarPanel uiOutput checkboxGroupInput plotOutput verbatimTextOutput
 #' @importFrom DT dataTableOutput
 ui.scfind <- function()
 {
     fluidPage(
-        titlePanel("Scfind index"),
-        sidebarLayout(
-            sidebarPanel(
-                textInput("geneList", label = h3("Gene List"), value = ""),
-                uiOutput("geneCheckbox"),
-                uiOutput("datasetCheckbox"),
-                plotOutput("geneSupportHisto", height = 400),
-                dataTableOutput("queryOptimizer")
-            ),
-            mainPanel(
-                dataTableOutput("cellTypesData")
-            )
-        )
-    )
+          title = "SCfind",
+          theme = "scfind_global.css",
+        
+          shiny::navbarPage("Scfind", shiny::navbarMenu("Datasets", 
+                              shiny::tabPanel(shiny::a("Tabulus Muris (FACS)", href="https://scfind.sanger.ac.uk/tm-facs", target="_self")),
+                              shiny::tabPanel(shiny::a("Tabulus Muris (10X)", href="https://scfind.sanger.ac.uk/tm-10X", target="_self")),
+                              shiny::tabPanel(shiny::a("Mouse Cell Atlas", href="https://scfind.sanger.ac.uk/mca", target="_self")),
+                              shiny::tabPanel(shiny::a("Mouse Brain Atlas", href="https://scfind.sanger.ac.uk/#", target="_self"))
+                              )
+                    ),
+                      shiny::fluidRow(id = "search",
+                              shiny::column(12, align="center",
+                                             textInput("geneList", label = h3(paste("What's your gene list today?")), value = "", placeholder="Brca2,Hivep3,Cux1,Hspa4,Astn2,Pla2g6")
+                              )
+                      ),
+                    shiny::fluidRow(id = "main",
+                              shiny::column(3,
+                                        shiny::fluidRow(id = "selectGenes",
+                                                  shiny::column(1,
+                                                            uiOutput("geneCheckbox")
+                                                  ),
+                                                  shiny::column(2,
+                                                            plotOutput("geneSupportHisto", width = 350, height = 500),
+                                                            shiny::verbatimTextOutput("ctData")
+                                                  )
+                                        )
+                              ),
+                              shiny::column(4, id = "query",
+                                        uiOutput("datasetCheckbox"),
+                                        shiny::tags$h4(uiOutput("suggestHyper")),
+                                        dataTableOutput("queryOptimizer")
+                              ),
+                              shiny::column(5, id = "celltype",
+                                        shiny::tags$h4(uiOutput("selectedQuery")),
+                                        dataTableOutput("cellTypesData")
+                              )
+                    )
+          )
 }
 
 
@@ -32,7 +56,7 @@ ui.scfind <- function()
 #' @name server.scfind
 #' @aliases server.scfind
 #'
-#' @importFrom shiny renderPlot stopApp checkboxGroupInput observeEvent reactiveVal
+#' @importFrom shiny renderPlot stopApp checkboxGroupInput observeEvent reactiveVal renderText renderPrint
 #' @importFrom DT renderDataTable datatable
 #' @importFrom data.table as.data.table data.table
 #' @importFrom ggplot2 ggplot geom_bar geom_col ggtitle xlab ylab aes coord_flip theme_minimal
@@ -46,7 +70,6 @@ server.scfind <- function(object)
             last.query.state <- reactiveVal("genelist")
             initial.datasets <- "initial"
             gene.list <- reactiveVal(c())
-
             
             observeEvent(
                 input$geneCheckbox,
@@ -59,13 +82,13 @@ server.scfind <- function(object)
                 {   
                     last.query.state("query_optimizer")
                 })
-           
+
             observeEvent(input$geneList,{
-                text <- gsub("\\s", "", input$geneList)
-                gene.list.input <- unlist(strsplit(text, ","))
-                last.query.state("genelist")
-                print(paste("GeneList",gene.list.input))
-                gene.list(gene.list.input)
+                          text <- gsub("\\s", "", input$geneList)
+                          gene.list.input <- unlist(strsplit(text, ","))
+                          last.query.state("genelist")
+                          print(paste("GeneList",gene.list.input))
+                          gene.list(gene.list.input)
             })
 
             recommended.queries <- reactive({
@@ -73,8 +96,8 @@ server.scfind <- function(object)
                 selected.datasets <- input$datasetCheckbox
                 if (length(selected.genes) != 0)
                 {
-                    ## print(paste("QO gene:",selected.genes))
-                    ## print(paste("QO selected:",selected.datasets))
+                    #print(paste("QO gene:",selected.genes))
+                    #print(paste("QO selected:",selected.datasets))
                     available.queries <-  markerGenes(object, selected.genes, selected.datasets)
                 }
                 else
@@ -82,21 +105,29 @@ server.scfind <- function(object)
                     available.queries <- c()
                 }
                 available.queries <- as.data.table(available.queries)
-                available.queries
+                if(length(available.queries != 0)){
+                    available.queries$tfidf <- signif(available.queries$tfidf, digits = 4) 
+                    available.queries
+                } else {
+                    available.queries  
+                }
             })
+            
+            #ct.output <- reactive({
+            #          selected.tissue <- input$cellTypesData_row_selected
+            #          print(selected.tissue)
+            #})
+            
 
             qo.output <- reactive({
                 selected.index <- input$queryOptimizer_rows_selected
                 available.queries <-  recommended.queries()
                 selected.query <- available.queries[selected.index, 'Query']
-                ## print(paste0('selected query', selected.query))
                 unlist(strsplit(gsub("\\s", "", selected.query), ","))
             })
 
-            
-            
             output$geneCheckbox <- renderUI({
-                genes.in.list <- gene.list()
+                genes.in.list <- as.character(gene.list())
                 ## else fallback
                 selection <- gene.list()
                 
@@ -108,14 +139,18 @@ server.scfind <- function(object)
                 {
                     selection <-  input$geneCheckbox
                 }
-                checkboxGroupInput("geneCheckbox", h4(paste("Select Genes", length(selection), "/", length(genes.in.list))), choices = genes.in.list, selected = selection, inline = T)
-                
+                if(length(gene.list()) != 0){
+                          checkboxGroupInput("geneCheckbox", h4(paste("Select Genes", length(selection), "/", length(genes.in.list))), choices = genes.in.list , selected = selection, inline = F)
+                } else {
+                          checkboxGroupInput("geneCheckbox", label='', choices = genes.in.list , selected = selection, inline = F)
+                }
             })
 
 
             
             output$datasetCheckbox <-  renderUI({
                 datasets <- object@datasets
+                print(datasets)
                 box.selection <-  object@datasets
                 if (initial.datasets == "initial")
                 {
@@ -126,18 +161,13 @@ server.scfind <- function(object)
                 {
                     box.selection <-  input@datasetCheckbox
                 }
-                checkboxGroupInput("datasetCheckbox", h3(paste("Datasets", length(box.selection), "/", length(datasets))), choices = datasets, selected = box.selection, inline = T)
+                checkboxGroupInput("datasetCheckbox", h3(paste(length(box.selection), "/", length(datasets), "dataset")), choices = datasets, selected = box.selection, inline = T)
             })
            
-            
-
-            
-            
             output$queryOptimizer <- renderDataTable({
-                datatable(recommended.queries(), selection = 'single')
+                datatable(recommended.queries(), selection = 'single', options = list(autoWidth = TRUE))
             })
 
-            
             cell.types <- reactive({
                 selection <- input$geneCheckbox
                 if (length(selection) != 0){
@@ -149,62 +179,130 @@ server.scfind <- function(object)
                 {
                     df <- data.frame(cell_type = c(), cell_id = c())
                 }
-
                 df
             })
 
             gene.support <- reactive({
-                gene.selection <- gene.list()
-                dataset.selection <- input$datasetCheckbox
-                gene.support <- as.data.frame(object@index$genesSupport(gene.selection, dataset.selection))
-                dimnames(gene.support)[[2]] <- 'support'
-                gene.support$genes <- rownames(gene.support)
-                gene.support
+                      gene.selection <- gene.list()
+                      dataset.selection <- input$datasetCheckbox
+                      gene.support <- as.data.frame(object@index$genesSupport(gene.selection, dataset.selection))
+                      dimnames(gene.support)[[2]] <- 'support'
+                      gene.support$genes <- rownames(gene.support)
+                      gene.support
             })
             
             
-            output$cellTypesData <- renderDataTable({       
+            output$cellTypesData <- renderDataTable({    
+                      selection <- input$geneCheckbox
                 df <- cell.types()
-                
+                df
                 if (nrow(df) != 0)
                 {
                     rdt <- phyper.test(object, df, input$datasetCheckbox)
+                    rdt <- as.matrix(rdt)
                 }
                 else
                 {
-
-                    rdt <- data.table()
+                  rdt <- data.table()
                 }
-                print(nrow(df))
-                print(rdt)
-                datatable(rdt, selection = 'single')
+
+            }, server = TRUE)
+            
+            output$ctData = renderPrint({
+                      s = input$cellTypesData_rows_selected
+                      selection <- input$geneCheckbox
+                      df <- cell.types()
+                      df
+                      if (nrow(df) != 0)
+                      {
+                                rdt <- phyper.test(object, df, input$datasetCheckbox)
+                                mge <- evaluateMarkers(object, selection, rdt$cell_type)
+                                mge <- mge[order(mge$genes),]
+                                mge <- mge[order(mge[,1]),]
+
+                                mge$precision <- round((mge$precision), digits = 4)
+                                mge$recall <- round((mge$recall), digits = 4)
+                                mge$f1 <- round((mge$f1), digits = 4)
+                                mge <- aggregate(.~cellType, mge[,c("cellType", "genes", "precision", "recall", "f1")], FUN=toString)
+
+                                
+                                for(i in 1: nrow(mge)){
+                                          for(j in 1: length(selection)){
+                                                    mge$genes[i]<- gsub(j, selection[j], mge$genes[i])
+                                          }
+                                }
+                                
+                                ct <- c()
+                                for(i in 1: nrow(mge)){
+                                          
+                                          cellName <- as.character(rdt$cell_type[i])
+                                          cellInfo <- paste(cellName, 
+                                                            "\n| genes: ", 
+                                                            mge$genes[i],
+                                                            "\n| precision:", 
+                                                            mge$precision[i], 
+                                                            "\n| recall:", 
+                                                            mge$recall[i],
+                                                            "\n| f1:", 
+                                                            mge$f1[i],"\n\n")
+                                          ct <- c(ct, cellInfo)
+                                          
+                                          
+                                }
+                                if(length(s)!=0) {
+                                          cat(ct[s])
+                                          
+                                } else {
+                                          print("Select cell types to view marker evaluation")
+                                }
+                      } else {
+                                ct <- c()
+                      }
             })
             
+            
+            
+            output$selectedQuery <- renderText({
+                      
+                      if(nrow(cell.types()) != 0){
+                                selectedList <- paste(input$geneCheckbox, collapse=", ")
+                              paste("Scfind found ", length(unique(cell.types()$cell_type)), " cell types for: ", selectedList)
+                      } else if(nrow(cell.types()) == 0 && length(gene.list()) != 0) {
+                                paste("Expecting specific cell types?", "Select our recommended query!", sep="<br>")
+            } else {
+                                ""
+                      }
+
+            })
+            
+            output$suggestHyper <- renderText({
+                      if(length(gene.list()) != 0){
+                                "Recommended query for the initial genesets: "
+                      } else {
+                                ""
+                      }
+            })
+          
             output$geneSupportHisto <- renderPlot({
-                ## Render a barplot
-                ## print(length(input$geneCheckbox))
-                ## print(input$geneCheckbox)
-                df <- gene.support()
-                ## print(df)
-                if (nrow(df) != 0)
-                {
-                    g <- ggplot(df, aes(x=genes, y= support)) +
-                        xlab("Gene") +
-                        ylab("Cells") +
-                        geom_col(color = "blue") +
-                        coord_flip() +
-                        theme_minimal()
-                }
-                else
-                {
-                    g <- plot(0,type='n',axes=FALSE,ann=FALSE)
-                }
-                g
+                      df <- gene.support()
+                      if (nrow(df) != 0)
+                      {
+                                g <- ggplot(df, aes(x=genes, y= support)) +
+                                          xlab("") + 
+                                          ylab("Cells") +
+                                          geom_col(color = "blue") +
+                                          coord_flip() +
+                                          ggplot2::theme() +
+                                          ggplot2::scale_x_discrete(limits = rev(df$genes))
+                      }
+                      else
+                      {
+                                g <- plot(0,type='n',axes=FALSE,ann=FALSE)
+                      }
+                      g
             })
+            
 
-            
-            
-            
             session$onSessionEnded(function() {
                 stopApp()
             })
