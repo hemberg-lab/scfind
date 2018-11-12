@@ -9,7 +9,174 @@ ui.scfind <- function()
 {
     fluidPage(
           title = "SCfind",
-          theme = "scfind_global.css",
+          
+          
+          tags$head(
+            tags$style(HTML("
+                            body {
+          
+                            background-image: url('https://scfind.sanger.ac.uk/img/scfind.png');
+                            background-size: 200px;
+                            background-attachment: fixed;
+                            background-repeat: no-repeat;
+                            background-position: center;
+                            }
+                            
+                            
+                            .row {
+                            width: 100%;
+                            }
+                            
+                            .navbar-brand {
+                            font-weight: bold;
+                            }
+                            
+                            #search {
+                            
+                            position: fixed;
+                            top: 8%;
+                            padding-left: 20%;
+                            padding-right:20%;
+                            background-color: rgba(256,256,256, 0.6);
+                            z-index:2;
+                            }
+                            
+                            #search h3 {
+                            color: rgb(0, 180, 204);
+                            font-size: 20px;
+                            }
+                            
+                            #geneList {
+                            height: 35px; 
+                            border: 2px solid #00B4CC;
+                            border-radius: 5px;
+                            padding: 5px;
+                            color: #9DBFAF;
+                            outline: none;
+                            }
+                            
+                            #geneList:focus {
+                            color: #00B4CC;
+                            }
+                            
+                            #main {
+                            position: absolute;
+                            top: 20%;
+                            }
+                            
+                            
+                            #main h3 {
+                            margin-top: 0;
+                            text-align: center;
+                            color: rgb(0, 180, 204);
+                            }
+                            
+                            #geneCheckbox{
+                            position: relative;
+                            z-index: 1;
+                            width: 300px;
+                            }
+                            
+                            #geneCheckbox .shiny-options-group {
+                            height: 440px;
+                            border:0;
+                            padding:0;
+                            margin:0;
+                            display: flex;
+                            flex-direction: column;
+                            justify-content: space-between;
+                            }
+                            
+                            h4 {
+                            font-size: 20px;
+                            color: #455254;
+                            
+                            }
+                            
+                            .checkbox {
+                            width: 30%;
+                            padding-left: 20px;
+                            padding-top: 5px;
+                            padding-bottom: 5px;
+                            background-color: white;
+                            
+                            }
+                            .checkbox span {
+                            font-size: 14px;
+                            font-weight: bold;
+                            
+                            }
+                            
+                            #geneSupportHisto {
+                            border-left: 80px sold white;
+                            padding-top: 30px;
+                            background-color: transparent;
+                            }
+                            
+                            .shiny-html-output#datasetCheckbox {
+                            position: fixed; 
+                            bottom: -200px; /
+                            left: 30%;
+                            height: 250px;
+                            width: 30%;
+                            border: 2px solid #00B4CC;
+                            border-radius: 5px 5px 0 0; 
+                            padding: 15px; 
+                            font-size: 16px; 
+                            font-weight: bolder;
+                            color: #455254; 
+                            background-color: rgba(0, 180, 204, 0.3); 
+                            transition: 0.3s; 
+                            z-index: 3;          
+                            }
+                            
+                            .shiny-html-output#datasetCheckbox:hover{
+                            bottom: 0;
+                            }
+                            
+                            #selectGenes {
+                            position: absolute;
+                            }
+                            
+                            #query {
+                            position: absolute;
+                            right: 35%;
+                            width: 37%; 
+                            
+                            }
+                            
+                            #celltype {
+                            position: absolute;
+                            right: 0;
+                            width: 35%;
+                            }
+                            
+                            table {
+                            table-layout: fixed;
+                            }
+                            
+                            table td{
+                            word-wrap: break-word;
+                            }
+                            
+                            #ctData {
+                            position: fixed;
+                            bottom: 5px;
+                            left: -50px;
+                            height: 20%;
+                            border: 2px solid #00B4CC;
+                            padding-left: 50px;
+                            border-radius: 5px 5px 0 0; 
+                            text-align: left;
+                            color: #455254; 
+                            background-color: rgba(0, 180, 204, 0.3); 
+                            overflow: scroll;
+                            z-index: 3;
+                            }
+
+                            
+                            "))
+            ),
         
           shiny::navbarPage("Scfind", shiny::navbarMenu("Datasets", 
                               shiny::tabPanel(shiny::a("Tabulus Muris (FACS)", href="https://scfind.sanger.ac.uk/tm-facs", target="_self")),
