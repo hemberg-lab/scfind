@@ -177,14 +177,6 @@ ui.scfind <- function()
                             
                             "))
             ),
-        
-          shiny::navbarPage("Scfind", shiny::navbarMenu("Datasets", 
-                              shiny::tabPanel(shiny::a("Tabulus Muris (FACS)", href="https://scfind.sanger.ac.uk/tm-facs", target="_self")),
-                              shiny::tabPanel(shiny::a("Tabulus Muris (10X)", href="https://scfind.sanger.ac.uk/tm-10X", target="_self")),
-                              shiny::tabPanel(shiny::a("Mouse Cell Atlas", href="https://scfind.sanger.ac.uk/mca", target="_self")),
-                              shiny::tabPanel(shiny::a("Mouse Brain Atlas", href="https://scfind.sanger.ac.uk/#", target="_self"))
-                              )
-                    ),
                       shiny::fluidRow(id = "search",
                               shiny::column(12, align="center",
                                              textInput("geneList", label = h3(paste("What's your gene list today?")), value = "", placeholder="Brca2,Hivep3,Cux1,Hspa4,Astn2,Pla2g6")
