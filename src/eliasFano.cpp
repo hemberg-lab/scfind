@@ -37,41 +37,46 @@ QueryScore::QueryScore() : query_score(0), cells_in_query(0)
 void QueryScore::cell_type_relevance(const EliasFanoDB& db, const Rcpp::List& genes_results, const std::set<std::string>& gene_set)
 {
 
+
+
+  // for a specific gene set get the intersection of the cells as a map
   std::map<std::string, std::vector<int> > ct_map = db.intersect_cells(gene_set, genes_results);
   
-  for (auto const& _ct : ct_map)
-  {
-    const auto& ct = _ct.first;
-    for (auto& gene : gene_set)
-    {
+  // iterate every cell hit
+  // for (auto const& _ct : ct_map)
+  // {
+  //   const auto& ct = _ct.first;
+  //   for (auto& gene : gene_set)
+  //   {
       
+  //     auto current_cells = std::move(ct_map[ct]);
+  //     auto current_cells_results = std::vector<int>();
       
-      auto current_cells = std::move(ct_map[ct]);
-      auto current_cells_results = std::vector<int>();
-      
-      const Rcpp::List& g_res = genes_results[gene];
-      std::vector<int> cells_in_gct = Rcpp::as<std::vector<int> >(g_res[ct]);
+
+  //     // get all cells that belong to the (gene,cell type
+  //     const Rcpp::List& g_res = genes_results[gene];
+  //     std::vector<int> cells_in_gct = Rcpp::as<std::vector<int> >(g_res[ct]);
         
-      // We do not need sorting the index is already sorted
-      // std::sort(current_cells.begin(), current_cells.end());
-      // std::sort(cells_in_gct.begin(), cell_in_gct.end
-      std::set_intersection(
-        current_cells.begin(),
-        current_cells.end(),
-        cells_in_gct.begin(),
-        cells_in_gct.end(),
-        std::back_inserter(current_cells_results));
+  //     // We do not need sorting the index is already sorted
+  //     // std::sort(current_cells.begin(), current_cells.end());
+  //     // std::sort(cells_in_gct.begin(), cell_in_gct.end
+  //     std::set_intersection(
+  //       current_cells.begin(),
+  //       current_cells.end(),
+  //       cells_in_gct.begin(),
+  //       cells_in_gct.end(),
+  //       std::back_inserter(current_cells_results));
       
-      ct_map[ct] = std::move(current_cells_results);
-      if (current_cells_results.empty())
-      {
-        break;
-      }
-    }
-  }
-    
+  //     ct_map[ct] = std::move(current_cells_results);
+  //     if (current_cells_results.empty())
+  //     {
+  //       break;
+  //     }
+  //   }
+  // }
   
-    // Remove all empty records
+  
+  // Remove all empty records
   for (auto it = ct_map.begin(); it != ct_map.end();)
   {
     it = it->second.empty() ? ct_map.erase(it) : ++it;
@@ -128,6 +133,16 @@ void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasF
       return std::make_pair(gene_name, support);
     });
   
+  // Iterate through the genes to calculate the tfidf matrix
+  // and do the cutoff estimation at once (for performance reasons)
+  
+  // for the cutoff estimation each gene is assigned a score .
+  // That way we can estimate the distribution of the input gene list 
+  // and do more accurate cutoff estimations
+
+
+  // main idea:
+  // for each cell buil
   for (size_t gene_row = 0; gene_row < tmp_strings.size(); ++gene_row)
   {
 
@@ -155,18 +170,28 @@ void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasF
       {
         CellID cell(ct_id, cell_id);
         
+        // tfidf typedef  std::unordered_map<CellID , std::pair<std::vector<double>, int> > tfidf;
+        // insert if it does not exist
         auto ins_res = tfidf.insert(std::make_pair(cell, std::make_pair(tmpl_cont, 0)));
-        auto& tfidf_vec = ins_res.first->second.first;
+        
+        // assign the decompressed expression vector to the data structure
+        std::vector<double>& tfidf_vec = ins_res.first->second.first;
+        
+        // increase gene_support
         auto& gene_support = ins_res.first->second.second;
         gene_support++;
         
+        // tfidf calculation ( the expression value , the total reads of that cell and the gene transcript abundance)
         tfidf_vec[gene_row] = (expr_values[expr_index++] / db.cells.at(cell).reads) * gene_idf;
+        std::cout << "gene " << gene << " cell type " << cell_type << " " << db.cells.at(cell).reads << std::endl;
+
+        // gene_score calculation for  the cutoff estimation
         gene_score += tfidf_vec[gene_row];
         
       }
     }
   }
-  // iterate through cells
+  // iterate through cells for (gene cutoff)
   std::vector<int> genes_subset(this->genes.size(), 0);
   for (auto const& c : this->tfidf)
   {

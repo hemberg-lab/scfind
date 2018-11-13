@@ -136,6 +136,7 @@ public:
   int cell_types_in_query;
   double query_score;
   std::map<std::string, GeneScore> genes;
+  // CellID (cell type , cell number)
   std::unordered_map<CellID , std::pair<std::vector<double>, int> > tfidf;
   
 

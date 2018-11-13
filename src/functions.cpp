@@ -31,9 +31,14 @@ Quantile lognormalcdf(const std::vector<int>& ids, const Rcpp::NumericVector& v,
   expr.mu = std::accumulate(ids.begin(),ids.end(), 0.0, [&v, &expr_tran](const double& mean, const int& index){
       return  mean + expr_tran(v[index - 1]);
     }) / ids.size();
-  expr.sigma = sqrt(std::accumulate(ids.begin(), ids.end(), 0.0, [&v, &expr, &expr_tran](const double& variance, const int& index){
-        return pow(expr.mu - expr_tran(v[index - 1]), 2);
-      }) / ids.size());
+  expr.sigma = sqrt(
+                    std::accumulate(
+                                    ids.begin(), 
+                                    ids.end(), 
+                                    0.0, 
+                                    [&v, &expr, &expr_tran](const double& variance, const int& index){
+                                      return pow(expr.mu - expr_tran(v[index - 1]), 2);
+                                    }) / ids.size());
   // initialize vector with zeros
   expr.quantile.resize(ids.size() * bits, 0);
   //std::cerr << "Mean,std" << expr.mu << "," << expr.sigma << std::endl;
