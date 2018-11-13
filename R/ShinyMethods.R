@@ -11,8 +11,8 @@ ui.scfind <- function()
           title = "SCfind",
           
           
-          tags$head(
-            tags$style(HTML("
+          shiny::tags$head(
+            shiny::tags$style(shiny::HTML("
                             body {
           
                             background-image: url('https://scfind.sanger.ac.uk/img/scfind.png');
