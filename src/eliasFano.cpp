@@ -1063,7 +1063,7 @@ Rcpp::DataFrame EliasFanoDB::_findCellTypeMarkers(const Rcpp::CharacterVector& c
     Rcpp::Named("cellType") = Rcpp::wrap(df_cell_type),
     Rcpp::Named("genes") = Rcpp::wrap(genes),
     Rcpp::Named("tp") = Rcpp::wrap(tp),
-    Rcpp::Named("tn") = Rcpp::wrap(tn),
+    // Rcpp::Named("tn") = Rcpp::wrap(tn),
     Rcpp::Named("fp") = Rcpp::wrap(fp),
     Rcpp::Named("fn") = Rcpp::wrap(fn),
     Rcpp::Named("precision") = Rcpp::wrap(precision),
