@@ -400,8 +400,8 @@ server.scfind <- function(object)
 
                 if (length(selection) != 0 && length(input$datasetCheckbox) != 0){
                     df <- query.result.as.dataframe(findCellTypes(object, selection, input$datasetCheckbox))
-                    print("yo")
-                    print(df)
+                    #print("yo")
+                    #print(df)
                 }
                 else
                 {
