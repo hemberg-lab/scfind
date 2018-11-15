@@ -344,7 +344,7 @@ server.scfind <- function(object)
                     datasetName <- ''
                 }
                 if(length(box.selection) == 0){
-                    paste("Please select at list 1 dataset below:")
+                    paste("Please select at least 1 dataset below:")
                 }
                 else if(length(box.selection) < 2){
                     paste(datasetName, length(box.selection), "/", length(datasets), "dataset")
