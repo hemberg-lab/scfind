@@ -3,7 +3,7 @@
 #' @name ui.scfind
 #' @aliases ui.scfind
 #'
-#' @importFrom shiny  sidebarLayout textInput navbarPage navbarMenu plotOutput fluidPage fluidRow column navbarPage navbarMenu tabPanel h1 h2 h3 h4 a tags$h4 sidebarPanel uiOutput checkboxGroupInput plotOutput verbatimTextOutput
+#' @importFrom shiny  sidebarLayout actionButton textInput navbarPage navbarMenu plotOutput fluidPage fluidRow column h1 h2 h3 h4 a tags$h4 tags$head tags$style HTML sidebarPanel uiOutput checkboxGroupInput actionLink plotOutput verbatimTextOutput
 #' @importFrom DT dataTableOutput
 ui.scfind <- function()
 {
@@ -22,7 +22,16 @@ ui.scfind <- function()
                             background-position: center;
                             }
                             
-                            
+                            #homeBtn {
+                            position: fixed;
+                            top: 20px;
+                            right: 20px;
+                            height: 80px;
+                            width: 80px;
+                            font-size: 14px;
+                            z-index: 3;
+                            }
+
                             .row {
                             width: 100%;
                             }
@@ -38,7 +47,7 @@ ui.scfind <- function()
                             padding-left: 20%;
                             padding-right:20%;
                             background-color: rgba(256,256,256, 0.6);
-                            z-index:2;
+                            z-index: 2;
                             }
                             
                             #search h3 {
@@ -113,12 +122,13 @@ ui.scfind <- function()
                             background-color: transparent;
                             }
                             
-                            .shiny-html-output#datasetCheckbox {
+                            .datasetsBox {
                             position: fixed; 
-                            bottom: -200px; /
+                            bottom: -200px; 
                             left: 30%;
+                            right:30%;
                             height: 250px;
-                            width: 30%;
+                            width: auto;
                             border: 2px solid #00B4CC;
                             border-radius: 5px 5px 0 0; 
                             padding: 15px; 
@@ -126,12 +136,24 @@ ui.scfind <- function()
                             font-weight: bolder;
                             color: #455254; 
                             background-color: rgba(0, 180, 204, 0.3); 
-                            transition: 0.3s; 
-                            z-index: 3;          
+                            transition: 0.8s; 
+                            overflow: scroll;
+                            z-index: 3;
                             }
                             
-                            .shiny-html-output#datasetCheckbox:hover{
+                            
+                            .datasetsBox:hover{
                             bottom: 0;
+                            }
+
+                            .titleDataset{
+                            position: fixed;
+                            z-index:4;
+                            }
+
+                            #datasetCheckbox{
+                            margin-top: 40px;
+                            text-align: right;
                             }
                             
                             #selectGenes {
@@ -177,8 +199,10 @@ ui.scfind <- function()
                             
                             "))
             ),
+                      shiny::actionButton(inputId = 'homeBtn', label = "Home", shiny::icon('th'), onclick = "window.open('./index.html', '_self')"),
                       shiny::fluidRow(id = "search",
                               shiny::column(12, align="center",
+                                            
                                              textInput("geneList", label = h3(paste("What's your gene list today?")), value = "", placeholder="Brca2,Hivep3,Cux1,Hspa4,Astn2,Pla2g6")
                               )
                       ),
@@ -195,7 +219,11 @@ ui.scfind <- function()
                                         )
                               ),
                               shiny::column(4, id = "query",
-                                        uiOutput("datasetCheckbox"),
+                                        shiny::tags$div(class = "datasetsBox",
+                                            shiny::tags$span(class="titleDataset",                                            
+                                            shiny::tags$h3(uiOutput("selectedDataset")),
+                                            shiny::actionLink("selectall","Select/Deselect All")),
+                                            uiOutput("datasetCheckbox")),
                                         shiny::tags$h4(uiOutput("suggestHyper")),
                                         dataTableOutput("queryOptimizer")
                               ),
@@ -215,7 +243,7 @@ ui.scfind <- function()
 #' @name server.scfind
 #' @aliases server.scfind
 #'
-#' @importFrom shiny renderPlot stopApp checkboxGroupInput observeEvent reactiveVal renderText renderPrint
+#' @importFrom shiny renderPlot stopApp checkboxGroupInput observeEvent observe reactiveVal renderText renderPrint
 #' @importFrom DT renderDataTable datatable
 #' @importFrom data.table as.data.table data.table
 #' @importFrom ggplot2 ggplot geom_bar geom_col ggtitle xlab ylab aes coord_flip theme_minimal
@@ -253,7 +281,7 @@ server.scfind <- function(object)
             recommended.queries <- reactive({
                 selected.genes <- gene.list()
                 selected.datasets <- input$datasetCheckbox
-                if (length(selected.genes) != 0)
+                if (length(selected.genes) != 0 && length(selected.datasets) != 0)
                 {
                     #print(paste("QO gene:",selected.genes))
                     #print(paste("QO selected:",selected.datasets))
@@ -271,11 +299,6 @@ server.scfind <- function(object)
                     available.queries  
                 }
             })
-            
-            #ct.output <- reactive({
-            #          selected.tissue <- input$cellTypesData_row_selected
-            #          print(selected.tissue)
-            #})
             
 
             qo.output <- reactive({
@@ -298,19 +321,42 @@ server.scfind <- function(object)
                 {
                     selection <-  input$geneCheckbox
                 }
-                if(length(gene.list()) != 0){
+                if(length(gene.list()) != 0 && length(input$datasetCheckbox) != 0){
                           checkboxGroupInput("geneCheckbox", h4(paste("Select Genes", length(selection), "/", length(genes.in.list))), choices = genes.in.list , selected = selection, inline = F)
                 } else {
-                          checkboxGroupInput("geneCheckbox", label='', choices = genes.in.list , selected = selection, inline = F)
+                          checkboxGroupInput("geneCheckbox", label='', choices = c() , selected = c(), inline = F)
                 }
             })
 
 
+            output$selectedDataset <- renderText({
+                datasetName <- gsub("/", "", session$clientData$url_pathname)
+                datasets <- object@datasets
+                box.selection <-  input$datasetCheckbox
+                
+                if(length(datasetName) != 0 && datasetName != '#'){
+                    datasetName <- gsub("mca", "Mouse Cell Atlas ", datasetName)
+                    datasetName <- gsub("tm-10X", "Tabula Muris - 10X ", datasetName)
+                    datasetName <- gsub("tm-facs", "Tabula Muris - FACS ", datasetName)
+                    datasetName <- gsub("mba", "Mouse Brain Atlas ", datasetName)
+                    datasetName <- gsub("atacseq", "Mouse sci-ATAC-seq Atlas ", datasetName)
+                } else {
+                    datasetName <- ''
+                }
+                if(length(box.selection) == 0){
+                    paste("Please select at list 1 dataset below:")
+                }
+                else if(length(box.selection) < 2){
+                    paste(datasetName, length(box.selection), "/", length(datasets), "dataset")
+                } else {
+                    paste(datasetName, length(box.selection), "/", length(datasets), "datasets")
+                }
+            })
             
             output$datasetCheckbox <-  renderUI({
                 datasets <- object@datasets
-                print(datasets)
                 box.selection <-  object@datasets
+
                 if (initial.datasets == "initial")
                 {
                     ## set the flag down
@@ -319,20 +365,43 @@ server.scfind <- function(object)
                 else
                 {
                     box.selection <-  input@datasetCheckbox
+                    
                 }
-                checkboxGroupInput("datasetCheckbox", h3(paste(length(box.selection), "/", length(datasets), "dataset")), choices = datasets, selected = box.selection, inline = T)
+
+                checkboxGroupInput("datasetCheckbox", label = '', choices = datasets, selected = box.selection, inline = T)
+                     
+                
             })
-           
+            
+            observe({
+                datasets <- object@datasets
+                box.selection <- object@datasets
+                
+                if(input$selectall == 0) return(NULL) 
+                else if (input$selectall%%2 == 0)
+                {
+                    updateCheckboxGroupInput(session, "datasetCheckbox", label = '', choices = datasets, selected = box.selection, inline = T)
+                }
+                else
+                {
+                    updateCheckboxGroupInput(session, "datasetCheckbox", label = '', choices = datasets, inline = T)
+                    
+                }
+            })
+
+            
             output$queryOptimizer <- renderDataTable({
                 datatable(recommended.queries(), selection = 'single', options = list(autoWidth = TRUE))
             })
 
             cell.types <- reactive({
+
                 selection <- input$geneCheckbox
-                if (length(selection) != 0){
+
+                if (length(selection) != 0 && length(input$datasetCheckbox) != 0){
                     df <- query.result.as.dataframe(findCellTypes(object, selection, input$datasetCheckbox))
-                    print("yo")
-                    print(df)
+                    #print("yo")
+                    #print(df)
                 }
                 else
                 {
@@ -344,18 +413,24 @@ server.scfind <- function(object)
             gene.support <- reactive({
                       gene.selection <- gene.list()
                       dataset.selection <- input$datasetCheckbox
-                      gene.support <- as.data.frame(object@index$genesSupport(gene.selection, dataset.selection))
-                      dimnames(gene.support)[[2]] <- 'support'
-                      gene.support$genes <- rownames(gene.support)
+                      if(length(dataset.selection) != 0){
+                          gene.support <- as.data.frame(object@index$genesSupport(gene.selection, dataset.selection))
+                          dimnames(gene.support)[[2]] <- 'support'
+                          gene.support$genes <- rownames(gene.support)
+                      } else {
+                          gene.support <- data.frame(support = c(), genes = c())
+                          print('Initiating datasets or dataset not defined')
+                      }
                       gene.support
             })
             
             
-            output$cellTypesData <- renderDataTable({    
-                      selection <- input$geneCheckbox
+            output$cellTypesData <- renderDataTable({
+                
+                selection <- input$geneCheckbox
                 df <- cell.types()
                 df
-                if (nrow(df) != 0)
+                if (nrow(df) != 0 && length(input$datasetCheckbox) != 0)
                 {
                     rdt <- phyper.test(object, df, input$datasetCheckbox)
                     rdt <- as.matrix(rdt)
@@ -372,7 +447,7 @@ server.scfind <- function(object)
                       selection <- input$geneCheckbox
                       df <- cell.types()
                       df
-                      if (nrow(df) != 0)
+                      if (nrow(df) != 0 && length(input$datasetCheckbox) != 0)
                       {
                                 rdt <- phyper.test(object, df, input$datasetCheckbox)
                                 mge <- evaluateMarkers(object, selection, rdt$cell_type)
@@ -426,7 +501,7 @@ server.scfind <- function(object)
                       if(nrow(cell.types()) != 0){
                                 selectedList <- paste(input$geneCheckbox, collapse=", ")
                               paste("Scfind found ", length(unique(cell.types()$cell_type)), " cell types for: ", selectedList)
-                      } else if(nrow(cell.types()) == 0 && length(gene.list()) != 0) {
+                      } else if(nrow(cell.types()) == 0 && length(gene.list()) != 0 && length(input$datasetCheckbox) != 0) {
                                 paste("Expecting specific cell types?", "Select our recommended query!", sep="<br>")
             } else {
                                 ""
@@ -435,11 +510,14 @@ server.scfind <- function(object)
             })
             
             output$suggestHyper <- renderText({
-                      if(length(gene.list()) != 0){
-                                "Recommended query for the initial genesets: "
-                      } else {
-                                ""
-                      }
+                if(length(input$datasetCheckbox) == 0 && length(gene.list()) != 0){
+                    "Oops! dataset is missing."
+                }
+                else if(length(gene.list()) != 0){
+                    "Recommended query for the initial genesets: "
+                } else {
+                    ""
+                }
             })
           
             output$geneSupportHisto <- renderPlot({
