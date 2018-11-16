@@ -199,7 +199,7 @@ ui.scfind <- function()
                             
                             "))
             ),
-                      shiny::actionButton(inputId = 'homeBtn', label = "Home", shiny::icon('th'), onclick = "window.open('./index.html', '_self')"),
+                      shiny::actionButton(inputId = 'homeBtn', label = "Home", shiny::icon('th'), onclick = "window.open('https://scfind.sanger.ac.uk', '_self')"),
                       shiny::fluidRow(id = "search",
                               shiny::column(12, align="center",
                                             
