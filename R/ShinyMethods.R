@@ -281,7 +281,7 @@ server.scfind <- function(object)
             recommended.queries <- reactive({
                 selected.genes <- gene.list()
                 selected.datasets <- input$datasetCheckbox
-                if (length(selected.genes) != 0 && length(selected.datasets) != 0)
+                if (length(selected.genes) > 1 && length(selected.datasets) != 0)
                 {
                     #print(paste("QO gene:",selected.genes))
                     #print(paste("QO selected:",selected.datasets))
@@ -338,7 +338,9 @@ server.scfind <- function(object)
                     datasetName <- gsub("mca", "Mouse Cell Atlas ", datasetName)
                     datasetName <- gsub("tm-10X", "Tabula Muris - 10X ", datasetName)
                     datasetName <- gsub("tm-facs", "Tabula Muris - FACS ", datasetName)
-                    datasetName <- gsub("mba", "Mouse Brain Atlas ", datasetName)
+                    datasetName <- gsub("brain", "Mouse Brain Atlas ", datasetName)
+                    datasetName <- gsub("malaria", "Malaria Cell Atlas ", datasetName)
+                    datasetName <- gsub("liver", "Human Liver Atlas ", datasetName)
                     datasetName <- gsub("atacseq", "Mouse sci-ATAC-seq Atlas ", datasetName)
                 } else {
                     datasetName <- ''
