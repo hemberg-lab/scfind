@@ -56,7 +56,7 @@ ui.scfind <- function()
                             }
                             
                             #geneList {
-                            height: 35px; 
+                            height: 35px;
                             border: 2px solid #00B4CC;
                             border-radius: 5px;
                             padding: 5px;
@@ -203,7 +203,7 @@ ui.scfind <- function()
                       shiny::fluidRow(id = "search",
                               shiny::column(12, align="center",
                                             
-                                             textInput("geneList", label = h3(paste("What's your gene list today?")), value = "", placeholder="Brca2,Hivep3,Cux1,Hspa4,Astn2,Pla2g6")
+                                             textInput("geneList", label = h3(paste("What's your gene list today?")), value = "")
                               )
                       ),
                     shiny::fluidRow(id = "main",
@@ -279,6 +279,7 @@ server.scfind <- function(object)
             })
 
             recommended.queries <- reactive({
+                
                 selected.genes <- gene.list()
                 selected.datasets <- input$datasetCheckbox
                 if (length(selected.genes) > 1 && length(selected.datasets) != 0)
@@ -376,6 +377,12 @@ server.scfind <- function(object)
             })
             
             observe({
+                exampleCT <- sample(cellTypeNames(object), 1)
+                exampleQuery <- cellTypeMarkers(object, exampleCT)$genes
+                updateTextInput(session, "geneList", value = "", placeholder = exampleQuery)
+            })
+            
+            observe({
                 datasets <- object@datasets
                 box.selection <- object@datasets
                 
@@ -435,7 +442,7 @@ server.scfind <- function(object)
                 if (nrow(df) != 0 && length(input$datasetCheckbox) != 0)
                 {
                     rdt <- phyper.test(object, df, input$datasetCheckbox)
-                    rdt <- as.matrix(rdt)
+                    rdt <- data.frame(rdt)
                 }
                 else
                 {
