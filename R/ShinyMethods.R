@@ -442,7 +442,7 @@ server.scfind <- function(object)
                 if (nrow(df) != 0 && length(input$datasetCheckbox) != 0)
                 {
                     rdt <- phyper.test(object, df, input$datasetCheckbox)
-                    rdt <- as.matrix(rdt)
+                    rdt <- data.frame(rdt)
                 }
                 else
                 {
