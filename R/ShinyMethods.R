@@ -3,7 +3,7 @@
 #' @name ui.scfind
 #' @aliases ui.scfind
 #'
-#' @importFrom shiny  sidebarLayout actionButton textInput navbarPage navbarMenu plotOutput fluidPage fluidRow column h1 h2 h3 h4 a tags$h4 tags$head tags$style HTML sidebarPanel uiOutput checkboxGroupInput actionLink plotOutput verbatimTextOutput
+#' @importFrom shiny  sidebarLayout actionButton textInput navbarPage navbarMenu plotOutput fluidPage fluidRow column h1 h2 h3 h4 a  HTML sidebarPanel uiOutput checkboxGroupInput actionLink plotOutput verbatimTextOutput
 #' @importFrom DT dataTableOutput
 ui.scfind <- function()
 {
