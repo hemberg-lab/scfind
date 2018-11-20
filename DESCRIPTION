@@ -28,7 +28,7 @@ Depends: R(>= 3.4), methods, Rcpp
 RcppModules: EliasFanoDB
 Encoding: UTF-8
 LazyLoad: yes
-RoxygenNote: 6.1.0
+RoxygenNote: 6.1.1
 Suggests: knitr,
     rmarkdown
 VignetteBuilder: knitr

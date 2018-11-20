@@ -141,8 +141,8 @@ void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasF
   // and do more accurate cutoff estimations
 
 
-  // main idea:
-  // for each cell buil
+
+  // Build the reduced expression matrix
   for (size_t gene_row = 0; gene_row < tmp_strings.size(); ++gene_row)
   {
 
@@ -251,7 +251,10 @@ void QueryScore::cell_tfidf(const EliasFanoDB& db, const std::set<std::string>& 
   
 }
 
-
+int QueryScore::calculate_cell_types(const std::set<std::string>&gene_set)
+{
+  return 0;
+}
 
 void EliasFanoDB::clearDB()
 {
@@ -946,13 +949,25 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
     // qs.cell_type_relevance(*this, genes_results, gene_set);
     // query_scores.push_back(qs.query_score);
     query_cell_cardinality.push_back(item.second);
-    query_cell_type_cardinality.push_back(qs.cell_types_in_query);
+
     
     // query tfidf
     qs.reset();
     qs.cell_tfidf(*this, gene_set);
     query_tfidf.push_back(qs.query_score);
-    
+    // Calculate cell_type cardinality
+    // Refactor code in the QueryScore
+    // Now this needs to be executed in a serial manner ( no atomicity )
+    if (qs.query_score != 0)
+    {
+      int available_cell_types = qs.calculate_cell_types(gene_set);
+      query_cell_type_cardinality.push_back(available_cell_types);
+    }
+    else
+    {
+      std::cerr << "Zero cell types with non zero cells" << std::endl;
+      query_cell_type_cardinality.push_back(0);
+    }
     // other fields
     query_gene_cardinality.push_back(gene_set.size());
     query.push_back(view_string);
