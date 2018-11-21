@@ -1,5 +1,5 @@
 #pragma once
-#include <Rcpp.h>
+/* #include <Rcpp.h> */
 #include <iostream>
 
 #include <algorithm>
@@ -14,31 +14,6 @@
 #include "functions.h"
 
 #define SERIALIZATION_VERSION 6
-
-
-
-
-
-// template<typename T>
-// struct TypeCompare
-// {
-//   using is_transparent = std::true_type;
-//   bool operator()(const T& lhs, const T& rhs) const
-//   {
-//     return lhs.name < rhs.name;
-//   }
-  
-//   bool operator()(const T& lhs, const std::string& name) const
-//   {
-//     return lhs.name < name;
-//   }
-  
-//   bool operator()(const std::string& name, const T& rhs) const
-//   {
-//     return name < rhs.name;
-//   }
-// };
-
 
 
 typedef struct
@@ -196,7 +171,7 @@ typedef struct
   }
 } CellTypeMarker;
 
-
+//' @export EliasFanoDB 
 class EliasFanoDB
 {
  public:
@@ -248,12 +223,13 @@ class EliasFanoDB
 
   long eliasFanoCoding(const std::vector<int>& ids, const Rcpp::NumericVector& values);
   
-  std::vector<int> eliasFanoDecoding(const EliasFano& ef);
+  std::vector<int> eliasFanoDecoding(const EliasFano& ef) const; 
 
   int queryZeroGeneSupport(const Rcpp::CharacterVector&) const;
 
   // This is invoked on slices of the expression matrix of the dataset 
   long encodeMatrix(const std::string& cell_type_name, const Rcpp::NumericMatrix& gene_matrix);
+
 
   Rcpp::List total_genes();
   
@@ -265,6 +241,10 @@ class EliasFanoDB
   
   int getTotalCells(const Rcpp::CharacterVector&) const;
 
+  const CellType& getCellType(const CellTypeName& name ) const;
+
+  const Rcpp::NumericMatrix getCellTypeMatrix(const CellTypeName& cell_type) const;
+
   int numberOfCellTypes(const Rcpp::CharacterVector&) const;
 
   int cellsInDB() const;
@@ -273,8 +253,6 @@ class EliasFanoDB
   
   Rcpp::NumericVector getCellTypeSupport(Rcpp::CharacterVector& cell_types);
   
-  std::vector<double> getQuantizedExpressionLevels(const std::string& gene_name, const std::string& cell_type);
-  
   Rcpp::List queryGenes(const Rcpp::CharacterVector& gene_names, const Rcpp::CharacterVector& datasets_active);
   
   size_t dataMemoryFootprint();
@@ -282,8 +260,6 @@ class EliasFanoDB
   size_t quantizationMemoryFootprint();
   
   size_t dbMemoryFootprint();
-  
-  
 
   // And query
   Rcpp::List findCellTypes(const Rcpp::CharacterVector& gene_names, const Rcpp::CharacterVector& datasets_active);
@@ -333,3 +309,5 @@ class EliasFanoDB
   
 
 };
+
+
