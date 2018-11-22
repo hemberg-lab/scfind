@@ -1,10 +1,8 @@
 #' The scfind main class object
-#'
-#' @useDynLib scfind
 #' @export
 setClass("SCFind",
          representation(
-             index = "EliasFanoDB",
+             index = "Rcpp_EliasFanoDB",
              datasets = "character",
              serialized = "raw"))
 

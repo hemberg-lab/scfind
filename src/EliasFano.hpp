@@ -36,7 +36,7 @@ typedef struct
   int index;
 } IndexRecord;
 
-
+//' @export
 class EliasFanoDB;
 RCPP_EXPOSED_CLASS(EliasFanoDB)
 

@@ -93,9 +93,7 @@ setMethod("buildCellTypeIndex",
 #' @return the \code{SCFind} object
 #' @name saveObject
 save.serialized.object <- function(object, file){
-    #loadModule('EliasFanoDB')
     object@serialized <- object@index$getByteStream()
-    ## object@index
     a <- saveRDS(object, file)
     # Clear the serialized stream
     object@serialized <- raw()
