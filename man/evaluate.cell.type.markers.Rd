@@ -5,7 +5,7 @@
 \title{Evaluate a user specific query by calculating the precision recall metrics}
 \usage{
 evaluate.cell.type.markers(object, gene.list, cell.types,
-  background.cell.types)
+  background.cell.types, sort.field)
 }
 \arguments{
 \item{object}{the \code{SCFind} object}
@@ -14,7 +14,9 @@ evaluate.cell.type.markers(object, gene.list, cell.types,
 
 \item{cell.types}{a list of cell types for the list to evaluated}
 
-\item{background.cell.types}{}
+\item{background.cell.types}{the universe of cell.types to consider}
+
+\item{sort.field}{the dataframe will be sorted according to this field}
 }
 \value{
 a DataFrame that each row represent a gene score for a specific cell type

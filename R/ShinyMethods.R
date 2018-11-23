@@ -3,7 +3,7 @@
 #' @name ui.scfind
 #' @aliases ui.scfind
 #'
-#' @importFrom shiny  sidebarLayout actionButton textInput navbarPage navbarMenu plotOutput fluidPage fluidRow column h1 h2 h3 h4 a tags$h4 tags$head tags$style HTML sidebarPanel uiOutput checkboxGroupInput actionLink plotOutput verbatimTextOutput
+#' @importFrom shiny  sidebarLayout actionButton textInput navbarPage navbarMenu plotOutput fluidPage fluidRow column h1 h2 h3 h4 a  HTML sidebarPanel uiOutput checkboxGroupInput actionLink plotOutput verbatimTextOutput
 #' @importFrom DT dataTableOutput
 ui.scfind <- function()
 {
@@ -555,6 +555,9 @@ server.scfind <- function(object)
         })
 }
 
+
+
+#' The scfind server method
 #' @rdname scfindShinyServer
 #' @aliases scfindShinyServer
 setMethod("scfindShinyServer", signature(object = "SCFind"), server.scfind)
@@ -581,11 +584,9 @@ scfind.interactive <- function(object) {
         return()
     }
     
-    
     shinyApp(
         ui = ui.scfind(),
-        server = server.scfind(object),
-        options = list(launch.browser = FALSE)
+        server = server.scfind(object)
     )
 }
 
@@ -595,7 +596,7 @@ setMethod("scfindShiny", signature(object = "SCFind"), scfind.interactive)
 
 
 
-
+#' Get all genes in the database
 scfind.get.genes.in.db <- function(object){
     
     return(object@index$genes())

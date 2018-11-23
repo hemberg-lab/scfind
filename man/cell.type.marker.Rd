@@ -5,7 +5,8 @@
 \title{Find marker genes for a specific cell type
 TODO(the genes can be ordered by precision recall or the f1 metric)}
 \usage{
-cell.type.marker(object, cell.types, background.cell.types, top.k = 5)
+cell.type.marker(object, cell.types, background.cell.types, top.k,
+  sort.field)
 }
 \arguments{
 \item{object}{SCFind object}
@@ -15,6 +16,8 @@ cell.type.marker(object, cell.types, background.cell.types, top.k = 5)
 \item{background.cell.types}{the universe of cell.types to consider}
 
 \item{top.k}{how many genes to retrieve}
+
+\item{sort.field}{the dataframe will be sorted according to this field}
 }
 \value{
 a data.frame that each row represent a gene score for a specific cell type

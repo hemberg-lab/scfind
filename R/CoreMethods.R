@@ -14,6 +14,7 @@
 #' @importFrom SingleCellExperiment SingleCellExperiment
 #' @importFrom SummarizedExperiment rowData rowData<- colData colData<- assayNames assays
 #' @importFrom hash hash
+#' @importFrom methods new
 #' 
 #' @importFrom Rcpp sourceCpp
 #' @useDynLib scfind 
@@ -23,7 +24,7 @@ buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name = 'counts', 
 
     if (grepl(dataset.name,'.'))
     {
-        error("The dataset name should not contain any dots")
+        stop("The dataset name should not contain any dots")
     }
     
     
@@ -47,7 +48,6 @@ buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name = 'counts', 
         }
         exprs <- "[["(sce@assays$data, assay.name)
 
-        loadModule('EliasFanoDB')
         ef <- new(EliasFanoDB)
         for (cell.type in cell.types) {
             inds.cell <- which(cell.type == cell.types.all)
@@ -93,9 +93,7 @@ setMethod("buildCellTypeIndex",
 #' @return the \code{SCFind} object
 #' @name saveObject
 save.serialized.object <- function(object, file){
-    #loadModule('EliasFanoDB')
     object@serialized <- object@index$getByteStream()
-    ## object@index
     a <- saveRDS(object, file)
     # Clear the serialized stream
     object@serialized <- raw()
@@ -359,7 +357,23 @@ findCellTypes.geneList <- function(object, gene.list, datasets)
     
 }
 
-#' @rdname findCellType
-#' @aliases findCellType
+#' queries cells that contain all the genes from the list
+#' @rdname findCellTypes
+#' @aliases findCellTypes
 setMethod("findCellTypes", signature(object = "SCFind", gene.list = "character"), findCellTypes.geneList)
+
+
+
+scfind.get.genes.in.db <- function(object){
+    
+    return(object@index$genes())
+
+}
+
+#' Get all genes in the database
+#' 
+#' @rdname scfindGenes
+#' @aliases scfindGenes
+setMethod("scfindGenes", signature(object = "SCFind"), scfind.get.genes.in.db)
+
 
