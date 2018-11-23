@@ -7,11 +7,7 @@
 server.scfind(object)
 }
 \arguments{
-\item{input}{handler item for the ShinyApp}
-
-\item{output}{handel item for the ShinyApp}
-
-\item{session}{handler item for the stateful ShinyApp}
+\item{object}{An SCFind object that the shiny app will be deployed upon}
 }
 \description{
 Server handler for scfind

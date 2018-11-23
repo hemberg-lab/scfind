@@ -8,7 +8,7 @@ SerializationDB::SerializationDB(): byte_pointer(0)
 int SerializationDB::loadByteStream(const Rcpp::RawVector& stream)
 {
   this->serialized_bytestream = std::vector<unsigned char>(stream.begin(), stream.end());
-  std::cout << this->serialized_bytestream.size() / (1 << 20)  << " MB "<< std::endl;
+  Rcpp::Rcout << this->serialized_bytestream.size() / (1 << 20)  << " MB "<< std::endl;
   return 1;
     
 }
@@ -23,7 +23,7 @@ Rcpp::RawVector SerializationDB::getByteStream(const EliasFanoDB& efdb)
     
   //Rcpp::wrap(this->serialized_bytestream);
   this->serialized_bytestream.clear();
-  std::cout << r_obj.size() <<" is the size of the stream " << std::endl;
+  Rcpp::Rcout << r_obj.size() <<" is the size of the stream " << std::endl;
   return r_obj;
 }
 
@@ -80,10 +80,10 @@ void SerializationDB::deserializeEliasFano(EliasFano& ef, int quantization_bits)
   read(quant_size);
     
   // Multiply by eight, shift three positions
-  // std::cout << "l = " << ef.l << std::endl;
-  // std::cout << "Read " << " H " << H_size << std::endl;
-  // std::cout << "Read " << " L " << L_size << std::endl;
-  // std::cout << "Read " << " quant " << quant_size << std::endl;
+  // Rcpp::Rcout << "l = " << ef.l << std::endl;
+  // Rcpp::Rcout << "Read " << " H " << H_size << std::endl;
+  // Rcpp::Rcout << "Read " << " L " << L_size << std::endl;
+  // Rcpp::Rcout << "Read " << " quant " << quant_size << std::endl;
     
     
   std::vector<char> buffer;
@@ -180,10 +180,10 @@ void SerializationDB::deserializeDB(EliasFanoDB& efdb)
   // Read the database version
   int version;
   read(version);
-  std::cout << "Version " << version << std::endl;
+  Rcpp::Rcout << "Version " << version << std::endl;
   if (version != SERIALIZATION_VERSION)
   {
-    std::cerr << "The model that the database was stored is not matching the of the existing version that the database will be built. Exiting now" << std::endl;
+    Rcpp::Rcerr << "The model that the database was stored is not matching the of the existing version that the database will be built. Exiting now" << std::endl;
     return;
   }
 
@@ -202,7 +202,7 @@ void SerializationDB::deserializeDB(EliasFanoDB& efdb)
 
   if (not (genes_present > 0) )
   {
-    std::cerr << "something went wrong" << std::endl;
+    Rcpp::Rcerr << "something went wrong" << std::endl;
     return;
   }
 
@@ -221,7 +221,7 @@ void SerializationDB::deserializeDB(EliasFanoDB& efdb)
     read(gene_meta);
     efdb.genes[buffer] = gene_meta;
     efdb.index[buffer] = EliasFanoDB::GeneContainer();
-    // std::cout << "gene" << buffer << std::endl;
+    // Rcpp::Rcout << "gene" << buffer << std::endl;
     gene_ids.push_back(buffer);
   }
 
@@ -246,7 +246,7 @@ void SerializationDB::deserializeDB(EliasFanoDB& efdb)
 
   if(not(cell_types_present > 0))
   {
-    std::cerr << "something went wrong with the cell types" << std::endl;
+    Rcpp::Rcerr << "something went wrong with the cell types" << std::endl;
     return;
   }
     
@@ -296,17 +296,17 @@ void SerializationDB::deserializeDB(EliasFanoDB& efdb)
   // Build database
   for (auto const& r : records)
   {
-    //std::cerr << r.gene << " " <<r.cell_type << " " << r.index << std::endl;
+    //Rcpp::Rcerr << r.gene << " " <<r.cell_type << " " << r.index << std::endl;
     efdb.index[gene_ids[r.gene]][r.cell_type] = r.index;
   }
     
 #ifdef DEBUG
-  std::cout << "Total Cells " << this->total_cells << std::endl;
-  std::cout << "Quantization bits " << (unsigned int)this->quantization_bits << std::endl;
-  std::cout << "Present genes " << genes_present << std::endl;
-  std::cout << "Present cell_types " << cell_types_present << std::endl;
-  std::cout << "Index size " << index_size << std::endl;
-  std::cout << "Bytes left to read:" << this->serialized_bytestream.size() - byte_pointer << std::endl;
+  Rcpp::Rcout << "Total Cells " << this->total_cells << std::endl;
+  Rcpp::Rcout << "Quantization bits " << (unsigned int)this->quantization_bits << std::endl;
+  Rcpp::Rcout << "Present genes " << genes_present << std::endl;
+  Rcpp::Rcout << "Present cell_types " << cell_types_present << std::endl;
+  Rcpp::Rcout << "Index size " << index_size << std::endl;
+  Rcpp::Rcout << "Bytes left to read:" << this->serialized_bytestream.size() - byte_pointer << std::endl;
 #endif
   this->serialized_bytestream.clear();
   // return efdb;
@@ -376,14 +376,14 @@ void SerializationDB::serialize(const EliasFanoDB& efdb)
     write(cell_type_name_size);
     writeBuffer(&ct.name[0], cell_type_name_size);
     write(ct.total_cells);
-    //std::cout << ct << std::endl;
+    //Rcpp::Rcout << ct << std::endl;
   }
     
   // Dump records
   // Write size of index, if it is 1:1 relation it should be consistent
   int index_size = efdb.ef_data.size();
   write(index_size);
-  std::cout << "Index size " << index_size << std::endl;
+  Rcpp::Rcout << "Index size " << index_size << std::endl;
     
   for (auto const& g : efdb.index)
   {
@@ -404,6 +404,6 @@ void SerializationDB::serialize(const EliasFanoDB& efdb)
     binarizeEliasFano(ef);
   }
 
-  std::cout << "Database deserialized!" << std:: endl;
+  Rcpp::Rcout << "Database deserialized!" << std:: endl;
 }
 
