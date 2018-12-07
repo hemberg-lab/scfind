@@ -342,6 +342,7 @@ server.scfind <- function(object)
                     datasetName <- gsub("brain", "Mouse Brain Atlas ", datasetName)
                     datasetName <- gsub("malaria", "Malaria Cell Atlas ", datasetName)
                     datasetName <- gsub("liver", "Human Liver Atlas ", datasetName)
+                    datasetName <- gsub("spinalcord", "Mouse Spinal Cord Atlas ", datasetName)
                     datasetName <- gsub("atacseq", "Mouse sci-ATAC-seq Atlas ", datasetName)
                 } else {
                     datasetName <- ''
