@@ -1,6 +1,6 @@
 #pragma once
 
-#include "EliasFano.hpp"
+#include "EliasFano.h"
 
 #include <Rcpp.h>
 #include <iostream>

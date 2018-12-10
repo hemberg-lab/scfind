@@ -6,12 +6,12 @@
 #include <stdexcept>
 
 #include "scfind_types.h"
-#include "fp_growth.hpp"
+#include "fp_growth.h"
 #include "functions.h"
-#include "EliasFano.hpp"
-#include "Serialization.hpp"
+#include "EliasFano.h"
+#include "Serialization.h"
 
-
+// Rcpp::plugins(cpp11)
 
 CellMeta::CellMeta() : reads(0), features(0)
 {}

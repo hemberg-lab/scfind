@@ -357,11 +357,13 @@ findCellTypes.geneList <- function(object, gene.list, datasets)
     
 }
 
-#' queries cells that contain all the genes from the list
+#' queries cells that contain reads from all the genes in the list
+#'
+#' @param object the \code{scfind} object
+#' @param gene.list the list of genes to be queried
 #' @rdname findCellTypes
 #' @aliases findCellTypes
 setMethod("findCellTypes", signature(object = "SCFind", gene.list = "character"), findCellTypes.geneList)
-
 
 
 scfind.get.genes.in.db <- function(object){
@@ -371,7 +373,8 @@ scfind.get.genes.in.db <- function(object){
 }
 
 #' Get all genes in the database
-#' 
+#'
+#' @param object the \code{scfind} object
 #' @rdname scfindGenes
 #' @aliases scfindGenes
 setMethod("scfindGenes", signature(object = "SCFind"), scfind.get.genes.in.db)
