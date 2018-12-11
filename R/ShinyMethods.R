@@ -14,7 +14,6 @@ ui.scfind <- function()
           shiny::tags$head(
             shiny::tags$style(shiny::HTML("
                             body {
-          
                             background-image: url('https://scfind.sanger.ac.uk/img/scfind.png');
                             background-size: 200px;
                             background-attachment: fixed;
@@ -22,6 +21,20 @@ ui.scfind <- function()
                             background-position: center;
                             }
                             
+                            .shiny-notification {
+                            position:fixed;
+                            height: 60px;
+                            width: 400px;
+                            top: 12%;
+                            left: calc(50% - 200px);;
+                            }
+
+                            .progress-text {
+                            text-align: center;
+                            font-size: 18px;
+                            font-style: italic; 
+                            }
+
                             #homeBtn {
                             position: fixed;
                             top: 20px;
@@ -41,21 +54,19 @@ ui.scfind <- function()
                             }
                             
                             #search {
-                            
                             position: fixed;
                             top: 8%;
-                            padding-left: 20%;
-                            padding-right:20%;
                             background-color: rgba(256,256,256, 0.6);
                             z-index: 2;
                             }
                             
                             #search h3 {
                             color: rgb(0, 180, 204);
-                            font-size: 20px;
+                            font-size: 20px
                             }
                             
                             #geneList {
+                            left: calc(50% - 150px);;
                             height: 35px;
                             border: 2px solid #00B4CC;
                             border-radius: 5px;
@@ -80,26 +91,40 @@ ui.scfind <- function()
                             color: rgb(0, 180, 204);
                             }
                             
-                            #geneCheckbox{
+                            #geneCheckbox {
                             position: relative;
-                            z-index: 1;
                             width: 300px;
+                            z-index: 0;
+                            }
+
+                            #geneCheckbox:hover {
+                            z-index: 1;
                             }
                             
                             #geneCheckbox .shiny-options-group {
                             height: 440px;
+                            left: 0px;
                             border:0;
-                            padding:0;
+                            padding: 0;
                             margin:0;
                             display: flex;
                             flex-direction: column;
                             justify-content: space-between;
+                            opacity: 0.6;
+                            }
+
+                            #geneCheckbox .shiny-options-group:hover {
+                            opacity: 1;
                             }
                             
+                            #geneCheckbox .checkbox {
+                            width: 150px;
+                            overflow-wrap: break-word;
+                            }
+
                             h4 {
-                            font-size: 20px;
+                            font-size: 18px;
                             color: #455254;
-                            
                             }
                             
                             .checkbox {
@@ -107,7 +132,7 @@ ui.scfind <- function()
                             padding-left: 20px;
                             padding-top: 5px;
                             padding-bottom: 5px;
-                            background-color: white;
+                            background-color: rgba(255,255,255,0.8);
                             
                             }
                             .checkbox span {
@@ -116,9 +141,26 @@ ui.scfind <- function()
                             
                             }
                             
+                            #lociRegions {
+                            width: 500px;
+                            }
+
+                            .ucsc {
+                            color: red;
+                            }
+                            
+                            .border-l {
+                            border-left: 1px solid;
+                            }
+
+                            .border-lb {
+                            border-left: 1px solid;
+                            border-bottom: 1px solid;
+                            }                            
+
                             #geneSupportHisto {
-                            border-left: 80px sold white;
                             padding-top: 30px;
+                            margin-left: 80px;
                             background-color: transparent;
                             }
                             
@@ -142,16 +184,16 @@ ui.scfind <- function()
                             }
                             
                             
-                            .datasetsBox:hover{
+                            .datasetsBox:hover {
                             bottom: 0;
                             }
 
-                            .titleDataset{
+                            .titleDataset {
                             position: fixed;
                             z-index:4;
                             }
 
-                            #datasetCheckbox{
+                            #datasetCheckbox {
                             margin-top: 40px;
                             text-align: right;
                             }
@@ -177,25 +219,9 @@ ui.scfind <- function()
                             table-layout: fixed;
                             }
                             
-                            table td{
+                            table td {
                             word-wrap: break-word;
                             }
-                            
-                            #ctData {
-                            position: fixed;
-                            bottom: 5px;
-                            left: -50px;
-                            height: 20%;
-                            border: 2px solid #00B4CC;
-                            padding-left: 50px;
-                            border-radius: 5px 5px 0 0; 
-                            text-align: left;
-                            color: #455254; 
-                            background-color: rgba(0, 180, 204, 0.3); 
-                            overflow: scroll;
-                            z-index: 3;
-                            }
-
                             
                             "))
             ),
@@ -208,13 +234,13 @@ ui.scfind <- function()
                       ),
                     shiny::fluidRow(id = "main",
                               shiny::column(3,
+                                            uiOutput("lociRegions"),
                                         shiny::fluidRow(id = "selectGenes",
                                                   shiny::column(1,
                                                             uiOutput("geneCheckbox")
                                                   ),
                                                   shiny::column(2,
-                                                            plotOutput("geneSupportHisto", width = 350, height = 500),
-                                                            shiny::verbatimTextOutput("ctData")
+                                                            plotOutput("geneSupportHisto", width = 300, height = 500)
                                                   )
                                         )
                               ),
@@ -229,7 +255,9 @@ ui.scfind <- function()
                               ),
                               shiny::column(5, id = "celltype",
                                         shiny::tags$h4(uiOutput("selectedQuery")),
-                                        dataTableOutput("cellTypesData")
+                                        dataTableOutput("cellTypesData"),
+                                        shiny::tags$h4(uiOutput("ctData")),
+                                        dataTableOutput("evaluateCtMarkers")
                               )
                     )
           )
@@ -253,7 +281,6 @@ server.scfind <- function(object)
     return(
         function(input, output, session)
         {
-
             last.query.state <- reactiveVal("genelist")
             initial.datasets <- "initial"
             gene.list <- reactiveVal(c())
@@ -271,30 +298,49 @@ server.scfind <- function(object)
                 })
 
             observeEvent(input$geneList,{
-                          text <- gsub("\\s", "", input$geneList)
-                          gene.list.input <- unlist(strsplit(text, ","))
-                          last.query.state("genelist")
-                          print(paste("GeneList",gene.list.input))
-                          gene.list(gene.list.input)
+                        text <- gsub("\\s|,", ",", input$geneList)
+                        gene.list.input <- unlist(strsplit(text, ","))
+                        chr.list.input <- c()
+
+                            if(all(startsWith(object@index$genes(), "chr") == T)){
+                                gene.names.all <- object@index$genes()
+                                
+                                p.pos <- list(p.chr = c(), p.start = 0, p.end = 0)
+                                p.pos$p.chr <- gsub("_.*$", "", gene.names.all)
+                                p.pos$p.start <- as.numeric(gsub(".*_(.*)\\_.*", "\\1", gene.names.all))
+                                p.pos$p.end <- as.numeric(gsub(".*_", "", gene.names.all))
+                                p.pos <- data.frame(p.pos)
+
+                                for(i in 1: length(gene.list.input)){
+                                    chr.list.input <- c(chr.list.input, gene.names.all[which(p.pos$p.chr == tolower(gsub(":.*$", "", gene.list.input[i])) & p.pos$p.start >= as.numeric(gsub(".*:(.*)\\-.*", "\\1", gene.list.input[i])) & p.pos$p.end <= as.numeric(gsub(".*-", "", gene.list.input[i])))])
+                                }
+                            } 
+                        
+                            gene.list.input <- if(length(chr.list.input) != 0) gsub(':|-','_',chr.list.input) else gene.list.input
+                            gene.list.input <- gene.list.input[!duplicated(gene.list.input)]
+                            last.query.state("genelist")
+                            #print(paste("GeneList",gene.list.input))
+                            gene.list(gene.list.input)
+
             })
 
             recommended.queries <- reactive({
-                
                 selected.genes <- gene.list()
+
                 selected.datasets <- input$datasetCheckbox
-                if (length(selected.genes) > 1 && length(selected.datasets) != 0)
-                {
+                if (length(selected.genes) > 1 && length(grep(TRUE, (selected.genes %in% object@index$genes()))) != 0 && length(selected.datasets) != 0)
+                { 
                     #print(paste("QO gene:",selected.genes))
                     #print(paste("QO selected:",selected.datasets))
-                    available.queries <-  markerGenes(object, selected.genes, selected.datasets)
+                    available.queries <-  as.data.table(markerGenes(object, selected.genes, selected.datasets))
                 }
                 else
                 {
-                    available.queries <- c()
+                    available.queries <- data.table()
                 }
-                available.queries <- as.data.table(available.queries)
-                if(length(available.queries != 0)){
-                    available.queries$tfidf <- signif(available.queries$tfidf, digits = 4) 
+                
+                if(length(available.queries) != 0){
+                    available.queries$tfidf <- signif(available.queries$tfidf, digits = 5) 
                     available.queries
                 } else {
                     available.queries  
@@ -305,14 +351,22 @@ server.scfind <- function(object)
             qo.output <- reactive({
                 selected.index <- input$queryOptimizer_rows_selected
                 available.queries <-  recommended.queries()
-                selected.query <- available.queries[selected.index, 'Query']
+                
+                selected.query <- if(all(startsWith(object@index$genes(), "chr") == T)) gsub(":|-", "_", available.queries$Query[selected.index]) else available.queries$Query[selected.index]
                 unlist(strsplit(gsub("\\s", "", selected.query), ","))
             })
 
             output$geneCheckbox <- renderUI({
-                genes.in.list <- as.character(gene.list())
+                genes.in.list <- caseCorrect(object, as.character(gene.list()))
                 ## else fallback
-                selection <- gene.list()
+                
+                selection <- caseCorrect(object, gene.list())
+                
+                list.indx <- intersect(grep('chr', genes.in.list), grep('_', genes.in.list))
+                if(length(list.indx) != 0) {
+                    genes.in.list <- gsub('_', '-', sub('_', ':', genes.in.list[list.indx]))
+                    selection <- gsub('_', '-', sub('_', ':', selection[list.indx]))
+                }
                 
                 if(last.query.state() == "query_optimizer")
                 {
@@ -322,8 +376,11 @@ server.scfind <- function(object)
                 {
                     selection <-  input$geneCheckbox
                 }
-                if(length(gene.list()) != 0 && length(input$datasetCheckbox) != 0){
-                          checkboxGroupInput("geneCheckbox", h4(paste("Select Genes", length(selection), "/", length(genes.in.list))), choices = genes.in.list , selected = selection, inline = F)
+                
+                if(length(list.indx) != 0) selection <- gsub('_', '-', sub('_', ':', selection[list.indx]))
+                
+                if(length(gene.list()) != 0  && sum(gene.support()$support) != 0 && length(input$datasetCheckbox) != 0) {
+                          checkboxGroupInput("geneCheckbox", h4(paste("Select", if(length(list.indx) != 0) "Peaks" else "Genes", length(selection), "/", length(genes.in.list))), choices = genes.in.list , selected = selection, inline = F)
                 } else {
                           checkboxGroupInput("geneCheckbox", label='', choices = c() , selected = c(), inline = F)
                 }
@@ -346,6 +403,7 @@ server.scfind <- function(object)
                 } else {
                     datasetName <- ''
                 }
+
                 if(length(box.selection) == 0){
                     paste("Please select at least 1 dataset below:")
                 }
@@ -377,8 +435,16 @@ server.scfind <- function(object)
             })
             
             observe({
+                progress <- Progress$new(session, min=0)
+                on.exit(progress$close())
+                progress$set(message = 'Initialising index...',
+                             detail = 'This may take a few seconds')
+                
                 exampleCT <- sample(cellTypeNames(object), 1)
                 exampleQuery <- cellTypeMarkers(object, exampleCT)$genes
+                
+                if(all(startsWith(object@index$genes(), "chr") == T)) exampleQuery <- gsub("_", "-", sub("_", ":", exampleQuery))
+                
                 updateTextInput(session, "geneList", value = "", placeholder = exampleQuery)
             })
             
@@ -397,17 +463,30 @@ server.scfind <- function(object)
                     
                 }
             })
-
             
             output$queryOptimizer <- renderDataTable({
-                datatable(recommended.queries(), selection = 'single', options = list(autoWidth = TRUE))
+                if(!is.null(recommended.queries())){
+                    col <- if(all(startsWith(object@index$genes(), "chr") == T)) "Peaks" else "Genes"
+                    
+                    datatable(recommended.queries(), selection = 'single',
+                              options = list(columnDefs = list(list(width = '70px', targets = c(2, 3, 4)), list(width = '10px', targets = c(0))),
+                                             autoWidth = TRUE,
+                                             dom = 'Bfrtip',
+                                             buttons = c('copy', 'csv', 'excel')),
+                              extensions = 'Scroller', colnames = c(col , 'Sub-queries', 'TF-IDF', 'Cell No.', 'Cell types'),
+                              rownames = F)
+                } else {
+                    data.table()
+                }
             })
 
             cell.types <- reactive({
-
-                selection <- input$geneCheckbox
-
-                if (length(selection) != 0 && length(input$datasetCheckbox) != 0){
+                selection <- if(all(startsWith(object@index$genes(), "chr") == T)) input$geneCheckbox else caseCorrect(object, input$geneCheckbox)
+                
+                if (length(selection) != 0 && length(input$datasetCheckbox) != 0 ){ 
+                    if(all(startsWith(object@index$genes(), "chr") == T)) {
+                        selection <- gsub(":|-", "_", selection)
+                    }
                     df <- query.result.as.dataframe(findCellTypes(object, selection, input$datasetCheckbox))
                     #print("yo")
                     #print(df)
@@ -420,15 +499,15 @@ server.scfind <- function(object)
             })
 
             gene.support <- reactive({
-                      gene.selection <- gene.list()
+                gene.selection <- if(all(startsWith(object@index$genes(), "chr") == T)) gene.list() else caseCorrect(object,gene.list())
                       dataset.selection <- input$datasetCheckbox
-                      if(length(dataset.selection) != 0){
+                      if(length(dataset.selection) != 0 && length(gene.selection) != 0){
                           gene.support <- as.data.frame(object@index$genesSupport(gene.selection, dataset.selection))
                           dimnames(gene.support)[[2]] <- 'support'
                           gene.support$genes <- rownames(gene.support)
                       } else {
                           gene.support <- data.frame(support = c(), genes = c())
-                          print('Initiating datasets or dataset not defined')
+                          #print('dataset not defined')
                       }
                       gene.support
             })
@@ -436,12 +515,12 @@ server.scfind <- function(object)
             
             output$cellTypesData <- renderDataTable({
                 
-                selection <- input$geneCheckbox
                 df <- cell.types()
-                df
-                if (nrow(df) != 0 && length(input$datasetCheckbox) != 0)
+                #df
+                if (nrow(df) != 0 && length(input$datasetCheckbox) != 0) 
                 {
                     rdt <- phyper.test(object, df, input$datasetCheckbox)
+                    rdt$pval <- as.numeric(signif(rdt$pval, digits = 6))
                     rdt <- data.frame(rdt)
                 }
                 else
@@ -449,96 +528,207 @@ server.scfind <- function(object)
                   rdt <- data.table()
                 }
 
-            }, server = TRUE)
+            }, server = TRUE, extensions = c('Scroller', 'Buttons')
+            , options = list(columnDefs = list(list(width = '60px', targets = c(1, 2)), list(width = '70px', targets = c(3))),
+                deferRender = TRUE,
+                scrollY = 200,
+                scroller = TRUE, 
+                dom = 'Bfrtip',
+                buttons = c('copy', 'csv', 'excel')
+            ), colnames = c('Cell types', 'Cell hits', 'Cell No.', 'p-value'), rownames = F)
             
-            output$ctData = renderPrint({
-                      s = input$cellTypesData_rows_selected
-                      selection <- input$geneCheckbox
-                      df <- cell.types()
-                      df
-                      if (nrow(df) != 0 && length(input$datasetCheckbox) != 0)
-                      {
-                                rdt <- phyper.test(object, df, input$datasetCheckbox)
-                                mge <- evaluateMarkers(object, selection, rdt$cell_type)
-                                mge <- mge[order(mge$genes),]
-                                mge <- mge[order(mge[,1]),]
+            
+            output$evaluateCtMarkers <- renderDataTable({
 
-                                mge$precision <- round((mge$precision), digits = 4)
-                                mge$recall <- round((mge$recall), digits = 4)
-                                mge$f1 <- round((mge$f1), digits = 4)
-                                mge <- aggregate(.~cellType, mge[,c("cellType", "genes", "precision", "recall", "f1")], FUN=toString)
+                s = input$cellTypesData_rows_selected
+                selection <- input$geneCheckbox
+                if(all(startsWith(object@index$genes(), "chr") == T)) {
+                    selection <- gsub(":|-", "_", selection)
+                }
+                
+                df <- cell.types()
 
-                                
-                                for(i in 1: nrow(mge)){
-                                          for(j in 1: length(selection)){
-                                                    mge$genes[i]<- gsub(j, selection[j], mge$genes[i])
-                                          }
-                                }
-                                
-                                ct <- c()
-                                for(i in 1: nrow(mge)){
-                                          
-                                          cellName <- as.character(rdt$cell_type[i])
-                                          cellInfo <- paste(cellName, 
-                                                            "\n| genes: ", 
-                                                            mge$genes[i],
-                                                            "\n| precision:", 
-                                                            mge$precision[i], 
-                                                            "\n| recall:", 
-                                                            mge$recall[i],
-                                                            "\n| f1:", 
-                                                            mge$f1[i],"\n\n")
-                                          ct <- c(ct, cellInfo)
-                                          
-                                          
-                                }
-                                if(length(s)!=0) {
-                                          cat(ct[s])
-                                          
-                                } else {
-                                          print("Select cell types to view marker evaluation")
-                                }
-                      } else {
-                                ct <- c()
-                      }
+                if(!is.null(df$cell_type)) {
+                    rdt <- if(all(startsWith(object@index$genes(), "chr") == T)) phyper.test(object, df, gsub(":|-", "_", input$datasetCheckbox)) else phyper.test(object, df, input$datasetCheckbox)
+                    mge <- if(length(unique(df$cell_type)) < 2) evaluateMarkers(object, selection, as.character(unique(df$cell_type))) else evaluateMarkers(object, selection, rdt$cell_type[s])
+                    if(nrow(mge) != 0){
+                        mge <- mge[order(mge$genes),]
+                        mge <- mge[order(mge[,1]),]
+                        mge$genes <- if(all(startsWith(object@index$genes(), "chr") == T)) gsub("_", "-", sub("_", ":", mge$genes)) else mge$genes
+                        mge$precision <- paste(as.character(mge$genes), ": ", round((mge$precision), digits = 3))
+                        mge$recall <- paste(mge$genes, ": ", round((mge$recall), digits = 3))
+                        mge$f1 <- paste(mge$genes, ": ", round((mge$f1), digits = 3))
+                        mge <- aggregate(.~cellType, mge[,c("cellType", "precision", "recall", "f1")], FUN=toString)
+                    }
+                } else {
+                    data.table()
+                }
+
+            }, extensions = 'Buttons' , options = list(columnDefs = list(list(width = '90px', targets = c(1, 2, 3))), dom = 'Bfrtip', buttons = c('copy', 'csv', 'excel')), 
+            colnames = c('Cell types', 'Precision', 'Recall', 'F1 score'), 
+            rownames = F)
+            
+            output$ctData <- renderText({
+                s = input$cellTypesData_rows_selected
+                selection <- toString(input$geneCheckbox)
+                
+                df <- cell.types()
+                if (nrow(df) != 0 && length(input$datasetCheckbox) != 0)
+                {
+                    rdt <- if(all(startsWith(object@index$genes(), "chr") == T)) phyper.test(object, df, gsub(":|-", "_", input$datasetCheckbox)) else phyper.test(object, df, input$datasetCheckbox)
+                    
+                    if(nrow(rdt) > 0){
+                        if(nrow(rdt) == 1){
+                            paste0("Marker evaluation of ", selection, " in ", rdt$cell_type, ": ")
+                        } else {
+                            if(!is.null(selection) && !is.null(s)){
+                                paste0("Marker evaluation of ", selection, " in ", length(s), if(length(s) < 2) " cell type:" else " cell types:")
+                            } else {
+                                paste0("<span style = 'color: rgb(0, 180, 204);'>Select above cell types to compare marker evaluation of ", selection, "</span>")
+                            }
+                        }
+                        
+                    } else {
+                        ""
+                    }
+                }
+       
             })
-            
-            
+
             
             output$selectedQuery <- renderText({
-                      
-                      if(nrow(cell.types()) != 0){
-                                selectedList <- paste(input$geneCheckbox, collapse=", ")
-                              paste("Scfind found ", length(unique(cell.types()$cell_type)), " cell types for: ", selectedList)
-                      } else if(nrow(cell.types()) == 0 && length(gene.list()) != 0 && length(input$datasetCheckbox) != 0) {
-                                paste("Expecting specific cell types?", "Select our recommended query!", sep="<br>")
-            } else {
-                                ""
-                      }
-
+                selectedList = input$queryOptimizer_rows_selected
+                df <- cell.types()
+                
+                if(!is.null(df$cell_type)) {
+                    list.indx <- intersect(grep('chr', input$geneCheckbox), grep('_', input$geneCheckbox))
+                    
+                    paste("Scfind found ", length(unique(cell.types()$cell_type)), if ((length(unique(cell.types()$cell_type))) < 2) " cell type" else " cell types for the <I>selected query</I>:")
+                } else {
+                    if (!is.null(recommended.queries()) && length(gene.list()) != 0 && length(input$datasetCheckbox) != 0 && nrow(gene.support()) != 0)  paste("Expecting specific cell types?", "Select our recommended query!", sep="<br>") else ""
+                }
             })
             
             output$suggestHyper <- renderText({
-                if(length(input$datasetCheckbox) == 0 && length(gene.list()) != 0){
+                if(length(input$datasetCheckbox) == 0 && input$geneList != ""){
                     "Oops! dataset is missing."
-                }
-                else if(length(gene.list()) != 0){
-                    "Recommended query for the initial genesets: "
+                } else if(input$geneList != "" && sum(gene.support()$support) == 0){
+                    
+                    if(all(startsWith(object@index$genes(), "chr") == T)){
+                        paste("Please follow the format below for your query: ", 
+                              "",
+                              "chr13:56515712-56516189 , chr5:136247792-136248036", 
+                              "",
+                              "for search of", 
+                              "'chromosome 13, Start at 56515712, End at 56516189", 
+                              "and chromosome 5, Start at 136247792, End at 136248036'", 
+                              sep="<br>")
+                    } else {
+                        paste("Please follow the format below for your query: ",
+                              "",
+                              paste(sample(object@index$genes(), 5), collapse = ' , '),
+                              sep="<br>")
+                    }
+
+                } else if(length(gene.list()) != 0){
+                    if(sum(gene.support()$support) != 0 && length(recommended.queries()) != 0){ 
+                        "Recommended queries for the initial gene set: "
+                    } 
                 } else {
                     ""
                 }
             })
-          
+            
+            output$lociRegions <- renderText({
+                if(all(startsWith(object@index$genes(), "chr") == T)){
+                    text <- gsub("\\s|,", ",", input$geneList)
+                    gene.list.input <- unlist(strsplit(text, ","))
+                    gene.list.input <- unique(gene.list.input[grep("chr",gsub("_", "-", sub("_", ":", tolower(gene.list.input))))])
+                    gene.list.input <- gene.list.input[grep(":", gene.list.input)]
+                    gene.list.input <- gene.list.input[which(as.numeric(gsub(".*:(.*)\\-.*", "\\1", gene.list.input)) < as.numeric(gsub(".*-", "", gene.list.input)))]
+                    
+                    
+                    if(length(gene.list.input) != 0){
+                        peak.indx <- list()
+                        gene.names.all <- object@index$genes()
+                        
+                        p.pos <- list(p.chr = c(), p.start = 0, p.end = 0)
+                        p.pos$p.chr <- gsub("_.*$", "", gene.names.all)
+                        p.pos$p.start <- as.numeric(gsub(".*_(.*)\\_.*", "\\1", gene.names.all))
+                        p.pos$p.end <- as.numeric(gsub(".*_", "", gene.names.all))
+                        p.pos <- data.frame(p.pos)
+    
+                        for(i in 1: length(gene.list.input)){
+                            peak.tmp <- which(p.pos$p.chr == tolower(gsub(":.*$", "", gene.list.input[i])) & p.pos$p.start >= as.numeric(gsub(".*:(.*)\\-.*", "\\1", gene.list.input[i])) & p.pos$p.end <= as.numeric(gsub(".*-", "", gene.list.input[i])))
+                            peak.indx$index <- c(peak.indx$index, peak.tmp)
+                            for(j in 1:length(peak.tmp)){
+                                peak.indx$input <- c(peak.indx$input, gene.list.input[i])
+                                peak.indx$loc_1 <- c(peak.indx$loc_1, as.numeric(gsub(".*:(.*)\\-.*", "\\1", gene.list.input[i])))
+                                peak.indx$loc_4 <- c(peak.indx$loc_4, as.numeric(gsub(".*-", "", gene.list.input[i])))
+                                
+                            }
+                        }
+                        
+                        peak.indx <- data.frame(peak.indx)
+                        peak.indx$chromosome <- p.pos$p.chr[peak.indx$index]
+                        peak.indx$loc_2 <- as.numeric(p.pos$p.start[peak.indx$index])
+                        peak.indx$loc_3 <- as.numeric(p.pos$p.end[peak.indx$index])
+                        peak.indx <- peak.indx[c(3,6,7,4,5,2)]
+                        
+                        ucsc <- "<a href='https://genome.ucsc.edu/cgi-bin/hgTracks?db=mm9&position="
+                        
+                        chr.chart <- paste0("<br><h4>Available Peak Locations</h4><p>(Click locus to view in UCSC Genome Browser)</p><table>")
+                        
+                        for(i in 1: nrow(peak.indx)){
+                            
+                            locus <- peak.indx[i,]
+                            
+                            ucsc_end <- paste0("' class='ucsc' target='_blank' title='Click to view Mouse mm9: ", locus$input, " UCSC Genome Browser'>", "【")
+                            ucsc_a <- paste(ucsc, locus$chromosome, "%3A", locus[2], "%2D", locus[3], ucsc_end, sep="")
+
+                            gap <- locus[2] - locus[1]
+                            
+                            chromosome <- if(gap < 200) c() else paste0(locus[1], (if(gap<=400) paste(rep("&#8594;", (gap/200))) else paste("&#8594;", "...", "&#8594;")))
+    
+                            gap <- locus[3] - locus[2]        
+                            chromosome <- paste0(chromosome, ucsc_a, locus[2], paste(rep("&#187;", (gap/100)),collapse = ""), locus[3], "】", "</a>" )
+                            
+                            gap <- locus[4] - locus[3]
+                            
+                            chromosome <- if(gap < 200) chromosome else paste0(chromosome, (if(gap<=400) paste(rep("&#8594;", (gap/200))) else paste("&#8594;", "...", "&#8594;")), locus[4]) 
+                            chromosome <- paste("<tr><td>", locus$chromosome, "</td><td", if(i == nrow(peak.indx)) " class='border-lb'>" else " class='border-l'>", "...", chromosome, "...", "</td></tr>")
+                            chr.chart <- paste(chr.chart, chromosome, (if(i == nrow(peak.indx))"<tr><td></td><td style = 'text-align: center; font-size: 10px;'>base (Mouse mm9)</td></tr></table>" else ""))
+                        }
+                        
+                        chr.chart
+                    }
+                } else {
+                    ''
+                }
+                
+                
+            })
+            
+            
             output$geneSupportHisto <- renderPlot({
                       df <- gene.support()
-                      if (nrow(df) != 0)
+                      
+                      if (nrow(df) != 0 && length(grep(TRUE, (df$genes %in% object@index$genes()))) != 0)
                       {
-                                g <- ggplot(df, aes(x=genes, y= support)) +
+                                list.indx <- intersect(grep('chr', df$genes), grep('_', df$genes))
+                                if(length(list.indx) != 0) df$genes <- gsub('_', '-', sub('_', ':', df$genes[list.indx]))
+
+                                max.axis <- max(df$support)
+                                g <- ggplot(df, aes(x = genes, y = support), colour = support) +
                                           xlab("") + 
                                           ylab("Cells") +
-                                          geom_col(color = "blue") +
+                                          ggplot2::ylim(0, max.axis) +
+                                          ggplot2::geom_text(aes(label=df$genes), vjust = -3, hjust = "inward", size = 4) +
+                                          geom_col(fill = rainbow(length(df$genes)), position = "dodge", width = .5, alpha = .5, colour = "black") + 
+                                          theme_minimal() + 
                                           coord_flip() +
-                                          ggplot2::theme() +
+                                          ggplot2::theme(panel.grid.minor = ggplot2::element_blank(), axis.text.y=ggplot2::element_blank(),
+                                                         panel.background = ggplot2::element_blank(), axis.line = ggplot2::element_line(colour = "black")) +
                                           ggplot2::scale_x_discrete(limits = rev(df$genes))
                       }
                       else
@@ -546,6 +736,7 @@ server.scfind <- function(object)
                                 g <- plot(0,type='n',axes=FALSE,ann=FALSE)
                       }
                       g
+                      
             })
             
 
@@ -578,7 +769,7 @@ setMethod("scfindShinyServer", signature(object = "SCFind"), server.scfind)
 #' @importFrom shiny shinyApp
 #' @importFrom graphics plot
 scfind.interactive <- function(object) {
-
+    
     if (is.null(object@index) || length(object@datasets) == 0) {
         warning("You should consider the option of indexing a dataset")
         return()

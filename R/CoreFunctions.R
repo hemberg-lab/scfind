@@ -103,6 +103,26 @@ scfind.get.genes.in.db <- function(object){
 }
 
 
+
+
+caseCorrect <- function(object, gene.list){
+    
+    lo.gene.list <- tolower(gene.list)
+    lo.gene.names <- tolower(object@index$genes())
+    
+    gene.index <- NULL
+    
+    for(i in 1: length(lo.gene.list)){
+        gene.index <- c(gene.index, which(lo.gene.names == lo.gene.list[i]))
+    }
+    
+    lo.gene.list <- object@index$genes()[gene.index]
+    
+    
+    return(lo.gene.list[!duplicated(lo.gene.list)]) 
+}
+
+
 #' Opens \code{scfind} index in an interactive session in a web browser.
 #'
 #' Runs interactive \code{shiny} session of \code{scfind} based on the indexed project.
