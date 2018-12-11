@@ -3,13 +3,28 @@
 \docType{methods}
 \name{markerGenes}
 \alias{markerGenes}
-\alias{markerGenes,SCFind,character-method}
+\alias{find.marker.genes}
+\alias{markerGenes,SCFind,character,character-method}
 \title{Performs query optimization and return the best candidate gene sets}
 \usage{
 markerGenes(object, gene.list, datasets)
 
-\S4method{markerGenes}{SCFind,character}(object, gene.list, datasets)
+find.marker.genes(object, gene.list, datasets)
+
+\S4method{markerGenes}{SCFind,character,character}(object, gene.list,
+  datasets)
+}
+\arguments{
+\item{object}{SCFind object}
+
+\item{gene.list}{A list of Genes existing in the database}
+
+\item{datasets}{the datasets of the objects to be considered}
+}
+\value{
+hierarchical list of queries and their respective scores
 }
 \description{
-Performs query optimization and return the best candidate gene sets
+This function can be used with quite long gene lists
+that otherwise would have no cell hits in the database
 }

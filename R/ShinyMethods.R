@@ -5,6 +5,7 @@
 #'
 #' @importFrom shiny  sidebarLayout actionButton textInput navbarPage navbarMenu plotOutput fluidPage fluidRow column h1 h2 h3 h4 a  HTML sidebarPanel uiOutput checkboxGroupInput actionLink plotOutput verbatimTextOutput
 #' @importFrom DT dataTableOutput
+#' @export
 ui.scfind <- function()
 {
     fluidPage(
@@ -240,10 +241,10 @@ ui.scfind <- function()
 #'
 #' @param object An SCFind object that the shiny app will be deployed upon
 #'
-#' @name server.scfind
-#' @aliases server.scfind
+#' @name scfindShinyServer
+#' @aliases scfindShinyServer
 #'
-#' @importFrom shiny renderPlot stopApp checkboxGroupInput observeEvent observe reactiveVal renderText renderPrint
+#' @importFrom shiny reactive updateCheckboxGroupInput renderPlot stopApp checkboxGroupInput observeEvent observe reactiveVal renderText renderPrint
 #' @importFrom DT renderDataTable datatable
 #' @importFrom data.table as.data.table data.table
 #' @importFrom ggplot2 ggplot geom_bar geom_col ggtitle xlab ylab aes coord_flip theme_minimal
@@ -418,7 +419,9 @@ server.scfind <- function(object)
                           dimnames(gene.support)[[2]] <- 'support'
                           gene.support$genes <- rownames(gene.support)
                       } else {
-                          gene.support <- data.frame(support = c(), genes = c())
+                          gene.support <- data.frame()
+                          gene.support$support <- c()
+                          gene.support$genes <-  c()
                           print('Initiating datasets or dataset not defined')
                       }
                       gene.support
@@ -548,7 +551,6 @@ server.scfind <- function(object)
 
 
 
-#' The scfind server method
 #' @rdname scfindShinyServer
 #' @aliases scfindShinyServer
 setMethod("scfindShinyServer", signature(object = "SCFind"), server.scfind)
@@ -559,12 +561,12 @@ setMethod("scfindShinyServer", signature(object = "SCFind"), server.scfind)
 #'
 #' Runs interactive \code{shiny} session of \code{scfind} based on the indexed project.
 #'
+#' @name scfindShiny
+#' 
 #' @param object an object of \code{SCFind} class
 #'
 #' @return Opens a browser window with an interactive \code{shiny} app and visualize queries on the dataset.
 #' 
-#' @name scfind.interactive
-#' @aliases scfind.interactive
 #'
 #' @importFrom shiny shinyApp
 #' @importFrom graphics plot
@@ -581,20 +583,8 @@ scfind.interactive <- function(object) {
     )
 }
 
-#' @rdname scfind.interactive
-#' @aliases scfind.interactive
+#' @rdname scfindShiny
+#' @aliases scfindShiny
 setMethod("scfindShiny", signature(object = "SCFind"), scfind.interactive)
 
 
-
-#' Get all genes in the database
-scfind.get.genes.in.db <- function(object){
-    
-    return(object@index$genes())
-
-}
-
-
-#' @rdname scfind.get.genes.in.db
-#' @aliases scfind.get.genes.in.db
-setMethod("scfindGenes", signature(object = "SCFind"), scfind.get.genes.in.db)

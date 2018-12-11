@@ -11,8 +11,6 @@
 #include "EliasFano.h"
 #include "Serialization.h"
 
-// Rcpp::plugins(cpp11)
-
 CellMeta::CellMeta() : reads(0), features(0)
 {}
 
@@ -78,6 +76,7 @@ void QueryScore::cell_type_relevance(const EliasFanoDB& db, const Rcpp::List& ge
   {
     it = it->second.empty() ? ct_map.erase(it) : ++it;
   }
+
   for (auto const& _ct : ct_map)
   {
     const std::string& ct = _ct.first;
@@ -136,8 +135,6 @@ void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasF
   // for the cutoff estimation each gene is assigned a score .
   // That way we can estimate the distribution of the input gene list 
   // and do more accurate cutoff estimations
-
-
 
   // Build the reduced expression matrix
   for (size_t gene_row = 0; gene_row < tmp_strings.size(); ++gene_row)
