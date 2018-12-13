@@ -16,7 +16,7 @@
 #' @importFrom hash hash
 #' @importFrom methods new
 #' 
-#' @importFrom Rcpp sourceCpp
+#' @importFrom Rcpp cpp_object_initializer
 #' @useDynLib scfind 
 #' 
 buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name = 'counts', cell.type.label = 'cell_type1')
