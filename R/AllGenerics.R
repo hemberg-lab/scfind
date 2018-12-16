@@ -1,4 +1,5 @@
 #' The scfind main class object
+#'
 #' @export
 setClass("SCFind",
          representation(
@@ -30,12 +31,6 @@ setGeneric(name = "mergeSCE", def = function(object, sce, dataset.name) {
     standardGeneric("mergeSCE")
 })
 
-
-#' queries cells that contain the genes from the list#
-#' @export 
-setGeneric(name = "queryGene", def = function(object, gene, datasets) {
-    standardGeneric("queryGene")
-})
 
 #' queries cells that contain all the genes from the list
 #' @export

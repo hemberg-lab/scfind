@@ -22,15 +22,14 @@ Description: Recently a very large collection of single-cell RNA-seq (scRNA-seq)
              genes is expressed.
 License: GPL-3
 Imports:
-    SingleCellExperiment, methods, Rcpp (>= 0.8.5), SummarizedExperiment, shiny, data.table, DT, hash, ggplot2, stats, methods
+    SingleCellExperiment, methods, Rcpp (>= 0.8.5), SummarizedExperiment, shiny, data.table, DT, hash, ggplot2, stats
 LinkingTo: Rcpp, RcppArmadillo
-Depends: R(>= 3.4), methods, Rcpp
+Depends: R(>= 3.4)
 RcppModules: EliasFanoDB
 Encoding: UTF-8
 LazyLoad: yes
 RoxygenNote: 6.1.1
-Suggests: knitr,
-    rmarkdown
+Suggests: knitr, rmarkdown
 VignetteBuilder: knitr
 biocViews: SingleCell, Software, RNASeq, Transcriptomics, 
             DataRepresentation, Transcription, Sequencing,

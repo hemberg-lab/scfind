@@ -1,14 +1,19 @@
 citHeader("To cite scmap in publications use:")
 
 citEntry(entry="article",
-         title = "scmap - A tool for unsupervised projection of single cell RNA-seq data",
-         author = personList( as.person("Vladimir Yu. Kiselev"),
-                              as.person("Martin Hemberg")),
-         year = 2017,
+         title = "scfind - Fast search for genes in large scRNA-seq collections",
+         author = personList(
+             as.person("Nikolaos Patikas"),
+             as.person("Jimmy Lee"),
+             as.person("Vladimir Yu. Kiselev"),
+             as.person("Martin Hemberg")),
+         year = 2019,
          journal = "bioRxiv",
-         url = "http://doi.org/10.1101/150292",
+         url = "https://github.com/hemberg-lab/scfind",
          textVersion = 
-         paste("Vladimir Yu. Kiselev, Martin Hemberg (2017): ", 
-               "scmap - A tool for unsupervised projection of single cell RNA-seq data. ",
-               "bioRxiv, ",
-                "URL: http://doi.org/10.1101/150292" ) )
+             paste(
+                 "Nikolaos Patikas, Jimmy Lee, Vladimir Yu. Kiselev, Martin Hemberg (2019): ", 
+                 "scfind - Fast search for genes in large scRNA-seq collections",
+                 "github,",
+                 "URL: https://github.com/hemberg-lab/scfind" )
+         )

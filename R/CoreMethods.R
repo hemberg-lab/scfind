@@ -16,7 +16,7 @@
 #' @importFrom hash hash
 #' @importFrom methods new
 #' 
-#' @importFrom Rcpp sourceCpp
+#' @importFrom Rcpp cpp_object_initializer
 #' @useDynLib scfind 
 #' 
 buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name = 'counts', cell.type.label = 'cell_type1')
@@ -40,7 +40,7 @@ buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name = 'counts', 
         ## print(paste("Found", length(cell.types), "clusters on", ncol(sce), "cells"))
         if( ! assay.name %in% assayNames(sce))
         {
-            error(paste('Assay name', assay.name, 'not found in the SingleCellExperiment'))
+            stop(paste('Assay name', assay.name, 'not found in the SingleCellExperiment'))
         }
         else
         {
@@ -111,6 +111,9 @@ setMethod("saveObject",  definition = save.serialized.object)
 #'
 #' After loading the database it clears the loaded bytestream from the memory.
 #'
+#' @param filename the filepath of a specialized serialized scfind object
+#' 
+#' @return an \code{SCFind} object
 #' @name loadObject
 load.serialized.object <- function(filename){
     object <-  readRDS(filename)
@@ -161,6 +164,7 @@ merge.dataset.from.object <- function(object, new.object)
     object@datasets <- c(object@datasets, new.object@datasets)
     return(object)
 }
+
 #' Used to merge multiple eliasfanoDB
 #'
 #' 
@@ -205,7 +209,7 @@ setMethod("mergeSCE",
 #' This function can be used with quite long gene lists
 #' that otherwise would have no cell hits in the database
 #' 
-#' 
+#' @name markerGenes
 #' @param object SCFind object
 #' @param gene.list A list of Genes existing in the database
 #' @param datasets the datasets of the objects to be considered
@@ -225,20 +229,21 @@ find.marker.genes <-  function(object, gene.list, datasets)
 setMethod("markerGenes",
           signature(
               object = "SCFind",
-              gene.list = "character"),
+              gene.list = "character",
+              datasets = "character"),
           find.marker.genes)
 
 #' Find marker genes for a specific cell type
-#' TODO(the genes can be ordered by precision recall or the f1 metric)
 #'
+#' @name cellTypeMarkers
+#' 
 #' @param object SCFind object
 #' @param cell.types the cell types that we want to extract the marker genes
 #' @param background.cell.types the universe of cell.types to consider
 #' @param top.k how many genes to retrieve
 #' @param sort.field the dataframe will be sorted according to this field
 #'
-#' @return a data.frame that each row represent a gene score for a specific cell type
-#' 
+#' @return a data.frame that each row represent a gene score for a specific cell type 
 cell.type.marker <- function(object, cell.types, background.cell.types, top.k, sort.field)
 {
     if (missing(background.cell.types))
@@ -255,6 +260,10 @@ cell.type.marker <- function(object, cell.types, background.cell.types, top.k, s
     all.cell.types <- all.cell.types[order(all.cell.types[[sort.field]], decreasing = T)[1:top.k],]
     return(all.cell.types)
 }
+
+
+#' @rdname cellTypeMarkers
+#' @aliases cellTypeMarkers
 setMethod("cellTypeMarkers",
           signature(
               object = "SCFind",
@@ -265,7 +274,7 @@ setMethod("cellTypeMarkers",
 
 #' Return a vector with all existing cell type names in the database
 #' 
-#' 
+#' @name cellTypeNames
 #' @param object SCFind object
 #'
 #' @return a character list
@@ -273,7 +282,8 @@ get.cell.types.names <- function(object)
 {
     return(object@index$getCellTypes())
 }
-
+#' @rdname cellTypeMarkers
+#' @aliases cellTypeMarkers
 setMethod("cellTypeNames",
           signature(
               object = "SCFind"),
@@ -282,6 +292,7 @@ setMethod("cellTypeNames",
 
 #' Evaluate a user specific query by calculating the precision recall metrics
 #'
+#' @name evaluateMarkers
 #' @param object the \code{SCFind} object
 #' @param gene.list the list of genes to be evaluated
 #' @param cell.types a list of cell types for the list to evaluated
@@ -308,6 +319,8 @@ evaluate.cell.type.markers <- function(object, gene.list, cell.types, background
     
 }
 
+#' @rdname evaluateMarkers
+#' @aliases evaluateMarkers
 setMethod("evaluateMarkers",
           signature(
               object = "SCFind",
@@ -319,10 +332,10 @@ setMethod("evaluateMarkers",
 
 #' Runs a query and performs the hypergeometric test for the retrieved cell types
 #'
-#' 
+#' @name hyperQueryCellTypes
 #' @param object the \code{SCFind} object
 #' @param gene.list the list of genes to be queried
-#' @param dataset the datasets that will be tested as background for the hypergeometric test
+#' @param datasets the datasets vector that will be tested as background for the hypergeometric test
 #'
 #' @return a DataFrame that contains all cell types with the respective cell cardinality and the hypergeometric test
 cell.types.phyper.test <- function(object, gene.list, datasets)
@@ -330,13 +343,16 @@ cell.types.phyper.test <- function(object, gene.list, datasets)
     result <- findCellTypes(object, gene.list, datasets)
     
     return(phyper.test(object, result, datasets))
-      
+    
 }
 
-
+#' @rdname hyperQueryCellTypes
+#' @aliases hyperQueryCellTypes
+#' 
 setMethod("hyperQueryCellTypes",
           signature(object = "SCFind",
-                    gene.list = "character"),
+                    gene.list = "character",
+                    datasets = "character"),
           cell.types.phyper.test)
 
 
@@ -346,8 +362,8 @@ setMethod("hyperQueryCellTypes",
 #' @param object the \code{SCFind} object
 #' @param gene.list genes to be searched in the gene.index
 #' @param datasets the datasets that will be considered
+#' 
 #' @name findCellTypes
-#'
 #' @return a named numeric vector containing p-values
 findCellTypes.geneList <- function(object, gene.list, datasets)
 {
@@ -357,21 +373,21 @@ findCellTypes.geneList <- function(object, gene.list, datasets)
     
 }
 
-#' queries cells that contain all the genes from the list
-#' @rdname findCellTypes
-#' @aliases findCellTypes
-setMethod("findCellTypes", signature(object = "SCFind", gene.list = "character"), findCellTypes.geneList)
 
-
-
+#' Get all genes in the database
+#'
+#' @name scfindGenes
+#' 
+#' @param object the \code{scfind} object
+#'
+#' @return the list of genes present in the database
 scfind.get.genes.in.db <- function(object){
     
     return(object@index$genes())
 
 }
 
-#' Get all genes in the database
-#' 
+
 #' @rdname scfindGenes
 #' @aliases scfindGenes
 setMethod("scfindGenes", signature(object = "SCFind"), scfind.get.genes.in.db)

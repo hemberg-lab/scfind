@@ -1,5 +1,4 @@
 #pragma once
-/* #include <Rcpp.h> */
 #include <iostream>
 
 #include <algorithm>
@@ -58,7 +57,7 @@ class CellMeta
 public:                                               
   int reads;
   int features;
-  int getReads()const 
+  int getReads() const 
   {
     return reads;
   }
