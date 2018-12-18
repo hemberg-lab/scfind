@@ -1,5 +1,6 @@
 #' The scfind main class object
 #'
+#' @include zzz.R
 #' @export
 setClass("SCFind",
          representation(
