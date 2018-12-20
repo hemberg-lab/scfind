@@ -6,7 +6,8 @@ setClass("SCFind",
          representation(
              index = "Rcpp_EliasFanoDB",
              datasets = "character",
-             serialized = "raw"))
+             serialized = "raw"
+             ))
 
 
 #' 

@@ -34,6 +34,27 @@ contigency.table <- function(query.results)
     
 }
 
+caseCorrect <- function(object, gene.list)
+{
+    
+    lo.gene.list <- tolower(gene.list)
+    lo.gene.names <- tolower(object@index$genes())
+    
+    gene.index <- NULL
+    
+    for(i in 1: length(lo.gene.list))
+    {
+        gene.index <- c(gene.index, which(lo.gene.names == lo.gene.list[i]))
+    }
+    
+    lo.gene.list <- object@index$genes()[gene.index]
+    
+    
+    return(lo.gene.list[!duplicated(lo.gene.list)])
+}
+
+
+
 #' @importFrom stats aggregate p.adjust phyper setNames
 phyper.test <- function(object, result, datasets)
 {
