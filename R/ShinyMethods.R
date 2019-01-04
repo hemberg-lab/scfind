@@ -83,8 +83,7 @@ ui.scfind <- function()
                             position: absolute;
                             top: 20%;
                             }
-                            
-                            
+
                             #main h3 {
                             margin-top: 0;
                             text-align: center;
@@ -182,8 +181,7 @@ ui.scfind <- function()
                             overflow: scroll;
                             z-index: 3;
                             }
-                            
-                            
+
                             .datasetsBox:hover {
                             bottom: 0;
                             }
@@ -310,7 +308,7 @@ server.scfind <- function(object)
                                 p.pos$p.start <- as.numeric(gsub(".*_(.*)\\_.*", "\\1", gene.names.all))
                                 p.pos$p.end <- as.numeric(gsub(".*_", "", gene.names.all))
                                 p.pos <- data.frame(p.pos)
-
+                                
                                 for(i in 1: length(gene.list.input)){
                                     chr.list.input <- c(chr.list.input, gene.names.all[which(p.pos$p.chr == tolower(gsub(":.*$", "", gene.list.input[i])) & p.pos$p.start >= as.numeric(gsub(".*:(.*)\\-.*", "\\1", gene.list.input[i])) & p.pos$p.end <= as.numeric(gsub(".*-", "", gene.list.input[i])))])
                                 }
@@ -359,7 +357,7 @@ server.scfind <- function(object)
             output$geneCheckbox <- renderUI({
                 genes.in.list <- caseCorrect(object, as.character(gene.list()))
                 ## else fallback
-                
+
                 selection <- caseCorrect(object, gene.list())
                 
                 list.indx <- intersect(grep('chr', genes.in.list), grep('_', genes.in.list))
@@ -606,7 +604,7 @@ server.scfind <- function(object)
                     
                     paste("Scfind found ", length(unique(cell.types()$cell_type)), if ((length(unique(cell.types()$cell_type))) < 2) " cell type" else " cell types for the <I>selected query</I>:")
                 } else {
-                    if (!is.null(recommended.queries()) && length(gene.list()) != 0 && length(input$datasetCheckbox) != 0 && nrow(gene.support()) != 0)  paste("Expecting specific cell types?", "Select our recommended query!", sep="<br>") else ""
+                    if (nrow(recommended.queries()) != 0 && length(gene.list()) != 0 && length(input$datasetCheckbox) != 0 && nrow(gene.support()) != 0)  paste("Expecting specific cell types?", "Select our recommended query!", sep="<br>") else ""
                 }
             })
             
@@ -658,7 +656,7 @@ server.scfind <- function(object)
                         p.pos$p.start <- as.numeric(gsub(".*_(.*)\\_.*", "\\1", gene.names.all))
                         p.pos$p.end <- as.numeric(gsub(".*_", "", gene.names.all))
                         p.pos <- data.frame(p.pos)
-    
+                        
                         for(i in 1: length(gene.list.input)){
                             peak.tmp <- which(p.pos$p.chr == tolower(gsub(":.*$", "", gene.list.input[i])) & p.pos$p.start >= as.numeric(gsub(".*:(.*)\\-.*", "\\1", gene.list.input[i])) & p.pos$p.end <= as.numeric(gsub(".*-", "", gene.list.input[i])))
                             peak.indx$index <- c(peak.indx$index, peak.tmp)
