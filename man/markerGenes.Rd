@@ -4,15 +4,14 @@
 \name{markerGenes}
 \alias{markerGenes}
 \alias{find.marker.genes}
-\alias{markerGenes,SCFind,character,character-method}
+\alias{markerGenes,SCFind,character-method}
 \title{Performs query optimization and return the best candidate gene sets}
 \usage{
 markerGenes(object, gene.list, datasets)
 
 find.marker.genes(object, gene.list, datasets)
 
-\S4method{markerGenes}{SCFind,character,character}(object, gene.list,
-  datasets)
+\S4method{markerGenes}{SCFind,character}(object, gene.list, datasets)
 }
 \arguments{
 \item{object}{SCFind object}

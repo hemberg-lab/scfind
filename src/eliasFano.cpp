@@ -177,7 +177,7 @@ void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasF
         
         // tfidf calculation ( the expression value , the total reads of that cell and the gene transcript abundance)
         tfidf_vec[gene_row] = (expr_values[expr_index++] / db.cells.at(cell).reads) * gene_idf;
-        Rcpp::Rcout << "gene " << gene << " cell type " << cell_type << " " << db.cells.at(cell).reads << std::endl;
+        // Rcpp::Rcout << "gene " << gene << " cell type " << cell_type << " " << db.cells.at(cell).reads << std::endl;
 
         // gene_score calculation for  the cutoff estimation
         gene_score += tfidf_vec[gene_row];
