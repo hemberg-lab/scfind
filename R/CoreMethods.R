@@ -115,10 +115,11 @@ setMethod("saveObject",  definition = save.serialized.object)
 #' 
 #' @return an \code{SCFind} object
 #' @name loadObject
+#'
+#' @useDynLib scfind
 load.serialized.object <- function(filename){
     object <-  readRDS(filename)
     # Deserialize object
-    loadModule('EliasFanoDB')
     object@index <-  new(EliasFanoDB)
     success <- object@index$loadByteStream(object@serialized)
     object@serialized <- raw()
@@ -229,8 +230,7 @@ find.marker.genes <-  function(object, gene.list, datasets)
 setMethod("markerGenes",
           signature(
               object = "SCFind",
-              gene.list = "character",
-              datasets = "character"),
+              gene.list = "character"),
           find.marker.genes)
 
 #' Find marker genes for a specific cell type
@@ -351,8 +351,7 @@ cell.types.phyper.test <- function(object, gene.list, datasets)
 #' 
 setMethod("hyperQueryCellTypes",
           signature(object = "SCFind",
-                    gene.list = "character",
-                    datasets = "character"),
+                    gene.list = "character"),
           cell.types.phyper.test)
 
 
@@ -381,7 +380,8 @@ findCellTypes.geneList <- function(object, gene.list, datasets)
 #' @param object the \code{scfind} object
 #'
 #' @return the list of genes present in the database
-scfind.get.genes.in.db <- function(object){
+scfind.get.genes.in.db <- function(object)
+{
     
     return(object@index$genes())
 

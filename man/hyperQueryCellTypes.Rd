@@ -4,13 +4,13 @@
 \name{hyperQueryCellTypes}
 \alias{hyperQueryCellTypes}
 \alias{cell.types.phyper.test}
-\alias{hyperQueryCellTypes,SCFind,character,character-method}
+\alias{hyperQueryCellTypes,SCFind,character-method}
 \title{Runs a query and performs the hypergeometric test for the retrieved cell types}
 \usage{
 cell.types.phyper.test(object, gene.list, datasets)
 
-\S4method{hyperQueryCellTypes}{SCFind,character,character}(object,
-  gene.list, datasets)
+\S4method{hyperQueryCellTypes}{SCFind,character}(object, gene.list,
+  datasets)
 }
 \arguments{
 \item{object}{the \code{SCFind} object}
