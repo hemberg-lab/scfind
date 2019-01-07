@@ -276,6 +276,7 @@ server.scfind <- function(object)
                           gene.list.input <- unlist(strsplit(text, ","))
                           last.query.state("genelist")
                           print(paste("GeneList",gene.list.input))
+                          gene.list.input <- caseCorrect(gene.list.input)
                           gene.list(gene.list.input)
             })
 

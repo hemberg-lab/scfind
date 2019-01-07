@@ -1,11 +1,13 @@
 #' The scfind main class object
 #'
+#' @include zzz.R
 #' @export
 setClass("SCFind",
          representation(
              index = "Rcpp_EliasFanoDB",
              datasets = "character",
-             serialized = "raw"))
+             serialized = "raw"
+             ))
 
 
 #' 
