@@ -6,12 +6,10 @@
 #include <stdexcept>
 
 #include "scfind_types.h"
-#include "fp_growth.hpp"
+#include "fp_growth.h"
 #include "functions.h"
-#include "EliasFano.hpp"
-#include "Serialization.hpp"
-
-
+#include "EliasFano.h"
+#include "Serialization.h"
 
 CellMeta::CellMeta() : reads(0), features(0)
 {}
@@ -78,6 +76,7 @@ void QueryScore::cell_type_relevance(const EliasFanoDB& db, const Rcpp::List& ge
   {
     it = it->second.empty() ? ct_map.erase(it) : ++it;
   }
+
   for (auto const& _ct : ct_map)
   {
     const std::string& ct = _ct.first;
@@ -137,8 +136,6 @@ void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasF
   // That way we can estimate the distribution of the input gene list 
   // and do more accurate cutoff estimations
 
-
-
   // Build the reduced expression matrix
   for (size_t gene_row = 0; gene_row < tmp_strings.size(); ++gene_row)
   {
@@ -180,7 +177,9 @@ void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasF
         
         // tfidf calculation ( the expression value , the total reads of that cell and the gene transcript abundance)
         tfidf_vec[gene_row] = (expr_values[expr_index++] / db.cells.at(cell).reads) * gene_idf;
+
         console_message == true ? Rcpp::Rcout << "gene " << gene << " cell type " << cell_type << " " << db.cells.at(cell).reads << std::endl : Rcpp::Rcout << ""; 
+
 
         // gene_score calculation for  the cutoff estimation
         gene_score += tfidf_vec[gene_row];

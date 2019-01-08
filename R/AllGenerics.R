@@ -1,10 +1,12 @@
 #' The scfind main class object
+#'
 #' @export
 setClass("SCFind",
          representation(
-             index = "Rcpp_EliasFanoDB",
+             index = "ANY", #Index is type of Rcpp_EliasFanoDB but this removes the warning
              datasets = "character",
-             serialized = "raw"))
+             serialized = "raw"
+             ))
 
 
 #' 
@@ -30,12 +32,6 @@ setGeneric(name = "mergeSCE", def = function(object, sce, dataset.name) {
     standardGeneric("mergeSCE")
 })
 
-
-#' queries cells that contain the genes from the list#
-#' @export 
-setGeneric(name = "queryGene", def = function(object, gene, datasets) {
-    standardGeneric("queryGene")
-})
 
 #' queries cells that contain all the genes from the list
 #' @export
@@ -66,7 +62,8 @@ setGeneric(name = "cellTypeNames", function(object){
 
 #' @export
 #'
-setGeneric(name = "evaluateMarkers", function(object, gene.list,
+setGeneric(name = "evaluateMarkers", function(object,
+                                              gene.list,
                                               cell.types,
                                               background.cell.types,
                                               sort.field = 'f1'){
@@ -104,6 +101,7 @@ setGeneric(name = "hyperQueryCellTypes", function(object,
 #' Performs query optimization and return the best candidate gene sets
 #'
 #' @export
+
 setGeneric(name = "markerGenes", function(object, gene.list, datasets, message = 0)
 {
     standardGeneric("markerGenes")

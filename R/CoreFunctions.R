@@ -34,6 +34,27 @@ contigency.table <- function(query.results)
     
 }
 
+caseCorrect <- function(object, gene.list)
+{
+    
+    lo.gene.list <- tolower(gene.list)
+    lo.gene.names <- tolower(object@index$genes())
+    
+    gene.index <- NULL
+    
+    for(i in 1: length(lo.gene.list))
+    {
+        gene.index <- c(gene.index, which(lo.gene.names == lo.gene.list[i]))
+    }
+    
+    lo.gene.list <- object@index$genes()[gene.index]
+    
+    
+    return(lo.gene.list[!duplicated(lo.gene.list)])
+}
+
+
+
 #' @importFrom stats aggregate p.adjust phyper setNames
 phyper.test <- function(object, result, datasets)
 {
@@ -70,6 +91,7 @@ query.result.as.dataframe <- function(query.result)
     {
         result <- setNames(unlist(query.result, use.names=F), rep(names(query.result), lengths(query.result)))
         return(data.frame(cell_type = names(result), cell_id = result))
+
     }            
     
 }
@@ -101,53 +123,3 @@ scfind.get.genes.in.db <- function(object){
     return(object@index$genes())
 
 }
-
-
-
-
-caseCorrect <- function(object, gene.list){
-    
-    lo.gene.list <- tolower(gene.list)
-    lo.gene.names <- tolower(object@index$genes())
-    
-    gene.index <- NULL
-    
-    for(i in 1: length(lo.gene.list)){
-        gene.index <- c(gene.index, which(lo.gene.names == lo.gene.list[i]))
-    }
-    
-    lo.gene.list <- object@index$genes()[gene.index]
-    
-    
-    return(lo.gene.list[!duplicated(lo.gene.list)]) 
-}
-
-
-#' Opens \code{scfind} index in an interactive session in a web browser.
-#'
-#' Runs interactive \code{shiny} session of \code{scfind} based on the indexed project.
-#'
-#' @param object an object of \code{SCFind} class
-#'
-#' @return Opens a browser window with an interactive \code{shiny} app and visualize queries on the dataset.
-#' 
-#' @name scfind.interactive
-#' @aliases scfind.interactive
-#'
-#' @importFrom shiny shinyApp
-scfind.interactive <- function(object) {
-
-    if (is.null(object@index) || length(object@datasets) == 0) {
-        warning("You should consider the option of indexing a dataset")
-        return()
-    }
-    
-    shinyApp(
-        ui = ui.scfind(),
-        server = server.scfind(object)
-    )
-}
-
-
-
-
