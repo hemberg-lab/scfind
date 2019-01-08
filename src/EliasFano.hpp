@@ -122,7 +122,7 @@ public:
   void reset();
   void cell_type_relevance(const EliasFanoDB&, const Rcpp::List&, const std::set<std::string>&);
   void cell_tfidf(const EliasFanoDB&, const std::set<std::string>&);
-  void estimateExpression(const Rcpp::List& gene_results, const EliasFanoDB& db, const Rcpp::CharacterVector& datasets);
+  void estimateExpression(const Rcpp::List& gene_results, const EliasFanoDB& db, const Rcpp::CharacterVector& datasets, bool concsole_message);
   int calculate_cell_types(const std::set<std::string>&gene_set);
 };
 
@@ -267,7 +267,7 @@ class EliasFanoDB
 
   // TODO(Nikos) this function can be optimized.. It uses the native quering mechanism
   // that casts the results into native R data structures
-  Rcpp::DataFrame findMarkerGenes(const Rcpp::CharacterVector& gene_list, const Rcpp::CharacterVector datasets_active, unsigned int min_support_cutoff);
+  Rcpp::DataFrame findMarkerGenes(const Rcpp::CharacterVector& gene_list, const Rcpp::CharacterVector datasets_active, unsigned int min_support_cutoff, bool console_message);
 
 
   Rcpp::DataFrame _findCellTypeMarkers(const Rcpp::CharacterVector& cell_types, 
