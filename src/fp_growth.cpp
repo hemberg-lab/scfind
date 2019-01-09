@@ -201,7 +201,7 @@ std::set<Pattern> fptree_growth(const FPTree& fptree)
                 Transaction transaction = transformed_prefix_path_items;
 
                 // add the same transaction transformed_prefix_path_items_frequency times
-                for ( auto i = 0; i < transformed_prefix_path_items_frequency; ++i ) {
+                for (uint64_t i = 0; i < transformed_prefix_path_items_frequency; ++i ) {
                     conditional_fptree_transactions.push_back( transaction );
                 }
             }
