@@ -48,7 +48,7 @@ Quantile lognormalcdf(const std::vector<int>& ids, const Rcpp::NumericVector& v,
   {
     unsigned int t = round(normalCDF(expr_tran(v[s]), expr.mu, expr.sigma) * (1 << bits));
     std::bitset<BITS> q = int2bin_core(t);
-    for (int i = 0; i < bits; ++i)
+    for (unsigned int i = 0; i < bits; ++i)
     {
        expr.quantile[expr_quantile_i++] = q[i];
     }

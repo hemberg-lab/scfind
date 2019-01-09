@@ -196,19 +196,13 @@ class EliasFanoDB
   std::deque<CellType> inverse_cell_type;
   
   GeneIndex genes;
-  
   ExpressionMatrix ef_data;
-
+  int warnings;
   unsigned int total_cells;
-  
   unsigned char quantization_bits;
   
 
   EliasFanoDB();
-  
-  bool global_indices;
-  
-  int warnings;
   
   void dumpGenes();
 
