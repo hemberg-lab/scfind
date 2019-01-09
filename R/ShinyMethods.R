@@ -298,7 +298,7 @@ server.scfind <- function(object)
 
             observeEvent(input$geneList,{
                 
-# This is necessary, because users are allowed to input chromosome as the format chrX:XXXXX-YYYYY instead of chrX_XXXXX-YYYYY
+# This is necessary, because users are allowed to input chromosome as the format chrX:XXXXX-YYYYY instead of chrX_XXXXX_YYYYY
                         text <- gsub("\\s|,", ",", input$geneList)
                         gene.list.input <- unlist(strsplit(text, ","))
                         chr.list.input <- c()
@@ -320,19 +320,24 @@ server.scfind <- function(object)
                             gene.list.input <- if(length(chr.list.input) != 0) gsub(':|-','_',chr.list.input) else gene.list.input
                             gene.list.input <- gene.list.input[!duplicated(gene.list.input)]
                             last.query.state("genelist")
-                            #print(paste("GeneList",gene.list.input))
+                            # print(paste("GeneList",gene.list.input))
+                            gene.list.input <- caseCorrect(object, gene.list.input) 
                             gene.list(gene.list.input)
-
-
+                            
             })
 
             recommended.queries <- reactive({
+                
                 selected.genes <- gene.list()
-
                 selected.datasets <- input$datasetCheckbox
-                if (length(selected.genes) > 1 && length(grep(TRUE, (selected.genes %in% object@index$genes()))) != 0 && length(selected.datasets) != 0)
+                
+                print(length(selected.genes))
+                print(length(grep(TRUE, (selected.genes %in% object@index$genes()))))
+                print(length(selected.datasets))
+                
+                if (length(selected.genes) > 1 && length(grep(TRUE, (caseCorrect(object, selected.genes) %in% object@index$genes()))) != 0 && length(selected.datasets) != 0)
                 { 
-                    #print(paste("QO gene:",selected.genes))
+                    print(paste("QO gene:",selected.genes))
                     #print(paste("QO selected:",selected.datasets))
                     available.queries <-  as.data.table(markerGenes(object, selected.genes, selected.datasets))
                 }
@@ -347,6 +352,7 @@ server.scfind <- function(object)
                 } else {
                     available.queries  
                 }
+                
             })
             
 
