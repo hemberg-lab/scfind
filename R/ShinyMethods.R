@@ -331,10 +331,6 @@ server.scfind <- function(object)
                 selected.genes <- gene.list()
                 selected.datasets <- input$datasetCheckbox
                 
-                print(length(selected.genes))
-                print(length(grep(TRUE, (selected.genes %in% object@index$genes()))))
-                print(length(selected.datasets))
-                
                 if (length(selected.genes) > 1 && length(grep(TRUE, (caseCorrect(object, selected.genes) %in% object@index$genes()))) != 0 && length(selected.datasets) != 0)
                 { 
                     print(paste("QO gene:",selected.genes))
