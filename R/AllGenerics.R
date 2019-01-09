@@ -101,9 +101,9 @@ setGeneric(name = "hyperQueryCellTypes", function(object,
 #' Performs query optimization and return the best candidate gene sets
 #'
 #' @export
-setGeneric(name = "markerGenes", function(object,
-                                          gene.list,
-                                          datasets){
+
+setGeneric(name = "markerGenes", function(object, gene.list, datasets, message = 0)
+{
     standardGeneric("markerGenes")
 })
 

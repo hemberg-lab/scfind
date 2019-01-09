@@ -37,3 +37,4 @@ biocViews: SingleCell, Software, RNASeq, Transcriptomics,
 NeedsCompilation: yes
 URL: https://github.com/hemberg-lab/scfind
 BugReports: https://support.bioconductor.org/t/scfind/
+LazyData: true
