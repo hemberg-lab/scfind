@@ -48,8 +48,6 @@ Note that the cell type information has to be stored in the `cell_type1` column 
 
 Now let's create a `SingleCellExperiment` object of the `tabulamuris` dataset:
 ```{r}
-# remove spike-ins
-tabulamuris <- tabulamuris[-(grep("ERCC-", rownames(tabulamuris))),]
 sce <- SingleCellExperiment(assays = list(normcounts = as.matrix(tabulamuris)), colData = kidney)
 # this is needed to calculate dropout rate for feature selection
 # important: normcounts have the same zeros as raw counts (cpm)
@@ -103,7 +101,7 @@ Once we have a `scfind` index, we can find the cell types that most likely repre
 ```{r}
 geneIndex <- loadObject(file = "scfindIndex.rds")
 
-initialList <- c("E230029C05Rik", "Kynu", "Rab5b", "Nedd4l", "Slc24a3", "D630033O11Rik")
+initialList <- c("1810030O07Rik", "Car12", "4933406C10Rik", "Adcy3", "6530402F18Rik", "Cdk15")
 
 scoreGenes <- markerGenes(geneIndex, initialList)
 scoreGenes
@@ -119,14 +117,14 @@ enrichedCellTypes <- hyperQueryCellTypes(geneIndex, bestQuery)
 enrichedCellTypes
 barplot(enrichedCellTypes$cell_hits, main = "Enriched cell types", beside=T, names.arg = gsub("Bone Marrow.", "", enrichedCellTypes$cell_type), ylab="Cell hits",  cex.names = 0.65, las=2)
 barplot(-log10(enrichedCellTypes$pval), names.arg = enrichedCellTypes$cell_type, cex.names = 0.65,  ylab = "-log10(pval)", las = 2)
-# The calculation above shows that a list of genes containing `Kynu`, `Nedd4l` and `Rab5b` is specific for the `Bone Marrow.Fraction A pre-pro B cell` cell type with the lowest p-value and the highest number of cell hits and total cells.
+# The calculation above shows that a list of genes containing `1810030O07Rik` and `Adcy3` is specific for the `Bone Marrow.neutrophil` cell type with the lowest p-value.
 
 # To further evaluate a specific query by calculating the precision recall metrics
-evaluateGenes <- evaluateMarkers(geneIndex, bestQuery, "Bone Marrow.Fraction A pre-pro B cell")
+evaluateGenes <- evaluateMarkers(geneIndex, bestQuery, "Bone Marrow.neutrophil")
 evaluateGenes
 data1 <- t(evaluateGenes[, c(7,6,8)])
 colnames(data1) <- evaluateGenes$genes
-barplot(data1 , main = paste("Evaluation of markers in Fraction A pre-pro B cell"), beside=T, legend=rownames(data1), ylab="Arbitrary unit", ylim = c(0, .6))
+barplot(data1 , main = paste("Evaluation of markers in Bone Marrow.neutrophil"), beside=T, legend=rownames(data1), ylab="Arbitrary unit", ylim = c(0, .6))
 
 ```
 
@@ -143,13 +141,6 @@ data2 <- t(findMarkers[, c(7,6,8)])
 colnames(data2) <- findMarkers$genes
 barplot(data2 , main = paste("Marker genes of ", interestedCellType), font.axis=2, beside=T, legend=rownames(data2), ylab="Arbitrary unit", ylim = c(0, 1.1))
 ```
-
-To find cell types that is associated with a given gene list, one can use `findCellTypes`
-
-```{r}
-findCellTypes(geneIndex, c("Kynu", "Nedd4l", "Rab5b"), "Bone Marrow")
-```
-
 
 
 # sessionInfo()
