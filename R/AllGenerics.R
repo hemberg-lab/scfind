@@ -5,7 +5,8 @@ setClass("SCFind",
          representation(
              index = "ANY", #Index is type of Rcpp_EliasFanoDB but this removes the warning
              datasets = "character",
-             serialized = "raw"
+             serialized = "raw",
+             metadata = "list"
              ))
 
 

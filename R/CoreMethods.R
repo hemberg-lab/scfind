@@ -70,7 +70,7 @@ buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name = 'counts', 
         }
     }
     
-    index <- new("SCFind", index = ef, datasets = dataset.name)
+    index <- new("SCFind", index = ef, datasets = dataset.name, metadata = list())
     return(index)
 }
 
@@ -124,6 +124,11 @@ load.serialized.object <- function(filename){
     success <- object@index$loadByteStream(object@serialized)
     object@serialized <- raw()
     gc()
+    ## Dirty hack so we do not have to rebuild again every scfind index
+    if(is.null(object@metadata))
+    {
+        object@metadata <- list()
+    }
     return(object)
 }
 
