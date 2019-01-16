@@ -137,8 +137,6 @@ void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasF
   // and do more accurate cutoff estimations
 
   // Build the reduced expression matrix
-
-  const auto tmpl_cont = std::vector<double>(tmp_strings.size(), 0);
     
   bool estimate_cutoff = tmp_strings.size() > 7 ? true : false;
     
