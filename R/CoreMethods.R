@@ -69,8 +69,7 @@ buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name = 'counts', 
             }
         }
     }
-    
-    index <- new("SCFind", index = ef, datasets = dataset.name)
+    index <- new("SCFind", index = ef, datasets = dataset.name, metadata = list())
     return(index)
 }
 
@@ -124,6 +123,11 @@ load.serialized.object <- function(filename){
     success <- object@index$loadByteStream(object@serialized)
     object@serialized <- raw()
     gc()
+    ## Dirty hack so we do not have to rebuild again every scfind index
+    if(is.null(object@metadata))
+    {
+        object@metadata <- list()
+    }
     return(object)
 }
 
@@ -216,10 +220,10 @@ setMethod("mergeSCE",
 #' @param datasets the datasets of the objects to be considered
 #' 
 #' @return hierarchical list of queries and their respective scores
-find.marker.genes <-  function(object, gene.list, datasets)
+find.marker.genes <-  function(object, gene.list, datasets, message = 0)
 {
     datasets <- select.datasets(object, datasets)
-    results <- object@index$findMarkerGenes(as.character(gene.list), as.character(datasets), 5)
+    results <- object@index$findMarkerGenes(as.character(caseCorrect(object, gene.list)), as.character(datasets), 5, message)
     
     return(results)
 }
@@ -307,7 +311,7 @@ evaluate.cell.type.markers <- function(object, gene.list, cell.types, background
         message("Considering the whole DB..")
         background.cell.types <- cellTypeNames(object)
     }
-    all.cell.types <- object@index$evaluateCellTypeMarkers(cell.types, gene.list, background.cell.types)
+    all.cell.types <- object@index$evaluateCellTypeMarkers(cell.types, caseCorrect(object, gene.list), background.cell.types)
 
     if(!(sort.field %in% colnames(all.cell.types)))
     {
@@ -340,7 +344,7 @@ setMethod("evaluateMarkers",
 #' @return a DataFrame that contains all cell types with the respective cell cardinality and the hypergeometric test
 cell.types.phyper.test <- function(object, gene.list, datasets)
 {
-    result <- findCellTypes(object, gene.list, datasets)
+    result <- findCellTypes.geneList(object, caseCorrect(object, gene.list), datasets)
     
     return(phyper.test(object, result, datasets))
     
@@ -368,7 +372,7 @@ findCellTypes.geneList <- function(object, gene.list, datasets)
 {
     
     datasets <- select.datasets(object, datasets)
-    return(object@index$findCellTypes(gene.list, datasets))
+    return(object@index$findCellTypes(caseCorrect(object, gene.list), datasets))
     
 }
 
@@ -391,5 +395,4 @@ scfind.get.genes.in.db <- function(object)
 #' @rdname scfindGenes
 #' @aliases scfindGenes
 setMethod("scfindGenes", signature(object = "SCFind"), scfind.get.genes.in.db)
-
 

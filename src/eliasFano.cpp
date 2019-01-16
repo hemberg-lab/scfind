@@ -111,8 +111,12 @@ void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasF
   // TODO(Nikos) check if genes are unique in the set.. Possibly this can be done in the R side ?
   
   const auto& tmp_strings = Rcpp::as<std::vector<std::string>>(gene_results.names());
+<<<<<<< Updated upstream
   const auto tmpl_cont = std::vector<double>(tmp_strings.size(), 0);
   int gene_row = 0;
+=======
+  
+>>>>>>> Stashed changes
   int total_cells_in_universe = db.getTotalCells(datasets);
   
   Rcpp::IntegerVector gene_support = db.totalCells(gene_results.names(), datasets);
@@ -137,6 +141,11 @@ void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasF
   // and do more accurate cutoff estimations
 
   // Build the reduced expression matrix
+
+  const auto tmpl_cont = std::vector<double>(tmp_strings.size(), 0);
+    
+  bool estimate_cutoff = tmp_strings.size() > 7 ? true : false;
+    
   for (size_t gene_row = 0; gene_row < tmp_strings.size(); ++gene_row)
   {
 
@@ -164,7 +173,6 @@ void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasF
       {
         CellID cell(ct_id, cell_id);
         
-        // tfidf typedef  std::unordered_map<CellID , std::pair<std::vector<double>, int> > tfidf;
         // insert if it does not exist
         auto ins_res = tfidf.insert(std::make_pair(cell, std::make_pair(tmpl_cont, 0)));
         
@@ -177,56 +185,68 @@ void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasF
         
         // tfidf calculation ( the expression value , the total reads of that cell and the gene transcript abundance)
         tfidf_vec[gene_row] = (expr_values[expr_index++] / db.cells.at(cell).reads) * gene_idf;
-        // Rcpp::Rcout << "gene " << gene << " cell type " << cell_type << " " << db.cells.at(cell).reads << std::endl;
 
-        // gene_score calculation for  the cutoff estimation
-        gene_score += tfidf_vec[gene_row];
+        if (estimate_cutoff)
+        {
+          // gene_score calculation for  the cutoff estimation
+          gene_score += tfidf_vec[gene_row];
+        }
         
       }
     }
   }
-  // iterate through cells for (gene cutoff)
-  std::vector<int> genes_subset(this->genes.size(), 0);
-  for (auto const& c : this->tfidf)
+    
+  if (estimate_cutoff)
   {
-    size_t i = 0;
-    for (auto const& v : c.second.first)
+    // iterate through cells for (gene cutoff)
+    std::vector<int> genes_subset(this->genes.size(), 0);
+    for (auto const& c : this->tfidf)
     {
-      genes_subset[i++] += v > 0 ? c.second.second - 1 : 0;
+      size_t i = 0;
+      for (auto const& v : c.second.first)
+      {
+        genes_subset[i++] += v > 0 ? c.second.second - 1 : 0;
+      }
     }
-  }
 
  
-  for (auto& v : this->genes)
-  {
-    v.second.cartesian_product_sets = genes_subset[v.second.index];
-    v.second.cartesian_product_sets /= this->genes.size();
-    const auto& current_gene_name = v.first;
-    int union_sum = std::accumulate(
-      gs_pairs.begin(), 
-      gs_pairs.end(), 
-      0, 
-      [&current_gene_name](const int& sum, const std::pair<std::string,int>& gs_pair){
-        if(gs_pair.first == current_gene_name)
-        {
-          return sum;
-        }
-        return sum + gs_pair.second;
-      });
-    float mean_overlap = float(union_sum) / tfidf.size(); // normalize by cell size
-    // how much the genes contribute to the overlap
-    mean_overlap /= log(this->genes.size());
-    v.second.cartesian_product_sets *= mean_overlap;
+    for (auto& v : this->genes)
+    {
+      v.second.cartesian_product_sets = genes_subset[v.second.index];
+      v.second.cartesian_product_sets /= this->genes.size();
+      const auto& current_gene_name = v.first;
+      int union_sum = std::accumulate(
+        gs_pairs.begin(), 
+        gs_pairs.end(), 
+        0, 
+        [&current_gene_name](const int& sum, const std::pair<std::string,int>& gs_pair){
+          if(gs_pair.first == current_gene_name)
+          {
+            return sum;
+          }
+          return sum + gs_pair.second;
+        });
+      float mean_overlap = float(union_sum) / tfidf.size(); // normalize by cell size
+      // how much the genes contribute to the overlap
+      mean_overlap /= log(this->genes.size());
+      v.second.cartesian_product_sets *= mean_overlap;
+    }
+    int i = 0;
+    for (auto const& v : this->genes)
+    {  
+      Rcpp::Rcerr << "Cutoff proposed for gene " << v.first << ": " << v.second.cartesian_product_sets <<" with support " << gs_pairs[i++].second << std::endl;
+    }
   }
+  else
+  {
+    for (auto& v : this->genes)
+    {
+      v.second.cartesian_product_sets = 1;
+    }
 
-  int i = 0;
-  for (auto& v : this->genes)
-  {
-    
-    Rcpp::Rcerr << "Cutoff proposed for gene " << v.first << ": " << v.second.cartesian_product_sets <<" with support " << gs_pairs[i++].second << std::endl;
   }
+    
   
-  Rcpp::Rcout << "Done!" << std::endl;
 }
 
 void QueryScore::cell_tfidf(const EliasFanoDB& db, const std::set<std::string>& gene_set)
@@ -971,7 +991,7 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
   
   for (auto const& v : qs.genes)
   {
-     cutoffs.push_back(v.second.cartesian_product_sets);
+    cutoffs.push_back(v.second.cartesian_product_sets);
   }
 
   std::sort(cutoffs.begin(), cutoffs.end());
@@ -1142,7 +1162,7 @@ Rcpp::DataFrame EliasFanoDB::_findCellTypeMarkers(const Rcpp::CharacterVector& c
     Rcpp::Named("precision") = Rcpp::wrap(precision),
     Rcpp::Named("recall") = Rcpp::wrap(recall),
     Rcpp::Named("f1") = Rcpp::wrap(f1)
-                         );
+                                 );
   
 }
 
@@ -1409,7 +1429,7 @@ Rcpp::List EliasFanoDB::getCellMeta(const std::string& ct, const int& num) const
     
 Rcpp::List EliasFanoDB::getCellTypeMeta(const std::string& ct_name) const 
 {
-    const auto ct_it = this->cell_types.find(ct_name);
+  const auto ct_it = this->cell_types.find(ct_name);
   const CellType& ctmeta = this->inverse_cell_type[ct_it->second];
   return Rcpp::List::create(Rcpp::Named("total_cells") = ctmeta.getTotalCells());
   
