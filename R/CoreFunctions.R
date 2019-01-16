@@ -123,5 +123,3 @@ scfind.get.genes.in.db <- function(object){
     return(object@index$genes())
 
 }
-
-

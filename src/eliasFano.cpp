@@ -26,7 +26,7 @@ void GeneMeta::merge(const GeneMeta& other)
 CellID::CellID(CellTypeID ct, int cid) : cell_type(ct), cell_id(cid)
 {}
  
-QueryScore::QueryScore() : query_score(0), cells_in_query(0)
+QueryScore::QueryScore() : cells_in_query(0), query_score(0)
 {}
 
 void QueryScore::cell_type_relevance(const EliasFanoDB& db, const Rcpp::List& genes_results, const std::set<std::string>& gene_set)
@@ -79,7 +79,7 @@ void QueryScore::cell_type_relevance(const EliasFanoDB& db, const Rcpp::List& ge
 
   for (auto const& _ct : ct_map)
   {
-    const std::string& ct = _ct.first;
+    // const std::string& ct = _ct.first;
     auto cct =  db.cell_types.find(_ct.first);
     
     double tfidf = 0;
@@ -104,19 +104,15 @@ void QueryScore::reset()
   this->cells_in_query = 0;
 }
 
-void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasFanoDB& db, const Rcpp::CharacterVector& datasets)
+void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasFanoDB& db, const Rcpp::CharacterVector& datasets, bool console_message = false)
 {
   Rcpp::Rcout << "calculating tfidf for the reduced expression matrix... " << std::endl;
   // Store temporarily the strings so we can insert those in the map
   // TODO(Nikos) check if genes are unique in the set.. Possibly this can be done in the R side ?
   
   const auto& tmp_strings = Rcpp::as<std::vector<std::string>>(gene_results.names());
-<<<<<<< Updated upstream
   const auto tmpl_cont = std::vector<double>(tmp_strings.size(), 0);
   int gene_row = 0;
-=======
-  
->>>>>>> Stashed changes
   int total_cells_in_universe = db.getTotalCells(datasets);
   
   Rcpp::IntegerVector gene_support = db.totalCells(gene_results.names(), datasets);
@@ -164,7 +160,7 @@ void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasF
       const auto ctid_it = db.cell_types.find(cell_type);
       CellTypeID ct_id = ctid_it->second;
       std::vector<double> expr_values = decompressValues(db.getEntry(gene, cell_type).expr, db.quantization_bits);
-      if (expr_values.size() != expr_indices.size())
+      if (expr_values.size() != (unsigned int)expr_indices.size())
       {
         Rcpp::Rcerr << "Corrupted DB!" << std::endl;
       }
@@ -185,6 +181,8 @@ void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasF
         
         // tfidf calculation ( the expression value , the total reads of that cell and the gene transcript abundance)
         tfidf_vec[gene_row] = (expr_values[expr_index++] / db.cells.at(cell).reads) * gene_idf;
+
+        console_message == true ? Rcpp::Rcout << "gene " << gene << " cell type " << cell_type << " " << db.cells.at(cell).reads << std::endl : Rcpp::Rcout << ""; 
 
         if (estimate_cutoff)
         {
@@ -358,7 +356,7 @@ std::vector<int> EliasFanoDB::eliasFanoDecoding(const EliasFano& ef) const
   unsigned int H_i = 0;
   // Warning: Very very dodgy I might want to replace this with a check in the loop
   auto prev_it = H.begin() - 1;
-  int i = 0;
+  size_t i = 0;
   for (auto true_it = std::find(H.begin(), H.end(), true); 
        true_it != H.end() && i < ids.size(); 
        true_it = std::find(true_it + 1, H.end(), true), ++i)
@@ -412,7 +410,7 @@ const Rcpp::NumericMatrix EliasFanoDB::getCellTypeMatrix(const CellTypeName& cel
 
   int qb = quantization_bits;
   // for the sparse expression  vector matrix get the indices and deconvolute the quantized values
-  for (size_t row = 0; row < mat.nrow(); ++row)
+  for (int row = 0; row < mat.nrow(); ++row)
   {
     // for each gene in the database extract the values
     const auto& rec = getEntry(feature_names[row], cell_type);
@@ -482,9 +480,8 @@ const EliasFano& EliasFanoDB::getEntry(const GeneName& gene_name, const CellType
 
 // constructor
 EliasFanoDB::EliasFanoDB(): 
-  global_indices(false), 
   warnings(0), 
-  total_cells(0), 
+  total_cells(0),
   quantization_bits(2)
 {
     
@@ -511,7 +508,6 @@ int EliasFanoDB::queryZeroGeneSupport(const Rcpp::CharacterVector& datasets) con
 // This is invoked on slices of the expression matrix of the dataset 
 long EliasFanoDB::encodeMatrix(const std::string& cell_type_name, const Rcpp::NumericMatrix& gene_matrix)
 {
-  int items = gene_matrix.ncol();
   Rcpp::CharacterVector cell_type_genes = Rcpp::rownames(gene_matrix);
 
   CellType cell_type;
@@ -532,7 +528,7 @@ long EliasFanoDB::encodeMatrix(const std::string& cell_type_name, const Rcpp::Nu
 
 
   // This can be scaled!
-  for (unsigned int gene_row = 0; gene_row < gene_matrix.nrow(); ++gene_row)
+  for (int gene_row = 0; gene_row < gene_matrix.nrow(); ++gene_row)
   {
     
     // Collect indices of sparse vector for this gene
@@ -872,8 +868,6 @@ Rcpp::List EliasFanoDB::findCellTypes(const Rcpp::CharacterVector& gene_names, c
 
   for (auto const& ct : cell_types)
   {
-    bool empty_set = false;
-    bool initial_set = true;
     if (ct.second.size() != genes.size())
     {
       continue;
@@ -913,7 +907,7 @@ Rcpp::List EliasFanoDB::findCellTypes(const Rcpp::CharacterVector& gene_names, c
 
 // TODO(Nikos) this function can be optimized.. It uses the native quering mechanism
 // that casts the results into native R data structures
-Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_list, const Rcpp::CharacterVector datasets_active,unsigned int min_support_cutoff = 5)
+Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_list, const Rcpp::CharacterVector datasets_active,unsigned int min_support_cutoff = 5, bool console_message = false)
 {
     
   std::vector<std::string> query;
@@ -986,7 +980,7 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
   // Run fp-growth algorithm
 
   QueryScore qs;
-  qs.estimateExpression(genes_results, *this, datasets_active);
+  qs.estimateExpression(genes_results, *this, datasets_active, console_message);
   std::vector<int> cutoffs;
   
   for (auto const& v : qs.genes)
@@ -1011,7 +1005,6 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
     
     Rcpp::List gene_query;
     const auto& gene_set = item.first;
-    int fp_support = item.second;
     
     // We do not care for queries with cardinality less than 2
     if (gene_set.size() < 2)
@@ -1378,7 +1371,6 @@ int EliasFanoDB::mergeDB(const EliasFanoDB& db)
   for ( auto& gene: extdb.index)
   {
     // Update cell counts for the individual gene
-    auto entry_db = this->index.insert({gene.first, GeneContainer()});
     auto gene_it = this->genes.insert({gene.first, extdb.genes[gene.first]});
     
     if(not gene_it.second)
