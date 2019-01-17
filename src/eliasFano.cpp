@@ -112,7 +112,6 @@ void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasF
   
   const auto& tmp_strings = Rcpp::as<std::vector<std::string>>(gene_results.names());
   const auto tmpl_cont = std::vector<double>(tmp_strings.size(), 0);
-  int gene_row = 0;
   int total_cells_in_universe = db.getTotalCells(datasets);
   
   Rcpp::IntegerVector gene_support = db.totalCells(gene_results.names(), datasets);
