@@ -69,8 +69,9 @@ buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name = 'counts', 
             }
         }
     }
-    
-    index <- new("SCFind", index = ef, datasets = dataset.name, metadata = list())
+
+    index <- new("SCFind", index = ef, datasets = dataset.name)
+
     return(index)
 }
 
