@@ -31,7 +31,7 @@ The number of cell atlases is growing rapidly, as a result of advances in single
 
 If you already have an `SingleCellExperiment` object, then proceed to the next chapter.
 
-If you have a matrix or a data frame containing expression data then you first need to create a `SingleCellExperiment` object containing your data. For illustrative purposes we will use an example expression matrix provided with `scfind`. The dataset (`Tabula Muris (FACS)`) represents __CPM__ gene expression of 517 and 4897 cells derived from mouse kidney and marrow, respectively. The investigators ([The Tabula Muris Consortium](https://doi.org/10.1038/s41586-018-0590-4)) have profiled almost every cell-type in the mouse using high-coverage FACS-sorted cells + Smartseq2. in the original publication. We will combine the indices of `kidney` and `marrow` into a super-index later
+If you have a matrix or a data frame containing expression data then you first need to create a `SingleCellExperiment` object containing your data. For illustrative purposes we will use an example expression matrix provided with `scfind`. The abstract dataset (`Tabula Muris (FACS)`) represents __CPM__ gene expression of 517 and 4897 cells derived from mouse kidney and marrow, respectively. The investigators ([The Tabula Muris Consortium](https://doi.org/10.1038/s41586-018-0590-4)) have profiled almost every cell-type in the mouse using high-coverage FACS-sorted cells + Smartseq2. in the original publication. We will combine the indices of `kidney` and `marrow` into a super-index later
 
 ```{r , warning=FALSE, message=FALSE}
 data(kidney)
@@ -76,11 +76,14 @@ kidneyIndex <- buildCellTypeIndex(sce, "Kidney")
 data(sce_tmfacs)
 marrowIndex <- buildCellTypeIndex(sce.marrow, "Bone Marrow")
 geneIndex <- mergeDataset(kidneyIndex, marrowIndex)
-
 geneIndex
+```
+
+```{r eval=FALSE, include=FALSE}
 # The `scfind` index can be saved as a RDS object 
 saveObject(geneIndex, file = "scfindIndex.rds")
 ```
+
 
 Once the `scfind` index is built, one can view all existing genes in the datasets using `scfindGenes`
 
@@ -95,13 +98,16 @@ cellTypeNames(geneIndex)
 ```
 
 
-## Evaluates Marker Genes
+## Evaluate Marker Genes
 
 Once we have a `scfind` index, we can find the cell types that most likely represent your list of genes (highest expression) from your dataset very quickly:
-```{r}
+```{r eval=FALSE, include=FALSE}
 geneIndex <- loadObject(file = "scfindIndex.rds")
 
-initialList <- c("1810030O07Rik", "Car12", "4933406C10Rik", "Adcy3", "6530402F18Rik", "Cdk15")
+```
+
+```{r}
+initialList <- c("Aif1", "4930578C19Rik", "Arhgef9", "9430076C15Rik", "C1qtnf2", "Ccdc109b")
 
 scoreGenes <- markerGenes(geneIndex, initialList)
 scoreGenes
@@ -115,16 +121,14 @@ bestQuery
 
 enrichedCellTypes <- hyperQueryCellTypes(geneIndex, bestQuery)
 enrichedCellTypes
-barplot(enrichedCellTypes$cell_hits, main = "Enriched cell types", beside=T, names.arg = gsub("Bone Marrow.", "", enrichedCellTypes$cell_type), ylab="Cell hits",  cex.names = 0.65, las=2)
-barplot(-log10(enrichedCellTypes$pval), names.arg = enrichedCellTypes$cell_type, cex.names = 0.65,  ylab = "-log10(pval)", las = 2)
-# The calculation above shows that a list of genes containing `1810030O07Rik` and `Adcy3` is specific for the `Bone Marrow.neutrophil` cell type with the lowest p-value.
+# The calculation above shows that a list of genes containing `Aif1` and `Ccdc109b` is specific for the `Kidney.leukocyte` cell type with the lowest p-value.
 
 # To further evaluate a specific query by calculating the precision recall metrics
-evaluateGenes <- evaluateMarkers(geneIndex, bestQuery, "Bone Marrow.neutrophil")
+evaluateGenes <- evaluateMarkers(geneIndex, bestQuery, "Kidney.leukocyte")
 evaluateGenes
 data1 <- t(evaluateGenes[, c(7,6,8)])
 colnames(data1) <- evaluateGenes$genes
-barplot(data1 , main = paste("Evaluation of markers in Bone Marrow.neutrophil"), beside=T, legend=rownames(data1), ylab="Arbitrary unit", ylim = c(0, .6))
+barplot(data1 , main = paste("Evaluation of markers in Kidney.leukocyte"), beside=T, legend=rownames(data1), ylab="Arbitrary unit", ylim = c(0, 1.1))
 
 ```
 
@@ -134,12 +138,12 @@ barplot(data1 , main = paste("Evaluation of markers in Bone Marrow.neutrophil"),
 
 If one is more interested in finding out which marker genes best represent a cell type in the dataset, `cellTypeMarkers` function should be used for searching the index:
 ```{r}
-geneIndex <- loadObject(file = "scfindIndex.rds")
-interestedCellType <- c("Bone Marrow.Fraction A pre-pro B cell")
+interestedCellType <- c("Kidney.leukocyte")
 findMarkers <- cellTypeMarkers(geneIndex, interestedCellType)
 data2 <- t(findMarkers[, c(7,6,8)])
 colnames(data2) <- findMarkers$genes
-barplot(data2 , main = paste("Marker genes of ", interestedCellType), font.axis=2, beside=T, legend=rownames(data2), ylab="Arbitrary unit", ylim = c(0, 1.1))
+barplot(data2 , main = paste("Marker genes of ", interestedCellType), font.axis=1, beside=T, legend=rownames(data2), ylab="Arbitrary unit", ylim = c(0, 1.1))
+
 ```
 
 

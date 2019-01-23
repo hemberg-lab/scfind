@@ -377,6 +377,13 @@ findCellTypes.geneList <- function(object, gene.list, datasets)
     
 }
 
+#' @rdname findCellTypes
+#' @aliases findCellTypes
+setMethod("findCellTypes", 
+          signature(object = "SCFind",
+                    gene.list = "character",
+                    dataset = "character"), 
+          findCellTypes.geneList)
 
 #' Get all genes in the database
 #'

@@ -473,9 +473,11 @@ server.scfind <- function(object)
             
              output$evaluateSum <- renderUI ({
                  s = input$cellTypesData_rows_selected # return row number, NULL
+                 
                  if(!is.null(s) && length(object@metadata) != 0){
                      shiny::tabsetPanel(type = "tabs",
-                                        shiny::tabPanel("UMAP", shiny::selectInput('subdataset', 'Datasets', selected = NULL, choices = NULL, selectize=TRUE),
+                                        shiny::tabPanel("UMAP", 
+                                                        shiny::selectInput('subdataset', 'Datasets', selected = NULL, choices = NULL, selectize=TRUE),
                                                         plotOutput("cellUMAP", width = 400, height = 500)),
                                         shiny::tabPanel("Evaluate Markers",  
                                                         dataTableOutput("evaluateCtMarkers"))
@@ -490,14 +492,14 @@ server.scfind <- function(object)
             observe({
                 s = input$cellTypesData_rows_selected # return row number, NULL
                 df <- cell.types()
-                if(!is.null(s) && length(object@metadata) != 0){
+                if(!is.null(s) && length(object@metadata) != 0 && nrow(df) != 0){ #!#
                     
-                    rdt <- if(all(startsWith(object@index$genes(), "chr") == T)) phyper.test(object, df, gsub(":|-", "_", input$datasetCheckbox)) else phyper.test(object, df, input$datasetCheckbox)
+                    rdt <- phyper.test(object, df, input$datasetCheckbox)
                     selectedCellTypes <- as.character(rdt$cell_type[s])
                     subdataset <- unique(sub("\\..*", "", selectedCellTypes)) # get datasetName. from datasetName.cellType
                     # print(subdataset)
                     if(length(subdataset) > 1){
-                        updateSelectInput(session, 'subdataset', label = 'Datasets', choices = subdataset,  selected = subdataset[1])
+                        updateSelectInput(session, 'subdataset', label = 'Datasets', choices = subdataset,  selected = subdataset[length(subdataset)])
                     } else {
                         updateSelectInput(session, 'subdataset', label = 'Datasets', choices = subdataset,  selected = subdataset)
                     }
@@ -534,7 +536,7 @@ server.scfind <- function(object)
                 }
                 else
                 {
-                    df <- data.frame(cell_type = c())#, cell_id = c())
+                    df <- data.frame(cell_type = c(), cell_id = c())
                 }
                 df
             })
@@ -559,7 +561,6 @@ server.scfind <- function(object)
             
             
             output$cellTypesData <- renderDataTable({
-                
                 df <- cell.types()
                 #df
                 if (nrow(df) != 0 && length(input$datasetCheckbox) != 0) 
@@ -594,8 +595,8 @@ server.scfind <- function(object)
                 
                 df <- cell.types()
 
-                if(!is.null(df$cell_type)) {
-                    rdt <- if(all(startsWith(object@index$genes(), "chr") == T)) phyper.test(object, df, gsub(":|-", "_", input$datasetCheckbox)) else phyper.test(object, df, input$datasetCheckbox)
+                if(!is.null(df$cell_type) && nrow(df) != 0) { #!#
+                    rdt <- phyper.test(object, df, input$datasetCheckbox)
                     mge <- if(length(unique(df$cell_type)) < 2) evaluateMarkers(object, selection, as.character(unique(df$cell_type))) else evaluateMarkers(object, selection, rdt$cell_type[s])
                     if(nrow(mge) != 0){
                         mge <- mge[order(mge$genes),]
@@ -621,7 +622,7 @@ server.scfind <- function(object)
                 df <- cell.types()
                 if (nrow(df) != 0 && length(input$datasetCheckbox) != 0)
                 {
-                    rdt <- if(all(startsWith(object@index$genes(), "chr") == T)) phyper.test(object, df, gsub(":|-", "_", input$datasetCheckbox)) else phyper.test(object, df, input$datasetCheckbox)
+                    rdt <- phyper.test(object, df, input$datasetCheckbox)
                     
                     if(nrow(rdt) > 0){
                         if(nrow(rdt) == 1){
@@ -797,33 +798,54 @@ server.scfind <- function(object)
             
             
             output$cellUMAP <- renderPlot({
-                
                 s = input$cellTypesData_rows_selected # return row number, NULL
+                selection <- if(all(startsWith(object@index$genes(), "chr") == T)) gsub(":|-", "_", input$geneCheckbox) else caseCorrect(object, input$geneCheckbox)
+                highlightCells <- c()
+                hits.summary <- c()
+                
                 df <- cell.types()
-                if(!is.null(s) && length(object@metadata) != 0){
+                if(!is.null(s) && length(object@metadata) != 0 && nrow(df) != 0){
                       
-                      rdt <- if(all(startsWith(object@index$genes(), "chr") == T)) phyper.test(object, df, gsub(":|-", "_", input$datasetCheckbox)) else phyper.test(object, df, input$datasetCheckbox)
+                      rdt <- phyper.test(object, df, input$datasetCheckbox)
                       
-                      umapChoice = input$subdataset
+                      umapChoice = input$subdataset[length(input$subdataset)]
                       getDatasetUmap <- object@metadata[[object@metadata[[1]]$umap[which(object@metadata[[1]]$dataset == umapChoice)]]]
+                      getDatasetUmap <- getDatasetUmap[which(!is.na(rownames(getDatasetUmap))),]
 
-                      umapChoice = paste0(umapChoice, ".")
+                      #umapChoice = paste0(umapChoice, ".")
                       
                       selectedCellTypes <- as.character(rdt$cell_type[s])
-                      subCellTypes <- selectedCellTypes[grep(paste0(umapChoice), selectedCellTypes)]
-                      subCellTypes <- sub(paste0(umapChoice), "", subCellTypes)
+                      subCellTypes <- selectedCellTypes[grep(paste0(umapChoice, "."), selectedCellTypes)]
+                      subCellTypes <- sub(paste0(umapChoice, "."), "", subCellTypes)
 
-                      highlightCells <- c();
                     # get coordinations of selected celltypes
                     for(j in 1: length(subCellTypes)){
                         highlightCells <- c(highlightCells, grep(paste0("^",subCellTypes[j],"$"), rownames(getDatasetUmap)))
                     }
 
-                    umap_plot <- data.frame(x = getDatasetUmap[,1], y = getDatasetUmap[,2], col = rownames(getDatasetUmap))
-                    umap_highlight <- data.frame(x = getDatasetUmap[highlightCells,1], y = getDatasetUmap[highlightCells,2], col = rownames(getDatasetUmap)[highlightCells])
+                    # get hits
+                    if (length(selection) != 0 && length(subCellTypes) != 0){ 
+                        
+                        true.hits <- object@index$findCellTypes(selection, umapChoice)
+                        hit.ct <- paste0(umapChoice,".",subCellTypes)
 
-                    g <- ggplot() + ggplot2::geom_point(aes(x, y, group = col), data = umap_plot, colour = ggplot2::alpha("grey", .5)) + 
+                        for(i in 1: length(hit.ct)){
+                            subct.id <- true.hits[[grep(paste0("^",hit.ct[i],"$"), names(true.hits))]]
+                            hits <- rep(F, length(grep(paste0("^",subCellTypes[i],"$"), rownames(getDatasetUmap))))
+                            hits[subct.id] <- T
+                            hits.summary <- c(hits.summary, hits)
+                        }
+                    } 
+                      
+                    
+                      
+                    umap_plot <- data.frame(x = getDatasetUmap[,1], y = getDatasetUmap[,2], col = rownames(getDatasetUmap))
+                    umap_highlight <- data.frame(x = getDatasetUmap[highlightCells,1], y = getDatasetUmap[highlightCells,2], col = rownames(getDatasetUmap)[highlightCells], shape = hits.summary)
+                    umap_truehits <- data.frame(x = umap_highlight[grep(T, hits.summary),1], y = umap_highlight[grep(T, hits.summary),2], col =umap_highlight[grep(T, hits.summary),3])
+                    # umap_falsehits <- data.frame(x = umap_highlight[grep(F, hits.summary),1], y = umap_highlight[grep(F, hits.summary),2], col =umap_highlight[grep(F, hits.summary),3])
+                    g <- ggplot() + ggplot2::geom_point(aes(x, y, group = col), data = umap_plot, colour = ggplot2::alpha("grey", .3)) + 
                         ggplot2::geom_point(aes(x, y, colour = col), data = umap_highlight, alpha = .5)+
+                        ggplot2::geom_point(aes(x, y), data = umap_truehits, shape = 21, colour = "black")+
                         ggplot2::labs(x = "UMAP1", y = "UMAP2", color = "") + 
                         ggplot2::theme_bw() + ggplot2::theme(axis.line = ggplot2::element_line(colour = "black"),
                                                                                       panel.border = ggplot2::element_rect(colour = "black", fill=NA, size=2),
