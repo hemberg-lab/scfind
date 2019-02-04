@@ -50,7 +50,8 @@ setGeneric(name = "cellTypeMarkers" ,  function(object,
                                                cell.types,
                                                background.cell.types,
                                                top.k = 5,
-                                               sort.field = 'f1'){
+                                               sort.field = 'f1',
+                                               message = T){
     standardGeneric("cellTypeMarkers")
 })
 
@@ -117,5 +118,14 @@ setGeneric(name = "scfindGenes", function(object){
 #' @export
 setGeneric(name = "scfindShinyServer", function(object){
     standardGeneric("scfindShinyServer")
+})
+
+
+#' @export
+setGeneric(name = "findCellTypeSpecificities", function(object, 
+                                                        gene.list=c(), 
+                                                        min.cells=10, 
+                                                        min.fraction=.25){
+    standardGeneric("findCellTypeSpecificities")
 })
 

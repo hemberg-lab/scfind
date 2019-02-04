@@ -247,19 +247,20 @@ setMethod("markerGenes",
 #' @param background.cell.types the universe of cell.types to consider
 #' @param top.k how many genes to retrieve
 #' @param sort.field the dataframe will be sorted according to this field
+#' @param message turn on/off messsage
 #'
 #' @return a data.frame that each row represent a gene score for a specific cell type 
-cell.type.marker <- function(object, cell.types, background.cell.types, top.k, sort.field)
+cell.type.marker <- function(object, cell.types, background.cell.types, top.k, sort.field, message = T)
 {
     if (missing(background.cell.types))
     {
-        message("Considering the whole DB..")
+        if(message == T) message("Considering the whole DB..")
         background.cell.types <- cellTypeNames(object)
     }
     all.cell.types <- object@index$cellTypeMarkers(cell.types, background.cell.types)
     if (!(sort.field %in% colnames(all.cell.types)))
     {
-        message(paste("Column", sort.field, "not found"))
+        if(message == T) message(paste("Column", sort.field, "not found"))
         sort.field <- 'f1'
     }
     all.cell.types <- all.cell.types[order(all.cell.types[[sort.field]], decreasing = T)[1:top.k],]
@@ -404,3 +405,35 @@ scfind.get.genes.in.db <- function(object)
 #' @aliases scfindGenes
 setMethod("scfindGenes", signature(object = "SCFind"), scfind.get.genes.in.db)
 
+
+#' Find out how many cell-types each gene is found
+#' 
+#' @param object the \code{SCFind} object
+#' @param gene.list genes to be searched in the gene.index
+#' @param min.cells 
+#' @param min.fraction 
+#' 
+#' @name findCellTypeSpecificities
+#' @return the list of number of cell type for each gene
+findCellTypeSpecificities <- function(object, gene.list=c(), min.cells=10, min.fraction=.25) {
+    
+    if(min.fraction >= 1 || min.fraction <= 0) stop("min.fraction reached limit, please use values > 0 and < 1.0.")
+    message("Calculating number of cell-types for each gene...")
+    
+    gene.names <- if(length(gene.list) == 0) object@index$genes() else gene.list
+    gene.specificity <- list()
+    
+    for (i in 1:length(gene.names)) {
+        if (i > 2) setTxtProgressBar(txtProgressBar(1, length(gene.names), style = 3), i) 
+        gene.specificity[[gene.names[i]]] <- cell.type.specificity(object, gene.names[i], min.cells=min.cells, min.fraction=min.fraction)
+    }
+    cat('\n')
+    return(gene.specificity)
+}
+
+#' @rdname findCellTypeSpecificities
+#' @aliases findCellTypeSpecificities
+setMethod("findCellTypeSpecificities", 
+          signature(object = "SCFind",
+                    gene.list = "character"), 
+          findCellTypeSpecificities)
