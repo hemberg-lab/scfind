@@ -341,15 +341,18 @@ setMethod("evaluateMarkers",
 #' @name hyperQueryCellTypes
 #' @param object the \code{SCFind} object
 #' @param gene.list the list of genes to be queried
+#' @param or the list of genes to be queried and return result if either or both genes is expressed
+#' @param gene.excl the list of genes for negative selection
 #' @param datasets the datasets vector that will be tested as background for the hypergeometric test
 #'
 #' @return a DataFrame that contains all cell types with the respective cell cardinality and the hypergeometric test
-cell.types.phyper.test <- function(object, gene.list, datasets)
+cell.types.phyper.test <- function(object, gene.list, or = NULL, gene.excl = NULL, datasets)
 {
-    result <- findCellTypes.geneList(object, caseCorrect(object, gene.list), datasets)
+    
+    result <- findCellTypes(object=object, gene.list=gene.list, or=or, gene.excl=gene.excl, datasets=datasets)
     
     return(phyper.test(object, result, datasets))
-    
+
 }
 
 #' @rdname hyperQueryCellTypes
@@ -366,15 +369,69 @@ setMethod("hyperQueryCellTypes",
 #' 
 #' @param object the \code{SCFind} object
 #' @param gene.list genes to be searched in the gene.index
+#' @param or the list of genes to be queried and return result if either or both genes is expressed
+#' @param gene.excl the list of genes for negative selection
 #' @param datasets the datasets that will be considered
 #' 
 #' @name findCellTypes
 #' @return a named numeric vector containing p-values
-findCellTypes.geneList <- function(object, gene.list, datasets)
+findCellTypes.geneList <- function(object, gene.list, or = NULL, gene.excl = NULL, datasets)
 {
     
     datasets <- select.datasets(object, datasets)
-    return(object@index$findCellTypes(caseCorrect(object, gene.list), datasets))
+    if(is.null(or) && is.null(gene.excl))
+    {
+        return(object@index$findCellTypes(caseCorrect(object, gene.list), datasets))
+    }
+    else
+    {
+        if(length(intersect(gene.list, or)) != 0 || length(intersect(gene.list, gene.excl)) != 0 || length(intersect(gene.excl, or)) != 0 )
+        {
+            stop ("Same gene is contained in multiple conditions")
+        }
+        else
+        {
+            # Create unique variable for each cell by pairing cell types to cell ID
+            cell.to.id  <- pair.id(object@index$findCellTypes(caseCorrect(object, gene.list), datasets))
+            
+            if(!is.null(or))
+            {
+                # Include any cell expresses gene in OR condition
+                gene.or <- c()
+                for(i in 1: length(or))
+                {
+                    tmp.id <- pair.id(object@index$findCellTypes(caseCorrect(object, or[i]), datasets))
+                    if(!is.null(tmp.id)) 
+                    {
+                        cell.to.id <- unique(c(cell.to.id, tmp.id))
+                        # Store used query
+                        gene.or <- c(gene.or, or[i])
+                    }
+                    else
+                    {
+                        cell.to.id <- cell.to.id
+                    }
+                }
+                
+                message(paste("Found", length(cell.to.id), "cells express", toString(caseCorrect(object, gene.list)), "( OR", toString(caseCorrect(object, gene.or)), ")"))
+            }
+            if(!is.null(gene.excl))
+            {
+                # Negative selection
+                count.cell <- length(cell.to.id)
+                cell.to.id <- setdiff(cell.to.id, pair.id(object@index$findCellTypes(caseCorrect(object, gene.excl), datasets)))
+                count.cell <- count.cell - length(cell.to.id)
+                message(paste(count.cell, if(count.cell > 1) "cells are" else "cell is", "excluded by", toString(caseCorrect(object, gene.excl))) )
+            }
+            
+            # Generate a new list
+            df <- do.call(rbind, strsplit(as.character(cell.to.id), "#"))
+            result <- as.list(setNames(as.numeric(split(df[,2], seq(nrow(df)))), df[,1]))
+            
+            return(unstack(stack(result)))
+        }
+    } 
+    
     
 }
 
@@ -415,7 +472,7 @@ setMethod("scfindGenes", signature(object = "SCFind"), scfind.get.genes.in.db)
 #' 
 #' @name findCellTypeSpecificities
 #' @return the list of number of cell type for each gene
-findCellTypeSpecificities <- function(object, gene.list=c(), min.cells=10, min.fraction=.25) {
+findCellTypeSpecificities <- function(object, gene.list = c(), min.cells=10, min.fraction=.25) {
     
     if(min.fraction >= 1 || min.fraction <= 0) stop("min.fraction reached limit, please use values > 0 and < 1.0.")
     message("Calculating number of cell-types for each gene...")
@@ -424,7 +481,7 @@ findCellTypeSpecificities <- function(object, gene.list=c(), min.cells=10, min.f
     gene.specificity <- list()
     
     for (i in 1:length(gene.names)) {
-        if (i > 2) setTxtProgressBar(txtProgressBar(1, length(gene.names), style = 3), i) 
+        setTxtProgressBar(txtProgressBar(1, length(gene.names), style = 3), i) 
         gene.specificity[[gene.names[i]]] <- cell.type.specificity(object, gene.names[i], min.cells=min.cells, min.fraction=min.fraction)
     }
     cat('\n')

@@ -124,8 +124,21 @@ scfind.get.genes.in.db <- function(object){
 
 }
 
+pair.id <- function(cell.list = list()){
+    if(length(cell.list) == 0) 
+    {
+        return(c())
+    } 
+    else
+    {
+        pair.vec <- stack(cell.list)
+        return (paste0(pair.vec$ind, "#",pair.vec$values))
+    }
+    
+}
 
-cell.type.specificity <- function(object, gene.list, min.cells, min.fraction) {
+
+cell.type.specificity <- function(object, gene.list, min.cells=10, min.fraction=.25) {
     #Use this method to find out how many cell-types each gene is found in
     
     res <- tryCatch({ hyperQueryCellTypes(object, gene.list) },

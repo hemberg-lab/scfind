@@ -37,7 +37,7 @@ setGeneric(name = "mergeSCE", def = function(object, sce, dataset.name) {
 #' queries cells that contain all the genes from the list
 #' @export
 #' 
-setGeneric(name = "findCellTypes", function(object, gene.list, datasets) {
+setGeneric(name = "findCellTypes", function(object, gene.list, or = NULL, gene.excl = NULL, datasets) {
     standardGeneric("findCellTypes")
 })
 
@@ -95,6 +95,8 @@ setGeneric(name = "saveObject", function(object, file){
 #' @export
 setGeneric(name = "hyperQueryCellTypes", function(object,
                                                   gene.list,
+                                                  or = NULL, 
+                                                  gene.excl = NULL,
                                                   datasets){
     standardGeneric("hyperQueryCellTypes")
 
