@@ -340,16 +340,16 @@ setMethod("evaluateMarkers",
 #'
 #' @name hyperQueryCellTypes
 #' @param object the \code{SCFind} object
-#' @param gene.list the list of genes to be queried
-#' @param or the list of genes to be queried and return result if either or both genes is expressed
-#' @param gene.excl the list of genes for negative selection
+#' @param gene.list genes to be searched in the gene.index 
+#' (Operators: "-gene" to exclude a gene | "*gene" either gene is expressed
+#' "*-gene" either gene is expressed to be excluded)
 #' @param datasets the datasets vector that will be tested as background for the hypergeometric test
 #'
 #' @return a DataFrame that contains all cell types with the respective cell cardinality and the hypergeometric test
-cell.types.phyper.test <- function(object, gene.list, or = NULL, gene.excl = NULL, datasets)
+cell.types.phyper.test <- function(object, gene.list, datasets)
 {
     
-    result <- findCellTypes(object=object, gene.list=gene.list, or=or, gene.excl=gene.excl, datasets=datasets)
+    result <- findCellTypes.geneList(object, gene.list, datasets)
     
     return(phyper.test(object, result, datasets))
 
@@ -368,71 +368,113 @@ setMethod("hyperQueryCellTypes",
 #' returned express all of the genes in the given gene list
 #' 
 #' @param object the \code{SCFind} object
-#' @param gene.list genes to be searched in the gene.index
-#' @param or the list of genes to be queried and return result if either or both genes is expressed
-#' @param gene.excl the list of genes for negative selection
+#' @param gene.list genes to be searched in the gene.index 
+#' (Operators: "-gene" to exclude a gene | "*gene" either gene is expressed
+#' "*-gene" either gene is expressed to be excluded)
 #' @param datasets the datasets that will be considered
 #' 
 #' @name findCellTypes
 #' @return a named numeric vector containing p-values
-findCellTypes.geneList <- function(object, gene.list, or = NULL, gene.excl = NULL, datasets)
+findCellTypes.geneList <- function(object, gene.list, datasets)
 {
-    
     datasets <- select.datasets(object, datasets)
-    if(is.null(or) && is.null(gene.excl))
+    
+    if(length(grep("^-|^\\*", gene.list)) == 0)
     {
         return(object@index$findCellTypes(caseCorrect(object, gene.list), datasets))
     }
     else
     {
-        if(length(intersect(gene.list, or)) != 0 || length(intersect(gene.list, gene.excl)) != 0 || length(intersect(gene.excl, or)) != 0 )
+        pos <- caseCorrect(object, grep("^[^-\\*]", gene.list, value = T))
+        if(length(pos) == 0) stop ("At least one postiive gene (without operators) should be provided")
+        excl.or <- grep("^-\\*|^\\*-", gene.list, value = T)
+        or <- caseCorrect(object, sub("\\*", "", setdiff(grep("^\\*", gene.list, value = T), excl.or)))
+        excl <- caseCorrect(object, sub("-", "", setdiff(grep("^-", gene.list, value = T), excl.or)))
+        excl.or <- caseCorrect(object, sub("\\*-||-\\*", "", grep("^-\\*|^\\*-", gene.list, value = T)))
+        
+        if(length(c(intersect(pos, or), intersect(pos, excl), intersect(pos, excl.or), intersect(or, excl), intersect(or, excl.or), intersect(excl, excl.or))) != 0)
         {
-            stop ("Same gene is contained in multiple conditions")
+            message ("Warning: Same gene labeled with different operators!") 
+            message ("There is a priority to handle operators:")
+            message (paste("Cells with", paste(pos, collapse=" ∧ "),"expression will be included.", 
+                           if(length(or) != 0) "Then cells with", paste(or, collapse=" ∨ "), "expression will be included."))
+            message (paste("The result will be excluded by", paste(excl, collapse=" ∧ "), 
+                           if(length(excl.or != 0)) paste("and further be excluded by", paste(excl.or, collapse=" ∨ "))))
+            cat('\n')
         }
-        else
-        {
-            # Create unique variable for each cell by pairing cell types to cell ID
-            cell.to.id  <- pair.id(object@index$findCellTypes(caseCorrect(object, gene.list), datasets))
+
+        # Create unique variable for each cell by pairing cell types to cell ID
+        cell.to.id  <- pair.id(object@index$findCellTypes(pos, datasets))
+        if (length(or) == 0) message(paste("Found", length(cell.to.id), "cells co-expressing", toString(pos)))
             
-            if(!is.null(or))
+        if(length(or) != 0)
+        {
+            # Include any cell expresses gene in OR condition
+            gene.or <- c()
+            for(i in 1: length(or))
             {
-                # Include any cell expresses gene in OR condition
-                gene.or <- c()
-                for(i in 1: length(or))
+                tmp.id <- pair.id(object@index$findCellTypes(or[i], datasets))
+                if(!is.null(tmp.id))
                 {
-                    tmp.id <- pair.id(object@index$findCellTypes(caseCorrect(object, or[i]), datasets))
-                    if(!is.null(tmp.id)) 
+                    cell.to.id <- unique(c(cell.to.id, tmp.id))
+                    # Store used query
+                    gene.or <- c(gene.or, or[i])
+                }
+                else
+                {
+                    cell.to.id <- cell.to.id
+                }
+            }
+                message(paste("Found", length(cell.to.id), "cells", if(length(pos) > 1) "co-expressing" else "expressing", toString(pos), ", also expressing", paste(gene.or, collapse=" ∨ ")))
+            }
+            
+            count.cell <- length(cell.to.id)
+            gene.excl <- NULL
+            if(length(excl) != 0)
+            {
+                # Negative selection
+                cell.to.id <- setdiff(cell.to.id, pair.id(object@index$findCellTypes(excl, datasets)))
+            }
+            if(length(excl.or) != 0)
+            {
+                # Negative select cell in OR condition
+                
+                for(i in 1: length(excl.or))
+                {
+                    ex.tmp.id <- pair.id(object@index$findCellTypes(excl.or[i], datasets))
+                    if(!is.null(ex.tmp.id))
                     {
-                        cell.to.id <- unique(c(cell.to.id, tmp.id))
-                        # Store used query
-                        gene.or <- c(gene.or, or[i])
+                        cell.to.id <- setdiff(cell.to.id, ex.tmp.id)
+                        gene.excl <- c(gene.excl, excl.or[i])
                     }
                     else
                     {
                         cell.to.id <- cell.to.id
                     }
                 }
-                
-                message(paste("Found", length(cell.to.id), "cells express", toString(caseCorrect(object, gene.list)), "( OR", toString(caseCorrect(object, gene.or)), ")"))
-            }
-            if(!is.null(gene.excl))
-            {
-                # Negative selection
-                count.cell <- length(cell.to.id)
-                cell.to.id <- setdiff(cell.to.id, pair.id(object@index$findCellTypes(caseCorrect(object, gene.excl), datasets)))
-                count.cell <- count.cell - length(cell.to.id)
-                message(paste(count.cell, if(count.cell > 1) "cells are" else "cell is", "excluded by", toString(caseCorrect(object, gene.excl))) )
+                    
             }
             
+            count.cell <- count.cell - length(cell.to.id)
+            if(is.null(gene.excl)) 
+            {
+                if(count.cell != 0) message(paste("Excluded", count.cell, if(count.cell > 1) "cells" else "cell", 
+                                                  if(length(excl) > 1) "co-expressing" else "expressing", toString(excl)) )
+            }
+            else
+            {
+                message(paste("Excluded", count.cell, if(count.cell > 1) "cells" else "cell", 
+                              if(length(excl) != 0) paste(if(length(excl) > 1) "co-expressing" else "expressing", 
+                                                          toString(excl), ", also expressing") else "expressing", paste(gene.excl, collapse=" ∨ ") 
+                              ))
+            }
             # Generate a new list
             df <- do.call(rbind, strsplit(as.character(cell.to.id), "#"))
             result <- as.list(setNames(as.numeric(split(df[,2], seq(nrow(df)))), df[,1]))
             
-            return(unstack(stack(result)))
+            if(length(unique(df[,1])) == nrow(df)) return(result) else return(unstack(stack(result)))
+            
         }
-    } 
-    
-    
 }
 
 #' @rdname findCellTypes

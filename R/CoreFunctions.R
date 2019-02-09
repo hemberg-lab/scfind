@@ -36,21 +36,26 @@ contigency.table <- function(query.results)
 
 caseCorrect <- function(object, gene.list)
 {
-    
-    lo.gene.list <- tolower(gene.list)
-    lo.gene.names <- tolower(object@index$genes())
-    
-    gene.index <- NULL
-    
-    for(i in 1: length(lo.gene.list))
+    if(length(gene.list) != 0)
     {
-        gene.index <- c(gene.index, which(lo.gene.names == lo.gene.list[i]))
+        gene.corr <- NULL
+        ignored <- NULL
+        
+        for(i in 1: length(gene.list))
+        {
+            match <- grep(pattern=gene.list[i], object@index$genes(), ignore.case = T, value = T)
+            ignored <- if(length(match) == 0) c(ignored, gene.list[i]) else ignored
+            gene.corr <- c(gene.corr, match)
+        }
+    
+        if(!is.null(ignored)) message(paste(toString(ignored), if(length(ignored) > 1) "are" else "is", "ignored, not found in the index"))
+    
+        return(unique(gene.corr))
     }
-    
-    lo.gene.list <- object@index$genes()[gene.index]
-    
-    
-    return(lo.gene.list[!duplicated(lo.gene.list)])
+    else
+    {
+        return(c())
+    }
 }
 
 
