@@ -968,7 +968,7 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
   
   for (auto const& v : qs.genes)
   {
-     cutoffs.push_back(v.second.cartesian_product_sets);
+    cutoffs.push_back(v.second.cartesian_product_sets);
   }
 
   std::sort(cutoffs.begin(), cutoffs.end());
@@ -1138,7 +1138,7 @@ Rcpp::DataFrame EliasFanoDB::_findCellTypeMarkers(const Rcpp::CharacterVector& c
     Rcpp::Named("precision") = Rcpp::wrap(precision),
     Rcpp::Named("recall") = Rcpp::wrap(recall),
     Rcpp::Named("f1") = Rcpp::wrap(f1)
-                         );
+                                 );
   
 }
 
@@ -1404,7 +1404,7 @@ Rcpp::List EliasFanoDB::getCellMeta(const std::string& ct, const int& num) const
     
 Rcpp::List EliasFanoDB::getCellTypeMeta(const std::string& ct_name) const 
 {
-    const auto ct_it = this->cell_types.find(ct_name);
+  const auto ct_it = this->cell_types.find(ct_name);
   const CellType& ctmeta = this->inverse_cell_type[ct_it->second];
   return Rcpp::List::create(Rcpp::Named("total_cells") = ctmeta.getTotalCells());
   
