@@ -234,6 +234,9 @@ class EliasFanoDB
   
   int getTotalCells(const Rcpp::CharacterVector&) const;
 
+
+  Rcpp::List geneSupportInCellTypes(const Rcpp::CharacterVector& gene_names, const Rcpp::CharacterVector&) const;
+  
   const CellType& getCellType(const CellTypeName& name ) const;
 
   const Rcpp::NumericMatrix getCellTypeMatrix(const CellTypeName& cell_type) const;
@@ -278,10 +281,13 @@ class EliasFanoDB
   
   
   std::map<GeneName, CellTypeMarker> _cellTypeScore(const std::string& cell_type, const std::vector<std::string>& universe, const std::vector <GeneName>&) const;
-  const std::set<std::string> _getActiveCellTypes(std::vector<std::string> universe) const;
-    
+  const std::set<std::string> _getValidCellTypes(std::vector<std::string> universe) const;
+
+
   const std::vector<CellTypeName> _getCellTypes() const;
+  const std::vector<CellTypeName> _getCellTypes(const std::vector<std::string>& datasets) const;
   
+  const std::vector<CellTypeName> getCellTypes() const;
   
   Rcpp::List getCellMeta(const std::string&, const int&) const;
 
