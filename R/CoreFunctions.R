@@ -36,6 +36,7 @@ contigency.table <- function(query.results)
 
 caseCorrect <- function(object, gene.list)
 {
+    gene.list <- gene.list[gene.list != ""]
     if(length(gene.list) != 0)
     {
         gene.corr <- NULL
