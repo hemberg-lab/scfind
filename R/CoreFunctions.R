@@ -41,16 +41,16 @@ caseCorrect <- function(object, gene.list)
     {
         gene.corr <- NULL
         ignored <- NULL
-        
+
         for(i in 1: length(gene.list))
         {
-            match <- grep(pattern=gene.list[i], object@index$genes(), ignore.case = T, value = T)
+            match <- grep(pattern=paste0("^", gene.list[i], "$"), object@index$genes(), ignore.case = T, value = T)
             ignored <- if(length(match) == 0) c(ignored, gene.list[i]) else ignored
             gene.corr <- c(gene.corr, match)
         }
-    
+
         if(!is.null(ignored)) message(paste(toString(ignored), if(length(ignored) > 1) "are" else "is", "ignored, not found in the index"))
-    
+
         return(unique(gene.corr))
     }
     else
