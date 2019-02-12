@@ -320,7 +320,6 @@ server.scfind <- function(object)
                             }
 
                             gene.list.input <- if(length(chr.list.input) != 0) gsub(':|-','_',chr.list.input) else gene.list.input
-                            gene.list.input <- gene.list.input[!duplicated(gene.list.input)]
                             last.query.state("genelist")
                             # print(paste("GeneList",gene.list.input))
                             gene.list.input <- caseCorrect(object, gene.list.input) 
