@@ -181,11 +181,7 @@ void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasF
 
         console_message == true ? Rcpp::Rcout << "gene " << gene << " cell type " << cell_type << " " << db.cells.at(cell).reads << std::endl : Rcpp::Rcout << ""; 
 
-        if (estimate_cutoff)
-        {
-          // gene_score calculation for  the cutoff estimation
-          gene_score += tfidf_vec[gene_row];
-        }
+        gene_score += tfidf_vec[gene_row];
         
       }
     }
