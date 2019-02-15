@@ -37,19 +37,12 @@ contigency.table <- function(query.results)
 caseCorrect <- function(object, gene.list)
 {
     gene.list <- gene.list[gene.list != ""]
+
     if(length(gene.list) != 0)
     {
-        gene.corr <- NULL
-        ignored <- NULL
-
-        for(i in 1: length(gene.list))
-        {
-            match <- grep(pattern=paste0("^", gene.list[i], "$"), object@index$genes(), ignore.case = T, value = T)
-            ignored <- if(length(match) == 0) c(ignored, gene.list[i]) else ignored
-            gene.corr <- c(gene.corr, match)
-        }
-
-        if(!is.null(ignored)) message(paste(toString(ignored), if(length(ignored) > 1) "are" else "is", "ignored, not found in the index"))
+        gene.corr <- object@index$genes()[match(tolower(gene.list), tolower(object@index$genes()), nomatch = 0)]
+        
+        if(length(setdiff(tolower(gene.list), tolower(gene.corr))) != 0) message(paste0("Ignored ", toString(setdiff(gene.list, gene.list[match(tolower(gene.corr), tolower(gene.list), nomatch=0)])), ". Not found in the index"))
 
         return(unique(gene.corr))
     }
@@ -143,26 +136,27 @@ pair.id <- function(cell.list = list()){
     
 }
 
-
-cell.type.specificity <- function(object, gene.list, min.cells=10, min.fraction=.25) {
-    #Use this method to find out how many cell-types each gene is found in
-    
-    res <- tryCatch({ hyperQueryCellTypes(object, gene.list) },
-                    error = function(err) { c() },
-                    finally = { c() } )
-    if (dim(res)[1]>0) {
-        if (min.fraction>0) {
-            n <- 0
-            for (i in 1:length(res$cell_type)) {
-                thres = max(c(min.cells, min.fraction*res$total_cells[i]))
-                if (res$cell_hits[i]>thres) {
-                    n <- n + 1
+find.signature <- function(object, cell.type, max.genes=1000, min.cells=10, max.pval=0) {
+    # Use this method to find a gene signature for a cell-type. 
+    # We do this by ranking genes by recall and then adding genes to the query until we exceed a target p-value threshold or until a minimum number of cells is returned from the query
+    df <- cellTypeMarkers(object, cell.type, top.k=max.genes, sort.field="recall", message=F)
+    genes <- as.character(df$genes)
+    genes.list <- c()
+    thres = max(c(min.cells, object@index$getCellTypeMeta(cell.type)$total_cells))
+    for (j in 1:dim(df)[1]) {
+        res <- hyperQueryCellTypes(object, c(genes.list, genes[j]))
+        if (dim(res)[1]>0) {
+            ind <- which(res[,1]==cell.type)
+            if (length(ind)==0) {
+                break
+            }
+            else {
+                if (res[ind,4]>max.pval | res[ind,2]<thres) {
+                    break
                 }
             }
-            return( n )
         }
-        return( length(which(res$cell_hits>min.cells)) )
+        genes.list <- c(genes.list, genes[j])
     }
-    return( 0 )
+    return( genes.list )
 }
-
