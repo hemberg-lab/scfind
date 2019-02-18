@@ -630,15 +630,21 @@ setMethod("findHouseKeepingGenes",
 gene.signatures <- function(object, cell.types, max.genes=1000, min.cells=10, max.pval=0) 
 {
     message("Searching for gene signatures...")
-    cell.types.all <- if(missing(cell.types)) object@index$getCellTypes() else cell.types
+    cell.types.all <- if(missing(cell.types)) object@index$getCellTypes() else cellTypeNames(object)[tolower(cellTypeNames(object)) %in% tolower(cell.types)]
     signatures <- list()
-    
-    for (i in 1:length(cell.types.all)) {
-        if(i > 1) setTxtProgressBar(txtProgressBar(1, length(cell.types.all), style = 3), i)
-        signatures[[cell.types.all[i]]] <- find.signature(object, cell.types.all[i], max.genes=max.genes, min.cells=min.cells, max.pval=max.pval)
+    if(length(cell.types.all) != 0)
+    {
+        for (i in 1:length(cell.types.all)) {
+            if(i > 1) setTxtProgressBar(txtProgressBar(1, length(cell.types.all), style = 3), i)
+            signatures[[cell.types.all[i]]] <- find.signature(object, cell.types.all[i], max.genes=max.genes, min.cells=min.cells, max.pval=max.pval)
+        }
+        cat('\n')
+        return( signatures )
+    } 
+    else
+    {
+        return(message(paste0("Ignored ", toString(cell.types),". Cell type not found in index.")))
     }
-    cat('\n')
-    return( signatures )
 }
 
 #' @rdname findGeneSignatures
