@@ -1,4 +1,4 @@
-#include "Serialization.hpp"
+#include "Serialization.h"
 
 
 SerializationDB::SerializationDB(): byte_pointer(0)
@@ -49,19 +49,6 @@ int SerializationDB::readBuffer(void* buf, int buf_len)
   return 0;
 }
   
-  
-int SerializationDB::readFile(const std::string& filename)
-{
-  FILE *fp = fopen(filename.c_str(), "rb");
-  fseek(fp, 0, SEEK_END);
-  long bytes = ftell(fp);
-  // Rewind the fp to the start of the file so we can read the contents
-  fseek(fp, 0, SEEK_SET); 
-  this->serialized_bytestream.resize(bytes);
-  fread(&this->serialized_bytestream[0], bytes, 1, fp);
-  fclose(fp);
-  return 0;
-}
   
 void SerializationDB::deserializeEliasFano(EliasFano& ef, int quantization_bits)
 {
@@ -250,8 +237,6 @@ void SerializationDB::deserializeDB(EliasFanoDB& efdb)
     return;
   }
     
-
-  unsigned int cell_support;
   std::vector<CellTypeID> cell_type_ids;
   cell_type_ids.reserve(cell_types_present);
   for (int i = 0; i < cell_types_present; ++i)
@@ -364,7 +349,6 @@ void SerializationDB::serialize(const EliasFanoDB& efdb)
   }
 
   // Dump cell types
-  int cell_type_id = 0;
   int cell_types_present = efdb.cell_types.size();
   write(cell_types_present);
     

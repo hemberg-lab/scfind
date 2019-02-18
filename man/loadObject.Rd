@@ -13,6 +13,12 @@ load.serialized.object(filename)
 
 \S4method{loadObject}{ANY}(filename)
 }
+\arguments{
+\item{filename}{the filepath of a specialized serialized scfind object}
+}
+\value{
+an \code{SCFind} object
+}
 \description{
 After loading the database it clears the loaded bytestream from the memory.
 }

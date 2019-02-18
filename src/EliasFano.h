@@ -1,5 +1,4 @@
 #pragma once
-/* #include <Rcpp.h> */
 #include <iostream>
 
 #include <algorithm>
@@ -58,7 +57,7 @@ class CellMeta
 public:                                               
   int reads;
   int features;
-  int getReads()const 
+  int getReads() const 
   {
     return reads;
   }
@@ -122,7 +121,7 @@ public:
   void reset();
   void cell_type_relevance(const EliasFanoDB&, const Rcpp::List&, const std::set<std::string>&);
   void cell_tfidf(const EliasFanoDB&, const std::set<std::string>&);
-  void estimateExpression(const Rcpp::List& gene_results, const EliasFanoDB& db, const Rcpp::CharacterVector& datasets);
+  void estimateExpression(const Rcpp::List& gene_results, const EliasFanoDB& db, const Rcpp::CharacterVector& datasets, bool concsole_message);
   int calculate_cell_types(const std::set<std::string>&gene_set);
 };
 
@@ -197,19 +196,13 @@ class EliasFanoDB
   std::deque<CellType> inverse_cell_type;
   
   GeneIndex genes;
-  
   ExpressionMatrix ef_data;
-
+  int warnings;
   unsigned int total_cells;
-  
   unsigned char quantization_bits;
   
 
   EliasFanoDB();
-  
-  bool global_indices;
-  
-  int warnings;
   
   void dumpGenes();
 
@@ -241,6 +234,9 @@ class EliasFanoDB
   
   int getTotalCells(const Rcpp::CharacterVector&) const;
 
+
+  Rcpp::List geneSupportInCellTypes(const Rcpp::CharacterVector& gene_names, const Rcpp::CharacterVector&) const;
+  
   const CellType& getCellType(const CellTypeName& name ) const;
 
   const Rcpp::NumericMatrix getCellTypeMatrix(const CellTypeName& cell_type) const;
@@ -267,7 +263,7 @@ class EliasFanoDB
 
   // TODO(Nikos) this function can be optimized.. It uses the native quering mechanism
   // that casts the results into native R data structures
-  Rcpp::DataFrame findMarkerGenes(const Rcpp::CharacterVector& gene_list, const Rcpp::CharacterVector datasets_active, unsigned int min_support_cutoff);
+  Rcpp::DataFrame findMarkerGenes(const Rcpp::CharacterVector& gene_list, const Rcpp::CharacterVector datasets_active, unsigned int min_support_cutoff, bool console_message);
 
 
   Rcpp::DataFrame _findCellTypeMarkers(const Rcpp::CharacterVector& cell_types, 
@@ -285,10 +281,13 @@ class EliasFanoDB
   
   
   std::map<GeneName, CellTypeMarker> _cellTypeScore(const std::string& cell_type, const std::vector<std::string>& universe, const std::vector <GeneName>&) const;
-  const std::set<std::string> _getActiveCellTypes(std::vector<std::string> universe) const;
-    
+  const std::set<std::string> _getValidCellTypes(std::vector<std::string> universe) const;
+
+
   const std::vector<CellTypeName> _getCellTypes() const;
+  const std::vector<CellTypeName> _getCellTypes(const std::vector<std::string>& datasets) const;
   
+  const std::vector<CellTypeName> getCellTypes() const;
   
   Rcpp::List getCellMeta(const std::string&, const int&) const;
 

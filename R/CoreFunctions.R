@@ -34,6 +34,26 @@ contigency.table <- function(query.results)
     
 }
 
+caseCorrect <- function(object, gene.list)
+{
+    gene.list <- gene.list[gene.list != ""]
+
+    if(length(gene.list) != 0)
+    {
+        gene.corr <- object@index$genes()[match(tolower(gene.list), tolower(object@index$genes()), nomatch = 0)]
+        
+        if(length(setdiff(tolower(gene.list), tolower(gene.corr))) != 0) message(paste0("Ignored ", toString(setdiff(gene.list, gene.list[match(tolower(gene.corr), tolower(gene.list), nomatch=0)])), ". Not found in the index"))
+
+        return(unique(gene.corr))
+    }
+    else
+    {
+        return(c())
+    }
+}
+
+
+
 #' @importFrom stats aggregate p.adjust phyper setNames
 phyper.test <- function(object, result, datasets)
 {
@@ -70,6 +90,7 @@ query.result.as.dataframe <- function(query.result)
     {
         result <- setNames(unlist(query.result, use.names=F), rep(names(query.result), lengths(query.result)))
         return(data.frame(cell_type = names(result), cell_id = result))
+
     }            
     
 }
@@ -102,52 +123,40 @@ scfind.get.genes.in.db <- function(object){
 
 }
 
-
-
-
-caseCorrect <- function(object, gene.list){
-    
-    lo.gene.list <- tolower(gene.list)
-    lo.gene.names <- tolower(object@index$genes())
-    
-    gene.index <- NULL
-    
-    for(i in 1: length(lo.gene.list)){
-        gene.index <- c(gene.index, which(lo.gene.names == lo.gene.list[i]))
+pair.id <- function(cell.list = list()){
+    if(length(cell.list) == 0) 
+    {
+        return(c())
+    } 
+    else
+    {
+        pair.vec <- stack(cell.list)
+        return (paste0(pair.vec$ind, "#",pair.vec$values))
     }
     
-    lo.gene.list <- object@index$genes()[gene.index]
-    
-    
-    return(lo.gene.list[!duplicated(lo.gene.list)]) 
 }
 
-
-#' Opens \code{scfind} index in an interactive session in a web browser.
-#'
-#' Runs interactive \code{shiny} session of \code{scfind} based on the indexed project.
-#'
-#' @param object an object of \code{SCFind} class
-#'
-#' @return Opens a browser window with an interactive \code{shiny} app and visualize queries on the dataset.
-#' 
-#' @name scfind.interactive
-#' @aliases scfind.interactive
-#'
-#' @importFrom shiny shinyApp
-scfind.interactive <- function(object) {
-
-    if (is.null(object@index) || length(object@datasets) == 0) {
-        warning("You should consider the option of indexing a dataset")
-        return()
+find.signature <- function(object, cell.type, max.genes=1000, min.cells=10, max.pval=0) {
+    # Use this method to find a gene signature for a cell-type. 
+    # We do this by ranking genes by recall and then adding genes to the query until we exceed a target p-value threshold or until a minimum number of cells is returned from the query
+    df <- cellTypeMarkers(object, cell.type, top.k=max.genes, sort.field="recall", message=F)
+    genes <- as.character(df$genes)
+    genes.list <- c()
+    thres = max(c(min.cells, object@index$getCellTypeMeta(cell.type)$total_cells))
+    for (j in 1:dim(df)[1]) {
+        res <- hyperQueryCellTypes(object, c(genes.list, genes[j]))
+        if (dim(res)[1]>0) {
+            ind <- which(res[,1]==cell.type)
+            if (length(ind)==0) {
+                break
+            }
+            else {
+                if (res[ind,4]>max.pval | res[ind,2]<thres) {
+                    break
+                }
+            }
+        }
+        genes.list <- c(genes.list, genes[j])
     }
-    
-    shinyApp(
-        ui = ui.scfind(),
-        server = server.scfind(object)
-    )
+    return( genes.list )
 }
-
-
-
-
