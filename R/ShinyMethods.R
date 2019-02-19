@@ -320,7 +320,6 @@ server.scfind <- function(object)
                             }
 
                             gene.list.input <- if(length(chr.list.input) != 0) gsub(':|-','_',chr.list.input) else gene.list.input
-                            gene.list.input <- gene.list.input[!duplicated(gene.list.input)]
                             last.query.state("genelist")
                             # print(paste("GeneList",gene.list.input))
                             gene.list.input <- caseCorrect(object, gene.list.input) 
@@ -690,8 +689,8 @@ server.scfind <- function(object)
                 if(all(startsWith(object@index$genes(), "chr") == T)){
                     text <- gsub("\\s|,", ",", input$geneList)
                     gene.list.input <- unlist(strsplit(text, ","))
-                    gene.list.input <- unique(gene.list.input[grep("chr",gsub("_", "-", sub("_", ":", tolower(gene.list.input))))])
-                    gene.list.input <- gene.list.input[grep(":", gene.list.input)]
+                    gene.list.input <- unique(grep("chr",gsub("_", "-", sub("_", ":", tolower(gene.list.input))), value = T))
+                    gene.list.input <- grep(":", gene.list.input, value = T)
                     gene.list.input <- gene.list.input[which(as.numeric(gsub(".*:(.*)\\-.*", "\\1", gene.list.input)) < as.numeric(gsub(".*-", "", gene.list.input)))]
                     
                     
@@ -815,7 +814,7 @@ server.scfind <- function(object)
                       #umapChoice = paste0(umapChoice, ".")
                       
                       selectedCellTypes <- as.character(rdt$cell_type[s])
-                      subCellTypes <- selectedCellTypes[grep(paste0(umapChoice, "."), selectedCellTypes)]
+                      subCellTypes <- grep(paste0(umapChoice, "."), selectedCellTypes, value = T)
                       subCellTypes <- sub(paste0(umapChoice, "."), "", subCellTypes)
 
                     # get coordinations of selected celltypes

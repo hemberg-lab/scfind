@@ -36,21 +36,27 @@ contigency.table <- function(query.results)
 
 caseCorrect <- function(object, gene.list)
 {
-    
-    lo.gene.list <- tolower(gene.list)
-    lo.gene.names <- tolower(object@index$genes())
-    
-    gene.index <- NULL
-    
-    for(i in 1: length(lo.gene.list))
+    gene.list <- gene.list[gene.list != ""]
+    if(length(gene.list) != 0)
     {
-        gene.index <- c(gene.index, which(lo.gene.names == lo.gene.list[i]))
+        gene.corr <- NULL
+        ignored <- NULL
+
+        for(i in 1: length(gene.list))
+        {
+            match <- grep(pattern=paste0("^", gene.list[i], "$"), object@index$genes(), ignore.case = T, value = T)
+            ignored <- if(length(match) == 0) c(ignored, gene.list[i]) else ignored
+            gene.corr <- c(gene.corr, match)
+        }
+
+        if(!is.null(ignored)) message(paste(toString(ignored), if(length(ignored) > 1) "are" else "is", "ignored, not found in the index"))
+
+        return(unique(gene.corr))
     }
-    
-    lo.gene.list <- object@index$genes()[gene.index]
-    
-    
-    return(lo.gene.list[!duplicated(lo.gene.list)])
+    else
+    {
+        return(c())
+    }
 }
 
 
@@ -123,3 +129,40 @@ scfind.get.genes.in.db <- function(object){
     return(object@index$genes())
 
 }
+
+pair.id <- function(cell.list = list()){
+    if(length(cell.list) == 0) 
+    {
+        return(c())
+    } 
+    else
+    {
+        pair.vec <- stack(cell.list)
+        return (paste0(pair.vec$ind, "#",pair.vec$values))
+    }
+    
+}
+
+
+cell.type.specificity <- function(object, gene.list, min.cells=10, min.fraction=.25) {
+    #Use this method to find out how many cell-types each gene is found in
+    
+    res <- tryCatch({ hyperQueryCellTypes(object, gene.list) },
+                    error = function(err) { c() },
+                    finally = { c() } )
+    if (dim(res)[1]>0) {
+        if (min.fraction>0) {
+            n <- 0
+            for (i in 1:length(res$cell_type)) {
+                thres = max(c(min.cells, min.fraction*res$total_cells[i]))
+                if (res$cell_hits[i]>thres) {
+                    n <- n + 1
+                }
+            }
+            return( n )
+        }
+        return( length(which(res$cell_hits>min.cells)) )
+    }
+    return( 0 )
+}
+

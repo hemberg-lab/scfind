@@ -36,7 +36,6 @@ setGeneric(name = "mergeSCE", def = function(object, sce, dataset.name) {
 
 #' queries cells that contain all the genes from the list
 #' @export
-#' 
 setGeneric(name = "findCellTypes", function(object, gene.list, datasets) {
     standardGeneric("findCellTypes")
 })
@@ -50,7 +49,8 @@ setGeneric(name = "cellTypeMarkers" ,  function(object,
                                                cell.types,
                                                background.cell.types,
                                                top.k = 5,
-                                               sort.field = 'f1'){
+                                               sort.field = 'f1',
+                                               message = T){
     standardGeneric("cellTypeMarkers")
 })
 
@@ -117,5 +117,14 @@ setGeneric(name = "scfindGenes", function(object){
 #' @export
 setGeneric(name = "scfindShinyServer", function(object){
     standardGeneric("scfindShinyServer")
+})
+
+
+#' @export
+setGeneric(name = "findCellTypeSpecificities", function(object, 
+                                                        gene.list=c(), 
+                                                        min.cells=10, 
+                                                        min.fraction=.25){
+    standardGeneric("findCellTypeSpecificities")
 })
 

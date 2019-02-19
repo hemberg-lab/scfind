@@ -249,19 +249,20 @@ setMethod("markerGenes",
 #' @param background.cell.types the universe of cell.types to consider
 #' @param top.k how many genes to retrieve
 #' @param sort.field the dataframe will be sorted according to this field
+#' @param message turn on/off messsage
 #'
 #' @return a data.frame that each row represent a gene score for a specific cell type 
-cell.type.marker <- function(object, cell.types, background.cell.types, top.k, sort.field)
+cell.type.marker <- function(object, cell.types, background.cell.types, top.k, sort.field, message = T)
 {
     if (missing(background.cell.types))
     {
-        message("Considering the whole DB..")
+        if(message == T) message("Considering the whole DB..")
         background.cell.types <- cellTypeNames(object)
     }
     all.cell.types <- object@index$cellTypeMarkers(cell.types, background.cell.types)
     if (!(sort.field %in% colnames(all.cell.types)))
     {
-        message(paste("Column", sort.field, "not found"))
+        if(message == T) message(paste("Column", sort.field, "not found"))
         sort.field <- 'f1'
     }
     all.cell.types <- all.cell.types[order(all.cell.types[[sort.field]], decreasing = T)[1:top.k],]
@@ -341,16 +342,19 @@ setMethod("evaluateMarkers",
 #'
 #' @name hyperQueryCellTypes
 #' @param object the \code{SCFind} object
-#' @param gene.list the list of genes to be queried
+#' @param gene.list genes to be searched in the gene.index 
+#' (Operators: "-gene" to exclude a gene | "*gene" either gene is expressed
+#' "*-gene" either gene is expressed to be excluded)
 #' @param datasets the datasets vector that will be tested as background for the hypergeometric test
 #'
 #' @return a DataFrame that contains all cell types with the respective cell cardinality and the hypergeometric test
 cell.types.phyper.test <- function(object, gene.list, datasets)
 {
-    result <- findCellTypes.geneList(object, caseCorrect(object, gene.list), datasets)
+    
+    result <- findCellTypes.geneList(object, gene.list, datasets)
     
     return(phyper.test(object, result, datasets))
-    
+
 }
 
 #' @rdname hyperQueryCellTypes
@@ -366,17 +370,113 @@ setMethod("hyperQueryCellTypes",
 #' returned express all of the genes in the given gene list
 #' 
 #' @param object the \code{SCFind} object
-#' @param gene.list genes to be searched in the gene.index
+#' @param gene.list genes to be searched in the gene.index 
+#' (Operators: "-gene" to exclude a gene | "*gene" either gene is expressed
+#' "*-gene" either gene is expressed to be excluded)
 #' @param datasets the datasets that will be considered
 #' 
 #' @name findCellTypes
 #' @return a named numeric vector containing p-values
 findCellTypes.geneList <- function(object, gene.list, datasets)
 {
-    
     datasets <- select.datasets(object, datasets)
-    return(object@index$findCellTypes(caseCorrect(object, gene.list), datasets))
     
+    if(length(grep("^-|^\\*", gene.list)) == 0)
+    {
+        return(object@index$findCellTypes(caseCorrect(object, gene.list), datasets))
+    }
+    else
+    {
+        pos <- caseCorrect(object, grep("^[^-\\*]", gene.list, value = T))
+        if(length(pos) == 0) stop ("At least one postiive gene (without operators) should be provided")
+        excl.or <- grep("^-\\*|^\\*-", gene.list, value = T)
+        or <- caseCorrect(object, sub("\\*", "", setdiff(grep("^\\*", gene.list, value = T), excl.or)))
+        excl <- caseCorrect(object, sub("-", "", setdiff(grep("^-", gene.list, value = T), excl.or)))
+        excl.or <- caseCorrect(object, sub("\\*-||-\\*", "", grep("^-\\*|^\\*-", gene.list, value = T)))
+        
+        if(length(c(intersect(pos, or), intersect(pos, excl), intersect(pos, excl.or), intersect(or, excl), intersect(or, excl.or), intersect(excl, excl.or))) != 0)
+        {
+            message ("Warning: Same gene labeled with different operators!") 
+            message ("There is a priority to handle operators:")
+            message (paste("Cells with", paste(pos, collapse=" ∧ "),"expression will be included.", 
+                           if(length(or) != 0) "Then cells with", paste(or, collapse=" ∨ "), "expression will be included."))
+            message (paste("The result will be excluded by", paste(excl, collapse=" ∧ "), 
+                           if(length(excl.or != 0)) paste("and further be excluded by", paste(excl.or, collapse=" ∨ "))))
+            cat('\n')
+        }
+
+        # Create unique variable for each cell by pairing cell types to cell ID
+        cell.to.id  <- pair.id(object@index$findCellTypes(pos, datasets))
+        if (length(or) == 0) message(paste("Found", length(cell.to.id), "cells co-expressing", toString(pos)))
+            
+        if(length(or) != 0)
+        {
+            # Include any cell expresses gene in OR condition
+            gene.or <- c()
+            for(i in 1: length(or))
+            {
+                tmp.id <- pair.id(object@index$findCellTypes(or[i], datasets))
+                if(!is.null(tmp.id))
+                {
+                    cell.to.id <- unique(c(cell.to.id, tmp.id))
+                    # Store used query
+                    gene.or <- c(gene.or, or[i])
+                }
+                else
+                {
+                    cell.to.id <- cell.to.id
+                }
+            }
+                message(paste("Found", length(cell.to.id), "cells", if(length(pos) > 1) "co-expressing" else "expressing", toString(pos), ", also expressing", paste(gene.or, collapse=" ∨ ")))
+            }
+            
+            count.cell <- length(cell.to.id)
+            gene.excl <- NULL
+            if(length(excl) != 0)
+            {
+                # Negative selection
+                cell.to.id <- setdiff(cell.to.id, pair.id(object@index$findCellTypes(excl, datasets)))
+            }
+            if(length(excl.or) != 0)
+            {
+                # Negative select cell in OR condition
+                
+                for(i in 1: length(excl.or))
+                {
+                    ex.tmp.id <- pair.id(object@index$findCellTypes(excl.or[i], datasets))
+                    if(!is.null(ex.tmp.id))
+                    {
+                        cell.to.id <- setdiff(cell.to.id, ex.tmp.id)
+                        gene.excl <- c(gene.excl, excl.or[i])
+                    }
+                    else
+                    {
+                        cell.to.id <- cell.to.id
+                    }
+                }
+                    
+            }
+            
+            count.cell <- count.cell - length(cell.to.id)
+            if(is.null(gene.excl)) 
+            {
+                if(count.cell != 0) message(paste("Excluded", count.cell, if(count.cell > 1) "cells" else "cell", 
+                                                  if(length(excl) > 1) "co-expressing" else "expressing", toString(excl)) )
+            }
+            else
+            {
+                message(paste("Excluded", count.cell, if(count.cell > 1) "cells" else "cell", 
+                              if(length(excl) != 0) paste(if(length(excl) > 1) "co-expressing" else "expressing", 
+                                                          toString(excl), ", also expressing") else "expressing", paste(gene.excl, collapse=" ∨ ") 
+                              ))
+            }
+            # Generate a new list
+            df <- do.call(rbind, strsplit(as.character(cell.to.id), "#"))
+            result <- as.list(setNames(as.numeric(split(df[,2], seq(nrow(df)))), df[,1]))
+            
+            if(length(unique(df[,1])) == nrow(df)) return(result) else return(unstack(stack(result)))
+            
+        }
 }
 
 #' @rdname findCellTypes
@@ -406,3 +506,35 @@ scfind.get.genes.in.db <- function(object)
 #' @aliases scfindGenes
 setMethod("scfindGenes", signature(object = "SCFind"), scfind.get.genes.in.db)
 
+
+#' Find out how many cell-types each gene is found
+#' 
+#' @param object the \code{SCFind} object
+#' @param gene.list genes to be searched in the gene.index
+#' @param min.cells 
+#' @param min.fraction 
+#' 
+#' @name findCellTypeSpecificities
+#' @return the list of number of cell type for each gene
+findCellTypeSpecificities <- function(object, gene.list = c(), min.cells=10, min.fraction=.25) {
+    
+    if(min.fraction >= 1 || min.fraction <= 0) stop("min.fraction reached limit, please use values > 0 and < 1.0.")
+    message("Calculating number of cell-types for each gene...")
+    
+    gene.names <- if(length(gene.list) == 0) object@index$genes() else gene.list
+    gene.specificity <- list()
+    
+    for (i in 1:length(gene.names)) {
+        setTxtProgressBar(txtProgressBar(1, length(gene.names), style = 3), i) 
+        gene.specificity[[gene.names[i]]] <- cell.type.specificity(object, gene.names[i], min.cells=min.cells, min.fraction=min.fraction)
+    }
+    cat('\n')
+    return(gene.specificity)
+}
+
+#' @rdname findCellTypeSpecificities
+#' @aliases findCellTypeSpecificities
+setMethod("findCellTypeSpecificities", 
+          signature(object = "SCFind",
+                    gene.list = "character"), 
+          findCellTypeSpecificities)
