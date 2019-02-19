@@ -41,14 +41,14 @@ Quantile lognormalcdf(const std::vector<int>& ids, const Rcpp::NumericVector& v,
                                     }) / ids.size());
   // initialize vector with zeros
   expr.quantile.resize(ids.size() * bits, 0);
-  //std::cerr << "Mean,std" << expr.mu << "," << expr.sigma << std::endl;
-  //std::cerr << "ids size " << ids.size() << " v size " << v.size() << std::endl;
+  //Rcpp::Rcerr << "Mean,std" << expr.mu << "," << expr.sigma << std::endl;
+  //Rcpp::Rcerr << "ids size " << ids.size() << " v size " << v.size() << std::endl;
   int expr_quantile_i = 0;
   for (auto const& s : ids)
   {
     unsigned int t = round(normalCDF(expr_tran(v[s]), expr.mu, expr.sigma) * (1 << bits));
     std::bitset<BITS> q = int2bin_core(t);
-    for (int i = 0; i < bits; ++i)
+    for (unsigned int i = 0; i < bits; ++i)
     {
        expr.quantile[expr_quantile_i++] = q[i];
     }
@@ -85,7 +85,7 @@ std::vector<double> decompressValues(const Quantile& q, const unsigned char& qua
 
   if(quantization_bits > 16)
   {
-    std::cerr << "Too much depth in the quantization bits!" << std::endl;
+    Rcpp::Rcerr << "Too much depth in the quantization bits!" << std::endl;
   }
   std::vector<double> bins((1 << quantization_bits));
   double bins_size = bins.size();
@@ -95,7 +95,7 @@ std::vector<double> decompressValues(const Quantile& q, const unsigned char& qua
   {
     double cdf = (i + 0.5) / bins_size;
     bins[i] = lognormalinv(cdf, q.mu, q.sigma);
-    // std::cout << "Quantile:" << bins[i] << " for " << cdf << " " << q.mu << " " << q.sigma << std::endl;
+    // Rcpp::Rcout << "Quantile:" << bins[i] << " for " << cdf << " " << q.mu << " " << q.sigma << std::endl;
     
   }
  

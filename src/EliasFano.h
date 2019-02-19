@@ -1,5 +1,4 @@
 #pragma once
-#include <Rcpp.h>
 #include <iostream>
 
 #include <algorithm>
@@ -14,31 +13,6 @@
 #include "functions.h"
 
 #define SERIALIZATION_VERSION 6
-
-
-
-
-
-// template<typename T>
-// struct TypeCompare
-// {
-//   using is_transparent = std::true_type;
-//   bool operator()(const T& lhs, const T& rhs) const
-//   {
-//     return lhs.name < rhs.name;
-//   }
-  
-//   bool operator()(const T& lhs, const std::string& name) const
-//   {
-//     return lhs.name < name;
-//   }
-  
-//   bool operator()(const std::string& name, const T& rhs) const
-//   {
-//     return name < rhs.name;
-//   }
-// };
-
 
 
 typedef struct
@@ -61,7 +35,7 @@ typedef struct
   int index;
 } IndexRecord;
 
-
+//' @export
 class EliasFanoDB;
 RCPP_EXPOSED_CLASS(EliasFanoDB)
 
@@ -83,7 +57,7 @@ class CellMeta
 public:                                               
   int reads;
   int features;
-  int getReads()const 
+  int getReads() const 
   {
     return reads;
   }
@@ -138,6 +112,8 @@ public:
   std::map<std::string, GeneScore> genes;
   // CellID (cell type , cell number)
   std::unordered_map<CellID , std::pair<std::vector<double>, int> > tfidf;
+
+  
   
 
   
@@ -145,7 +121,8 @@ public:
   void reset();
   void cell_type_relevance(const EliasFanoDB&, const Rcpp::List&, const std::set<std::string>&);
   void cell_tfidf(const EliasFanoDB&, const std::set<std::string>&);
-  void estimateExpression(const Rcpp::List& gene_results, const EliasFanoDB& db, const Rcpp::CharacterVector& datasets);
+  void estimateExpression(const Rcpp::List& gene_results, const EliasFanoDB& db, const Rcpp::CharacterVector& datasets, bool concsole_message);
+  int calculate_cell_types(const std::set<std::string>&gene_set);
 };
 
 
@@ -193,7 +170,7 @@ typedef struct
   }
 } CellTypeMarker;
 
-
+//' @export EliasFanoDB 
 class EliasFanoDB
 {
  public:
@@ -219,19 +196,13 @@ class EliasFanoDB
   std::deque<CellType> inverse_cell_type;
   
   GeneIndex genes;
-  
   ExpressionMatrix ef_data;
-
+  int warnings;
   unsigned int total_cells;
-  
   unsigned char quantization_bits;
   
 
   EliasFanoDB();
-  
-  bool global_indices;
-  
-  int warnings;
   
   void dumpGenes();
 
@@ -245,12 +216,13 @@ class EliasFanoDB
 
   long eliasFanoCoding(const std::vector<int>& ids, const Rcpp::NumericVector& values);
   
-  std::vector<int> eliasFanoDecoding(const EliasFano& ef);
+  std::vector<int> eliasFanoDecoding(const EliasFano& ef) const; 
 
   int queryZeroGeneSupport(const Rcpp::CharacterVector&) const;
 
   // This is invoked on slices of the expression matrix of the dataset 
   long encodeMatrix(const std::string& cell_type_name, const Rcpp::NumericMatrix& gene_matrix);
+
 
   Rcpp::List total_genes();
   
@@ -262,6 +234,13 @@ class EliasFanoDB
   
   int getTotalCells(const Rcpp::CharacterVector&) const;
 
+
+  Rcpp::List geneSupportInCellTypes(const Rcpp::CharacterVector& gene_names, const Rcpp::CharacterVector&) const;
+  
+  const CellType& getCellType(const CellTypeName& name ) const;
+
+  const Rcpp::NumericMatrix getCellTypeMatrix(const CellTypeName& cell_type) const;
+
   int numberOfCellTypes(const Rcpp::CharacterVector&) const;
 
   int cellsInDB() const;
@@ -270,8 +249,6 @@ class EliasFanoDB
   
   Rcpp::NumericVector getCellTypeSupport(Rcpp::CharacterVector& cell_types);
   
-  std::vector<double> getQuantizedExpressionLevels(const std::string& gene_name, const std::string& cell_type);
-  
   Rcpp::List queryGenes(const Rcpp::CharacterVector& gene_names, const Rcpp::CharacterVector& datasets_active);
   
   size_t dataMemoryFootprint();
@@ -279,8 +256,6 @@ class EliasFanoDB
   size_t quantizationMemoryFootprint();
   
   size_t dbMemoryFootprint();
-  
-  
 
   // And query
   Rcpp::List findCellTypes(const Rcpp::CharacterVector& gene_names, const Rcpp::CharacterVector& datasets_active);
@@ -288,7 +263,7 @@ class EliasFanoDB
 
   // TODO(Nikos) this function can be optimized.. It uses the native quering mechanism
   // that casts the results into native R data structures
-  Rcpp::DataFrame findMarkerGenes(const Rcpp::CharacterVector& gene_list, const Rcpp::CharacterVector datasets_active, unsigned int min_support_cutoff);
+  Rcpp::DataFrame findMarkerGenes(const Rcpp::CharacterVector& gene_list, const Rcpp::CharacterVector datasets_active, unsigned int min_support_cutoff, bool console_message);
 
 
   Rcpp::DataFrame _findCellTypeMarkers(const Rcpp::CharacterVector& cell_types, 
@@ -306,10 +281,13 @@ class EliasFanoDB
   
   
   std::map<GeneName, CellTypeMarker> _cellTypeScore(const std::string& cell_type, const std::vector<std::string>& universe, const std::vector <GeneName>&) const;
-  const std::set<std::string> _getActiveCellTypes(std::vector<std::string> universe) const;
-    
+  const std::set<std::string> _getValidCellTypes(std::vector<std::string> universe) const;
+
+
   const std::vector<CellTypeName> _getCellTypes() const;
+  const std::vector<CellTypeName> _getCellTypes(const std::vector<std::string>& datasets) const;
   
+  const std::vector<CellTypeName> getCellTypes() const;
   
   Rcpp::List getCellMeta(const std::string&, const int&) const;
 
@@ -330,3 +308,5 @@ class EliasFanoDB
   
 
 };
+
+

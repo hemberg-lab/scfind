@@ -1,6 +1,6 @@
 #pragma once
 
-#include "EliasFano.hpp"
+#include "EliasFano.h"
 
 #include <Rcpp.h>
 #include <iostream>
@@ -12,7 +12,7 @@ class SerializationDB
 {
 public:
   friend class EliasFanoDB;
-  long byte_pointer;
+  unsigned long byte_pointer;
   std::vector<unsigned char> serialized_bytestream;
   
   template<typename T>

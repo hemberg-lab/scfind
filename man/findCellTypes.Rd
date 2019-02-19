@@ -3,8 +3,7 @@
 \name{findCellTypes}
 \alias{findCellTypes}
 \alias{findCellTypes.geneList}
-\title{Find cell types associated with a given gene list. All cells
-returned express all of the genes in the given gene list}
+\title{queries cells that contain all the genes from the list}
 \usage{
 findCellTypes(object, gene.list, datasets)
 
@@ -14,27 +13,15 @@ findCellTypes.geneList(object, gene.list, datasets)
 \item{object}{the \code{SCFind} object}
 
 \item{gene.list}{genes to be searched in the gene.index}
+
+\item{datasets}{the datasets that will be considered}
 }
 \value{
 a named numeric vector containing p-values
 }
 \description{
+queries cells that contain all the genes from the list
+
 Find cell types associated with a given gene list. All cells
 returned express all of the genes in the given gene list
-}
-\examples{
-library(SingleCellExperiment)
-sce <- SingleCellExperiment(assays = list(normcounts = as.matrix(yan)), colData = ann)
-# this is needed to calculate dropout rate for feature selection
-# important: normcounts have the same zeros as raw counts (fpkm)
-counts(sce) <- normcounts(sce)
-logcounts(sce) <- log2(normcounts(sce) + 1)
-# use gene names as feature symbols
-rowData(sce)$feature_symbol <- rownames(sce)
-isSpike(sce, 'ERCC') <- grepl('^ERCC-', rownames(sce))
-# remove features with duplicated names
-sce <- sce[!duplicated(rownames(sce)), ]
-index <- buildCellIndex(sce)
-res <- findCell(index, genelist = c('SOX6', 'SNAI3'))
-
 }

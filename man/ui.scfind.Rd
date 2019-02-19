@@ -4,10 +4,7 @@
 \alias{ui.scfind}
 \title{UI handler for the shiny front end of scfind}
 \usage{
-ui.scfind(object)
-}
-\arguments{
-\item{object}{SCFind object}
+ui.scfind()
 }
 \description{
 UI handler for the shiny front end of scfind

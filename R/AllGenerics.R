@@ -1,9 +1,15 @@
-
 #' The scfind main class object
+#'
 #' @export
-setClass("SCFind", representation(index = "Rcpp_EliasFanoDB", datasets = "character", serialized = "raw"))
+setClass("SCFind",
+         representation(
+             index = "ANY", #Index is type of Rcpp_EliasFanoDB but this removes the warning
+             datasets = "character",
+             serialized = "raw",
+             metadata = "list"
+             ))
 
-#' @examples TODO
+
 #' 
 #' @export
 setGeneric(name = "buildCellTypeIndex",
@@ -16,61 +22,38 @@ setGeneric(name = "buildCellTypeIndex",
            })
 
 
-#' 
-#' @examples TODO
 #' @export 
 setGeneric(name = "mergeDataset", def = function(object, new.object) {
     standardGeneric("mergeDataset")
 })
  
-#' @examples TODO
+
 #' @export 
 setGeneric(name = "mergeSCE", def = function(object, sce, dataset.name) {
     standardGeneric("mergeSCE")
 })
 
 
+#' queries cells that contain all the genes from the list
 #' @export
-#' 
-#' @examples TODO
-#'
-#' 
-setGeneric(name = "queryGene", def = function(object, gene, datasets) {
-    standardGeneric("queryGene")
-})
-
-#' @export
-#' 
-#' @examples
-#' library(SingleCellExperiment)
-#' sce <- SingleCellExperiment(assays = list(normcounts = as.matrix(yan)), colData = ann)
-#' # this is needed to calculate dropout rate for feature selection
-#' # important: normcounts have the same zeros as raw counts (fpkm)
-#' counts(sce) <- normcounts(sce)
-#' logcounts(sce) <- log2(normcounts(sce) + 1)
-#' # use gene names as feature symbols
-#' rowData(sce)$feature_symbol <- rownames(sce)
-#' isSpike(sce, 'ERCC') <- grepl('^ERCC-', rownames(sce))
-#' # remove features with duplicated names
-#' sce <- sce[!duplicated(rownames(sce)), ]
-#' index <- buildCellIndex(sce)
-#' res <- findCell(index, genelist = c('SOX6', 'SNAI3'))
-#' 
 setGeneric(name = "findCellTypes", function(object, gene.list, datasets) {
     standardGeneric("findCellTypes")
 })
 
 
+#' return all the gene markers for a specified cell.type
+#'
 #' @export
 #'
 setGeneric(name = "cellTypeMarkers" ,  function(object,
                                                cell.types,
                                                background.cell.types,
                                                top.k = 5,
-                                               sort.field = 'f1'){
+                                               sort.field = 'f1',
+                                               message = T){
     standardGeneric("cellTypeMarkers")
-
 })
+
 
 #' @export
 #'
@@ -80,7 +63,8 @@ setGeneric(name = "cellTypeNames", function(object){
 
 #' @export
 #'
-setGeneric(name = "evaluateMarkers", function(object, gene.list,
+setGeneric(name = "evaluateMarkers", function(object,
+                                              gene.list,
                                               cell.types,
                                               background.cell.types,
                                               sort.field = 'f1'){
@@ -101,6 +85,7 @@ setGeneric(name = "loadObject", function(filename){
 })
 
 #' Generic to be used instead of saveRDS
+#' 
 #' @export
 setGeneric(name = "saveObject", function(object, file){
     standardGeneric("saveObject")
@@ -114,8 +99,11 @@ setGeneric(name = "hyperQueryCellTypes", function(object,
 
 })
 
+#' Performs query optimization and return the best candidate gene sets
+#'
 #' @export
-setGeneric(name = "markerGenes", function(object, gene.list, datasets)
+
+setGeneric(name = "markerGenes", function(object, gene.list, datasets, message = 0)
 {
     standardGeneric("markerGenes")
 })
@@ -129,5 +117,14 @@ setGeneric(name = "scfindGenes", function(object){
 #' @export
 setGeneric(name = "scfindShinyServer", function(object){
     standardGeneric("scfindShinyServer")
+})
+
+
+#' @export
+setGeneric(name = "findCellTypeSpecificities", function(object, 
+                                                        gene.list=c(), 
+                                                        min.cells=10, 
+                                                        min.fraction=.25){
+    standardGeneric("findCellTypeSpecificities")
 })
 
