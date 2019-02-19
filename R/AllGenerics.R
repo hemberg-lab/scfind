@@ -57,7 +57,7 @@ setGeneric(name = "cellTypeMarkers" ,  function(object,
 
 #' @export
 #'
-setGeneric(name = "cellTypeNames", function(object){
+setGeneric(name = "cellTypeNames", function(object, datasets){
    standardGeneric("cellTypeNames")
 })
 
