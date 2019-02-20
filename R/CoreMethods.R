@@ -494,7 +494,14 @@ findCellTypes.geneList <- function(object, gene.list, datasets)
             if(!is.null(df))
             {
                 result <- as.list(setNames(as.numeric(split(df[,2], seq(nrow(df)))), df[,1]))
-                if(length(unique(df[,1])) == nrow(df)) return(result) else return(unstack(stack(result)))
+                if(length(unique(df[,1])) == nrow(df)) 
+                {
+                    return(result)
+                } 
+                else 
+                {
+                        if(length(unique(names(result))) == 1) return(as.list(unstack(stack(result)))) else return(unstack(stack(result)))
+                }
             }
             else
             {
