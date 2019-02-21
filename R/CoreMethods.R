@@ -500,7 +500,18 @@ findCellTypes.geneList <- function(object, gene.list, datasets)
                 } 
                 else 
                 {
-                        if(length(unique(names(result))) == 1) return(as.list(unstack(stack(result)))) else return(unstack(stack(result)))
+
+                    if(length(unique(names(result))) == 1) 
+                    {
+                        tmp <-list(stack(result)$values)
+                        names(tmp) <- unique(names(result))
+                        return(tmp)
+                    }  
+                    else 
+                    {
+                        return(unstack(stack(result)))
+                    }
+
                 }
             }
             else
