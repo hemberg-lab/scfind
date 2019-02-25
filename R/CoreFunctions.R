@@ -69,7 +69,7 @@ phyper.test <- function(object, result, datasets)
                                  cell.types.df$total_cells, # total successes ( cell type size )
                                  sum(cell.types.df$total_cells) - cell.types.df$total_cells, # total failures( total cells excluding cell type)
                                  query.hits # sample size 
-                                 ), n = object@index$numberOfCellTypes(datasets))
+                                 ), n = length(cellTypeNames(object, datasets)))
 
 
     return(cell.types.df)
