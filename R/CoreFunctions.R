@@ -36,21 +36,20 @@ contigency.table <- function(query.results)
 
 caseCorrect <- function(object, gene.list)
 {
-    
-    lo.gene.list <- tolower(gene.list)
-    lo.gene.names <- tolower(object@index$genes())
-    
-    gene.index <- NULL
-    
-    for(i in 1: length(lo.gene.list))
+    gene.list <- gene.list[gene.list != ""]
+
+    if(length(gene.list) != 0)
     {
-        gene.index <- c(gene.index, which(lo.gene.names == lo.gene.list[i]))
+        gene.corr <- object@index$genes()[match(tolower(gene.list), tolower(object@index$genes()), nomatch = 0)]
+        
+        if(length(setdiff(tolower(gene.list), tolower(gene.corr))) != 0) message(paste0("Ignored ", toString(setdiff(gene.list, gene.list[match(tolower(gene.corr), tolower(gene.list), nomatch=0)])), ". Not found in the index"))
+
+        return(unique(gene.corr))
     }
-    
-    lo.gene.list <- object@index$genes()[gene.index]
-    
-    
-    return(lo.gene.list[!duplicated(lo.gene.list)])
+    else
+    {
+        return(c())
+    }
 }
 
 
@@ -70,7 +69,7 @@ phyper.test <- function(object, result, datasets)
                                  cell.types.df$total_cells, # total successes ( cell type size )
                                  sum(cell.types.df$total_cells) - cell.types.df$total_cells, # total failures( total cells excluding cell type)
                                  query.hits # sample size 
-                                 ), n = object@index$numberOfCellTypes(datasets))
+                                 ), n = length(cellTypeNames(object, datasets)))
 
 
     return(cell.types.df)
@@ -122,4 +121,42 @@ scfind.get.genes.in.db <- function(object){
     
     return(object@index$genes())
 
+}
+
+pair.id <- function(cell.list = list()){
+    if(length(cell.list) == 0) 
+    {
+        return(c())
+    } 
+    else
+    {
+        pair.vec <- stack(cell.list)
+        return (paste0(pair.vec$ind, "#",pair.vec$values))
+    }
+    
+}
+
+find.signature <- function(object, cell.type, max.genes=1000, min.cells=10, max.pval=0) {
+    # Use this method to find a gene signature for a cell-type. 
+    # We do this by ranking genes by recall and then adding genes to the query until we exceed a target p-value threshold or until a minimum number of cells is returned from the query
+    df <- cellTypeMarkers(object, cell.type, top.k=max.genes, sort.field="recall", message=F)
+    genes <- as.character(df$genes)
+    genes.list <- c()
+    thres = max(c(min.cells, object@index$getCellTypeMeta(cell.type)$total_cells))
+    for (j in 1:dim(df)[1]) {
+        res <- hyperQueryCellTypes(object, c(genes.list, genes[j]))
+        if (dim(res)[1]>0) {
+            ind <- which(res[,1]==cell.type)
+            if (length(ind)==0) {
+                break
+            }
+            else {
+                if (res[ind,4]>max.pval | res[ind,2]<thres) {
+                    break
+                }
+            }
+        }
+        genes.list <- c(genes.list, genes[j])
+    }
+    return( genes.list )
 }
