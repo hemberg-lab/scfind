@@ -381,30 +381,27 @@ const CellType& EliasFanoDB::getCellType(const CellTypeName& name ) const
 }
 
 
+// TODO(Nikos) this needs refactoring
 const Rcpp::NumericMatrix EliasFanoDB::getCellTypeMatrix(const CellTypeName& cell_type) const
 {
   const CellType ct = getCellType(cell_type);
   const CellTypeID ct_id = this->cell_types.at(cell_type);
   std::vector<GeneName>  feature_names;
-  // Populate total features of the cell_type
+  
+  // Feature number mill be the feature names size
+  for (auto const& record : index)
+  {
+    auto rec_it = record.second.find(ct_id);
+    if (rec_it != record.second.end())
+    {
+      feature_names.push_back(record.first);
+    }
+  }
 
-  unsigned int total_features = std::count_if(this->index.begin(), 
-                                              this->index.end(), 
-                                              [ct_id, &feature_names](const std::pair<GeneName, GeneContainer>& record){
-                                                if (record.second.find(ct_id) != record.second.end())
-                                                {
-                                                  feature_names.push_back(record.first);
-                                                  return true;
-                                                }
-                                                else
-                                                {
-                                                  return false;
-                                                }
-                                              });
   
   // Initialize matrix
-  Rcpp::NumericMatrix mat(total_features, ct.total_cells);
-
+  Rcpp::NumericMatrix mat(feature_names.size(), ct.total_cells);
+  
   int qb = quantization_bits;
   // for the sparse expression  vector matrix get the indices and deconvolute the quantized values
   for (int row = 0; row < mat.nrow(); ++row)
@@ -413,7 +410,7 @@ const Rcpp::NumericMatrix EliasFanoDB::getCellTypeMatrix(const CellTypeName& cel
     const auto& rec = getEntry(feature_names[row], cell_type);
     const auto indices_val = eliasFanoDecoding(rec);
     const auto exp_val = decompressValues(rec.expr, qb);
-    
+
     if (indices_val.size() != exp_val.size())
     {
       Rcpp::Rcerr << "not equal number of genes" << std::endl;
@@ -421,12 +418,21 @@ const Rcpp::NumericMatrix EliasFanoDB::getCellTypeMatrix(const CellTypeName& cel
     }
     Rcpp::NumericVector na_vec(ct.total_cells);
     auto exp_it = exp_val.begin();
+    
+    if (exp_val.size() != indices_val.size())
+    {
+      Rcpp::Rcerr << "Sparse vector representation mismatch" << std::endl;
+      Rcpp::Rcerr << feature_names[row] << std::endl;
+      continue;
+    }
+    
     for (auto const& index : indices_val)
     {
-      na_vec[index] = (*exp_it);
+      na_vec[index - 1] = (*exp_it);
       ++exp_it;
     }
     
+
     mat(row, Rcpp::_) = na_vec;
   }
   
