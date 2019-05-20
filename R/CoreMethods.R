@@ -6,6 +6,7 @@
 #' @param dataset.name name of the dataset that will be prepended in each cell_type
 #' @param assay.name name of the SingleCellExperiment assay that will be considered for the generation of the index
 #' @param cell.type.label the cell.type metadata of the colData SingleCellExperiment that will be used for the index
+#' @param qb number of bits per cell that are going to be used for quantile compression of the expression data
 #' 
 #' @name buildCellTypeIndex
 #'
@@ -19,7 +20,7 @@
 #' @importFrom Rcpp cpp_object_initializer
 #' @useDynLib scfind 
 #' 
-buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name = 'counts', cell.type.label = 'cell_type1')
+buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name = 'counts', cell.type.label = 'cell_type1', qb = 2)
 {
 
     if (grepl(dataset.name,'.'))
@@ -49,6 +50,12 @@ buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name = 'counts', 
         exprs <- "[["(sce@assays$data, assay.name)
 
         ef <- new(EliasFanoDB)
+       
+        qb.set <- ef$setQB(qb)
+        if (qb.set == 1)
+        {
+            stop("Setting the quantization bits failed")
+        }
         for (cell.type in cell.types) {
             inds.cell <- which(cell.type == cell.types.all)
             if(length(inds.cell) < 2)
