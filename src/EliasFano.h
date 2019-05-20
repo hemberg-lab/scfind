@@ -208,6 +208,10 @@ class EliasFanoDB
 
   void clearDB();
  
+  int setQuantizationBits(const unsigned int value);
+
+  unsigned int getQuantizationBits() const;
+
   const EliasFano& getEntry(const GeneName& gene_name, const CellTypeName& cell_type) const;
  
   int loadByteStream(const Rcpp::RawVector& stream);

@@ -240,6 +240,8 @@ void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasF
   
 }
 
+
+
 void QueryScore::cell_tfidf(const EliasFanoDB& db, const std::set<std::string>& gene_set)
 {
  
@@ -272,6 +274,33 @@ void EliasFanoDB::clearDB()
   cell_types.clear();
   inverse_cell_type.clear();
 }
+
+int EliasFanoDB::setQuantizationBits(unsigned int qbvalue)
+{
+ 
+  if (ef_data.empty() and qbvalue < 32)
+  {
+    quantization_bits = qbvalue;
+  }
+  else
+  {
+    Rcpp::Rcerr << "Quantized bits not set, DB not empty or qbvalue to high!" << std::endl;
+    return 1;
+  }
+
+  if (qbvalue > 10)
+  {
+    Rcpp::Rcerr << "Setting to high value may be a performance hog in retrieving cell expression" << std::endl;
+    
+  }
+  return 0;
+}
+
+unsigned int EliasFanoDB::getQuantizationBits() const
+{
+  return this->quantization_bits;
+}
+
 
 int EliasFanoDB::loadByteStream(const Rcpp::RawVector& stream)
 {
@@ -1413,7 +1442,11 @@ int EliasFanoDB::insertNewCellType(const CellType& cell_type)
 int EliasFanoDB::mergeDB(const EliasFanoDB& db)
 {    
   EliasFanoDB extdb(db);
-    
+  if (extdb.getQuantizationBits() != this->getQuantizationBits())
+  {
+    Rcpp::Rcerr << "Can not perform merging.. Quantization bits are not equal in the two databases. Please fix" << std::endl;
+    return 1;
+  }
   // the DB will grow by this amount of cells
   this->total_cells += extdb.total_cells;
 
@@ -1488,6 +1521,7 @@ RCPP_MODULE(EliasFanoDB)
 {
   Rcpp::class_<EliasFanoDB>("EliasFanoDB")
     .constructor()
+    .method("setQB", &EliasFanoDB::setQuantizationBits)
     .method("indexMatrix", &EliasFanoDB::encodeMatrix)
     .method("queryGenes", &EliasFanoDB::queryGenes)
     .method("zgs", &EliasFanoDB::queryZeroGeneSupport)
