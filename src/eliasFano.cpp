@@ -903,91 +903,88 @@ Rcpp::CharacterVector EliasFanoDB::getGenesInDB()
 }
 
 
-// And query
 Rcpp::List EliasFanoDB::findCellTypes(const Rcpp::CharacterVector& gene_names, const Rcpp::CharacterVector& datasets_active)
 {
-    
-  std::unordered_map<CellTypeID, std::set<std::string> > cell_types;
-  std::vector<std::string> genes;
-
   std::vector<std::string> datasets = Rcpp::as<std::vector<std::string>>(datasets_active);
-
-  // Fast pruning if there is not an entry we do not need to consider
-  for (Rcpp::CharacterVector::const_iterator it = gene_names.begin(); it != gene_names.end(); ++it)
+  std::vector<CellTypeName> cell_types_bg;
+  for (auto const& ct : this->cell_types)
   {
-    std::string gene_name = Rcpp::as<std::string>(*it);
-      
-    // check if gene exists in the database
-    auto db_it = index.find(gene_name);
-    if (db_it == index.end())
-    {
-      Rcpp::Rcerr << gene_name << " is ignored, not found in the index"<< std::endl;
-      continue;
-    }
-
-    // iterate cell type
-    for (auto const& ct_it : db_it->second)
-    {
-      CellType ct = this->inverse_cell_type[ct_it.first];
-        
-      // Remove cells if not in the selected datasets
-      std::string ct_dataset = ct.name.substr(0, ct.name.find("."));
-      auto find_dataset = std::find(datasets.begin(), datasets.end(), ct_dataset);
-      // check if the cells are in active datasets
-      if (find_dataset == datasets.end())
-      {
-        continue;
-      }
-
-      if (cell_types.find(ct_it.first) == cell_types.end())
-      {
-        cell_types[ct_it.first] = std::set<std::string>();
-      }
-      cell_types[ct_it.first].insert(gene_name);
-    }
-    genes.push_back(gene_name);
+    cell_types_bg.push_back(ct.first);
   }
-    
+  cell_types_bg.erase(std::remove_if(
+    cell_types_bg.begin(), 
+    cell_types_bg.end(), 
+    [&datasets](const CellTypeName& ct_name){
+      std::string ct_dataset = ct_name.substr(0, ct_name.find("."));
+      return std::find(datasets.begin(), datasets.end(), ct_dataset) == datasets.end();
+    }), cell_types_bg.end());
+  
+  return _findCellTypes(gene_names, cell_types_bg);
+}
+
+
+// And query
+Rcpp::List EliasFanoDB::_findCellTypes(const Rcpp::CharacterVector& gene_names, const std::vector<EliasFanoDB::CellTypeName>& cell_types_bg)
+{
+
   // Store the results here
   Rcpp::List t;
+  std::vector<GeneName> genes  = Rcpp::as<std::vector<GeneName>>(gene_names);
 
-  for (auto const& ct : cell_types)
+  // Remove genes not found in index
+  genes.erase(std::remove_if(genes.begin(), genes.end(),[&](const GeneName& g){
+                                                          auto is_missing = (index.find(g) == index.end());
+                                                          if (is_missing)
+                                                            Rcpp::Rcerr << g << " is ignored, not found in the index"<< std::endl;
+                                                          return is_missing;
+                                                        }), genes.end());
+  
+  // Get Cell types that have all the genes present
+  std::vector<CellTypeName> cts = cell_types_bg;
+  std::vector<const GeneContainer*> gene_set;
+  for(auto const& g : genes)
   {
-    if (ct.second.size() != genes.size())
-    {
-      continue;
-    }
-      
-    auto g_it = ct.second.begin();
-    std::vector<int> ef = eliasFanoDecoding(this->ef_data[index[*g_it][ct.first]]);
+    gene_set.push_back(&(this->index.at(g)));
+  }
+  cts.erase(std::remove_if(cts.begin(), cts.end(),[&](const CellTypeName& ct){
+                                                    CellTypeID cid = this->cell_types.at(ct);
+                                                    for( auto const& g : gene_set)
+                                                      if (g->find(cid) == g->end())
+                                                        return true;
+                                                    return false;
+                                                  }), cts.end());
 
-    for (++g_it; g_it != ct.second.end();++g_it)
+  
+
+  // intersect cells
+  for (auto const& ct : cts)
+  {
+    auto last_intersection = eliasFanoDecoding(getEntry(*(genes.begin()),ct));
+    std::vector<int> curr_intersection;
+    curr_intersection.reserve(last_intersection.size());
+    for(std::size_t i = 1; i < genes.size(); ++i)
     {
-      auto cells = eliasFanoDecoding(this->ef_data[index[*g_it][ct.first]]);
-        
-      std::vector<int> intersected_cells;
-      std::set_intersection(ef.begin(), 
-                            ef.end(), 
-                            cells.begin(), 
-                            cells.end(), 
-                            std::back_inserter(intersected_cells));
-      ef = intersected_cells;
-      if (ef.empty())
+      std::vector<int> cells = eliasFanoDecoding(getEntry(genes.at(i), ct));
+      std::set_intersection(
+        cells.begin(), 
+        cells.end(), 
+        last_intersection.begin(), 
+        last_intersection.end(), 
+        std::back_inserter(curr_intersection));
+      std::swap(last_intersection,curr_intersection);
+      curr_intersection.clear();
+      curr_intersection.reserve(last_intersection.size());
+      if(last_intersection.empty())
       {
         break;
       }
     }
+    if(not last_intersection.empty())
+      t[ct] = Rcpp::wrap(last_intersection);
       
-    if(!ef.empty())
-    {
-      t[this->inverse_cell_type[ct.first].name] = Rcpp::wrap(ef);
-    }
   }
   return t;
 }
-
-
-
 
 
 // TODO(Nikos) this function can be optimized.. It uses the native quering mechanism

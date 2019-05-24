@@ -263,6 +263,7 @@ class EliasFanoDB
 
   // And query
   Rcpp::List findCellTypes(const Rcpp::CharacterVector& gene_names, const Rcpp::CharacterVector& datasets_active);
+  Rcpp::List _findCellTypes(const Rcpp::CharacterVector& gene_names, const std::vector<CellTypeName>& cell_types_bg);
 
 
   // TODO(Nikos) this function can be optimized.. It uses the native quering mechanism
