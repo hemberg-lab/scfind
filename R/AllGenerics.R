@@ -16,7 +16,8 @@ setGeneric(name = "buildCellTypeIndex",
            def = function(sce,
                           dataset.name = '',
                           assay.name = 'logcounts',
-                          cell.type.label = 'cell_type1')
+                          cell.type.label = 'cell_type1',
+                          qb = 2)
            {
                standardGeneric("buildCellTypeIndex")
            })
