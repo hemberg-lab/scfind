@@ -5,6 +5,8 @@
 
 
 #define BITS 32
+#define ALL 1
+#define AND 2
 
 
 typedef std::pair<unsigned short, std::bitset<BITS> > BitSet32;

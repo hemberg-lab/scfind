@@ -262,29 +262,38 @@ class EliasFanoDB
   size_t dbMemoryFootprint();
 
   // And query
-  Rcpp::List findCellTypes(const Rcpp::CharacterVector& gene_names, const Rcpp::CharacterVector& datasets_active);
+  Rcpp::List findCellTypes(const Rcpp::CharacterVector& gene_names, const Rcpp::CharacterVector& datasets_active) const;
+  Rcpp::List _findCellTypes(const std::vector<std::string>& gene_names, const std::vector<CellTypeName>& cell_types_bg) const;
 
 
   // TODO(Nikos) this function can be optimized.. It uses the native quering mechanism
   // that casts the results into native R data structures
   Rcpp::DataFrame findMarkerGenes(const Rcpp::CharacterVector& gene_list, const Rcpp::CharacterVector datasets_active, unsigned int min_support_cutoff, bool console_message);
-
+  
 
   Rcpp::DataFrame _findCellTypeMarkers(const Rcpp::CharacterVector& cell_types, 
                                        const Rcpp::CharacterVector& background, 
-                                       const std::vector<GeneName>&);
+                                       const std::vector<GeneName>&,
+                                       int mode = ALL) const;
 
+
+  
   Rcpp::DataFrame findCellTypeMarkers(const Rcpp::CharacterVector& cell_types, 
-                                      const Rcpp::CharacterVector& background);
+                                      const Rcpp::CharacterVector& background) const;
 
   Rcpp::DataFrame evaluateCellTypeMarkers(const Rcpp::CharacterVector& cell_types, 
+                                          const Rcpp::CharacterVector& gene_set, 
+                                          const Rcpp::CharacterVector& background);
+
+  Rcpp::DataFrame evaluateCellTypeMarkersAND(const Rcpp::CharacterVector& cell_types, 
                                           const Rcpp::CharacterVector& gene_set, 
                                           const Rcpp::CharacterVector& background);
   
 
   
   
-  std::map<GeneName, CellTypeMarker> _cellTypeScore(const std::string& cell_type, const std::vector<std::string>& universe, const std::vector <GeneName>&) const;
+  std::map<GeneName, CellTypeMarker> _cellTypeScore(const std::string& cell_type, const std::vector<std::string>& universe, const std::vector <GeneName>&, int mode = ALL) const;
+  
   const std::set<std::string> _getValidCellTypes(std::vector<std::string> universe) const;
 
 
