@@ -324,7 +324,7 @@ ui.scfind <- function()
 #' @importFrom ggplot2 ggplot geom_bar geom_col ggtitle xlab ylab aes coord_flip theme_minimal
 server.scfind <- function(object)
 {
-
+    message(getwd())
     return(
         function(input, output, session)
         {

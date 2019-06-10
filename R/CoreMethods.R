@@ -76,7 +76,11 @@ buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name = 'counts', 
             }
         }
     }
+
+
     index <- new("SCFind", index = ef, datasets = dataset.name)
+
+
     return(index)
 }
 
@@ -124,6 +128,7 @@ setMethod("saveObject",  definition = save.serialized.object)
 #'
 #' @useDynLib scfind
 load.serialized.object <- function(filename){
+    message(paste("Loading", filename))
     object <-  readRDS(filename)
     # Deserialize object
     object@index <-  new(EliasFanoDB)
