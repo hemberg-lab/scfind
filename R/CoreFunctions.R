@@ -766,7 +766,7 @@ query2genes <- function(object, dictionary, query, strict = F, automatch = T, gr
                             # handling very non-specific query
                             if(length(j) == 1 && spell.tolerate == T)
                             {
-                                # correct token for better match
+                                # correct token for better match
                                 tk.in.common <- tail(sort(table(strsplit(paste(res$phrase, collapse = " "), " |-|,")[[1]])),1)
                                 j <- if(agrepl(j, names(tk.in.common)) && tk.in.common[[1]] == nrow(res)) names(tk.in.common) else j
                             }
@@ -813,14 +813,12 @@ query2genes <- function(object, dictionary, query, strict = F, automatch = T, gr
             }
             
         }
-        # message("You may want to check the spelling of you query.")
         results[["genes"]] <- unique(gene.list)
         results <- dedup.gene(results)
         return(results[!sapply(results, is.null)])
     }
     else
     {
-        # message("You may want to check the spelling of you query.")
         results[["genes"]] <- if(length(gene.list) != 0) gene.list else NULL
         results <- dedup.gene(results)
         return(results[!sapply(results, is.null)])
@@ -893,9 +891,7 @@ query2CellTypes <- function(object, dictionary, query, datasets, optimize = T, a
             result[['celltypes_significant']] <- significant.celltype
             cell_hits <- cell_hits[as.character(significant.celltype$cell_type)]
             result[['cell_hits_significant']] <- cell_hits
-            # result[['perfect']] <- significant.celltype[grep(max(significant.celltype$cell_hits), significant.celltype$cell_hits),]
             message(paste0("Found ", nrow(significant.celltype), " celltypes has pval <= ", min(q2CT$pval, 0.001), "."))
-            # message(paste0(result[['perfect']]$cell_type , " has the highest % cell hits among all significant cell types."))	
         }
         else
         {

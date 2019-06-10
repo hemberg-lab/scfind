@@ -350,7 +350,7 @@ server.scfind <- function(object)
 
             observeEvent(input$geneList,{
 
-# This is necessary, because users are allowed to input chromosome as the format chrX:XXXXX-YYYYY instead of chrX_XXXXX_YYYYY
+                        # This is necessary, because users are allowed to input chromosome as the format chrX:XXXXX-YYYYY instead of chrX_XXXXX_YYYYY
                         text <- gsub("\\s|,", ",", input$geneList)
                         gene.list.input <- unlist(strsplit(text, ","))
                         chr.list.input <- c()
@@ -371,7 +371,7 @@ server.scfind <- function(object)
 
                             gene.list.input <- if(length(chr.list.input) != 0) gsub(':|-','_',chr.list.input) else gene.list.input
                             last.query.state("genelist")
-                            # print(paste("GeneList",gene.list.input))
+
                             gene.list.input <- caseCorrect(object, gene.list.input)
                             gene.list(gene.list.input)
 
@@ -568,12 +568,13 @@ else if (last.query.state() == "checkbox")
             observe({
                 s = input$cellTypesData_rows_selected # return row number, NULL
                 df <- cell.types()
-                if(!is.null(s) && length(object@metadata) != 0 && nrow(df) != 0){ #!#
+                if(!is.null(s) && length(object@metadata) != 0 && nrow(df) != 0){ 
 
                     rdt <- phyper.test(object, df, input$datasetCheckbox)
+
                     selectedCellTypes <- as.character(rdt$cell_type[s])
                     subdataset <- unique(sub("\\..*", "", selectedCellTypes)) # get datasetName. from datasetName.cellType
-                    # print(subdataset)
+
                     if(length(subdataset) > 1){
                         updateSelectInput(session, 'subdataset', label = 'Datasets', choices = subdataset,  selected = subdataset[length(subdataset)])
                     } else {
@@ -638,7 +639,7 @@ else if (last.query.state() == "checkbox")
 
             output$cellTypesData <- renderDataTable({
                 df <- cell.types()
-                #df
+
                 if (nrow(df) != 0 && length(input$datasetCheckbox) != 0)
                 {
                     rdt <- phyper.test(object, df, input$datasetCheckbox)
@@ -886,8 +887,6 @@ output$geneSupportHisto <- renderPlot({
                       getDatasetUmap <- object@metadata[[object@metadata[[1]]$umap[which(object@metadata[[1]]$dataset == umapChoice)]]]
                       getDatasetUmap <- getDatasetUmap[which(!is.na(rownames(getDatasetUmap))),]
 
-                      #umapChoice = paste0(umapChoice, ".")
-
                       selectedCellTypes <- as.character(rdt$cell_type[s])
                       subCellTypes <- grep(paste0(umapChoice, "."), selectedCellTypes, value = T)
                       subCellTypes <- sub(paste0(umapChoice, "."), "", subCellTypes)
@@ -916,7 +915,7 @@ output$geneSupportHisto <- renderPlot({
                     umap_plot <- data.frame(x = getDatasetUmap[,1], y = getDatasetUmap[,2], col = rownames(getDatasetUmap))
                     umap_highlight <- data.frame(x = getDatasetUmap[highlightCells,1], y = getDatasetUmap[highlightCells,2], col = rownames(getDatasetUmap)[highlightCells], shape = hits.summary)
                     umap_truehits <- data.frame(x = umap_highlight[grep(T, hits.summary),1], y = umap_highlight[grep(T, hits.summary),2], col =umap_highlight[grep(T, hits.summary),3])
-                    # umap_falsehits <- data.frame(x = umap_highlight[grep(F, hits.summary),1], y = umap_highlight[grep(F, hits.summary),2], col =umap_highlight[grep(F, hits.summary),3])
+
 g <- ggplot() + geom_point(aes(x, y, group = col), data = umap_plot, colour = alpha("grey", .3)) +
     geom_point(aes(x, y, colour = col), data = umap_highlight, alpha = .5, shape = 21)+
     geom_point(aes(x, y), data = umap_truehits, shape = 21, colour = "black")+
@@ -979,7 +978,7 @@ server.scfind.w2v <- function(object, dictionary)
             initial.OR <- "initial"
             initial.EX <- "initial"
             initial.EXOR <- "initial"
-            exampleQuery <- c("Autoimmune diseases, except b-cell relate to diabetes or rs75444904 Dpp4")
+            exampleQuery <- c("Autoimmune diseases, except b-cell relate to diabetes or rs75444904 Dpp4", "endurance capacity for marathon col5a1 rs12722 or MESH:D001177")
             greedy <- reactiveVal(0.6)
             gene.list <- reactiveVal(c())
             gene.list.or <- reactiveVal(c())
@@ -1369,7 +1368,7 @@ server.scfind.w2v <- function(object, dictionary)
                                                      }
                                                     
                                                  },
-                                                     # tags$h4(renderText(paste0(if(length(gene.list()) != 0) "Cells co-expressing: " else "", if(is.null(input$geneCheckbox)) toString(gene.list()) else toString(input$geneCheckbox)))),
+
                                                      tags$h4(renderText(paste0(if(length(gene.list.or()) != 0) "OR genes: " else "", if(is.null(input$geneOrCheckbox)) toString(gene.list.or()) else toString(input$geneOrCheckbox)))),
                                                      tags$h4(renderText(paste0(if(length(gene.list.ex()) != 0) "NOT genes: " else "",  if(is.null(input$geneExCheckbox)) toString(gene.list.ex()) else toString(input$geneExCheckbox)))),
                                                      tags$h4(renderText(paste0(if(length(gene.list.ex.or()) != 0) "ORNOT genes: " else "",  if(is.null(input$geneExOrCheckbox)) toString(gene.list.ex.or()) else toString(input$geneExOrCheckbox))))
@@ -1467,6 +1466,8 @@ server.scfind.w2v <- function(object, dictionary)
                 if(!is.null(s) && length(object@metadata) != 0 && nrow(df) != 0){ #!#
                     
                     rdt <- phyper.test(object, df, input$datasetCheckbox)
+                    rdt <- data.frame(rdt[order(rdt$pval, decreasing = F), ])
+                    
                     selectedCellTypes <- as.character(rdt$cell_type[s])
                     subdataset <- unique(sub("\\..*", "", selectedCellTypes)) # get datasetName. from datasetName.cellType
 
@@ -1534,6 +1535,7 @@ server.scfind.w2v <- function(object, dictionary)
             
             output$cellTypesData <- renderDataTable({
                 df <- cell.types()
+                
                 selection <- c(input$geneCheckbox,
                                if(is.null(input$geneOrCheckbox)) gene.list.or() else input$geneOrCheckbox,
                                if(is.null(input$geneExCheckbox)) gene.list.ex() else input$geneExCheckbox,
@@ -1563,13 +1565,16 @@ server.scfind.w2v <- function(object, dictionary)
             output$evaluateCtMarkers <- renderDataTable({
                 
                 s = input$cellTypesData_rows_selected
+
                 
                 selection <- input$geneCheckbox
-
+                
                 df <- cell.types()
                 
                 if(!is.null(df$cell_type) && nrow(df) != 0 && length(gene.list) != 0) { #!#
                     rdt <- phyper.test(object, df, input$datasetCheckbox)
+                    rdt <- data.frame(rdt[order(rdt$pval, decreasing = F), ])
+                    
                     mge <- if(length(unique(df$cell_type)) < 2) evaluateMarkers(object, selection, as.character(unique(df$cell_type))) else evaluateMarkers(object, selection, rdt$cell_type[s])
                     if(nrow(mge) != 0){
                         mge <- mge[order(mge$genes),]
@@ -1602,6 +1607,7 @@ server.scfind.w2v <- function(object, dictionary)
                 if (nrow(df) != 0 && length(input$datasetCheckbox) != 0)
                 {
                     rdt <- phyper.test(object, df, input$datasetCheckbox)
+                    rdt <- data.frame(rdt[order(rdt$pval, decreasing = F), ])
                     
                     if(nrow(rdt) > 0 && length(c(gene.list(), gene.list.or(), gene.list.ex(), gene.list.ex.or())) != 0 && length(selection) != 0){
                         if(nrow(rdt) == 1){
@@ -1702,17 +1708,13 @@ server.scfind.w2v <- function(object, dictionary)
             
             
             output$cellUMAP <- renderPlot({
-                s = input$cellTypesData_rows_selected # return row number, NULL
+                s = input$cellTypesData_rows_selected 
                 
                 selection <- c(input$geneCheckbox,
                                if(length(gene.list.or()) != 0) { paste0("*", if(is.null(input$geneOrCheckbox)) gene.list.or() else input$geneOrCheckbox ) },
                                if(length(gene.list.ex()) != 0) { paste0("-", if(is.null(input$geneExCheckbox)) gene.list.ex() else input$geneExCheckbox ) },
                                if(length(gene.list.ex.or()) != 0) { paste0("*-", if(is.null(input$geneExOrCheckbox)) gene.list.ex.or() else input$geneExOrCheckbox )})
                 
-                # selection <- c(if(!is.null(input$geneCheckbox)) input$geneCheckbox,
-                #                if(!is.null(input$geneOrCheckbox)) paste0("*", input$geneOrCheckbox),
-                #                if(!is.null(input$geneExCheckbox)) paste0("*", input$geneExCheckbox),
-                #                if(!is.null(input$geneExOrCheckbox)) paste0("*-", input$geneExOrCheckbox))
                 highlightCells <- c()
                 hits.summary <- c()
                 
@@ -1720,12 +1722,11 @@ server.scfind.w2v <- function(object, dictionary)
                 if(!is.null(s) && length(object@metadata) != 0 && nrow(df) != 0 && length(selection) != 0){
                      
                     rdt <- phyper.test(object, df, input$datasetCheckbox)
+                    rdt <- data.frame(rdt[order(rdt$pval, decreasing = F), ])
 
                     umapChoice = input$subdataset[length(input$subdataset)]
                     getDatasetUmap <- object@metadata[[object@metadata[[1]]$umap[which(object@metadata[[1]]$dataset == umapChoice)]]]
                     getDatasetUmap <- getDatasetUmap[which(!is.na(rownames(getDatasetUmap))),]
-                    
-                    #umapChoice = paste0(umapChoice, ".")
                     
                     selectedCellTypes <- as.character(rdt$cell_type[s])
                     subCellTypes <- grep(paste0(umapChoice, "."), selectedCellTypes, value = T)
@@ -1755,8 +1756,6 @@ server.scfind.w2v <- function(object, dictionary)
                     umap_highlight <- data.frame(x = getDatasetUmap[highlightCells,1], y = getDatasetUmap[highlightCells,2], col = rownames(getDatasetUmap)[highlightCells], shape = hits.summary)
                     umap_truehits <- data.frame(x = umap_highlight[grep(T, hits.summary),1], y = umap_highlight[grep(T, hits.summary),2], col =umap_highlight[grep(T, hits.summary),3])
                     
-                    
-                    # umap_falsehits <- data.frame(x = umap_highlight[grep(F, hits.summary),1], y = umap_highlight[grep(F, hits.summary),2], col =umap_highlight[grep(F, hits.summary),3])
                     g <- ggplot() + geom_point(aes(x, y, group = col), data = umap_plot, colour = alpha("grey", .3)) +
                         geom_point(aes(x, y, colour = col), data = umap_highlight, alpha = .5, shape = 21)+
                         geom_point(aes(x, y), data = umap_truehits, shape = 21, colour = "black")+
