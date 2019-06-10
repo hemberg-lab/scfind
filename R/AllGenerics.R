@@ -74,7 +74,7 @@ setGeneric(name = "evaluateMarkers", function(object,
 
 
 #' @export
-setGeneric(name = "scfindShiny", function(object) {
+setGeneric(name = "scfindShiny", function(object, dictionary) {
     standardGeneric("scfindShiny")
 })
 
@@ -172,3 +172,12 @@ setGeneric(name = "scfindShinyServer", function(object){
     standardGeneric("scfindShinyServer")
 })
 
+#' @export
+setGeneric(name = "scfindShinyW2VServer", function(object, dictionary){
+    standardGeneric("scfindShinyW2VServer")
+})
+
+#' @export
+setGeneric(name = "scfindQ2loadDictionaries", function(w2v, dictionary, priority){
+    standardGeneric("scfindQ2loadDictionaries")
+})
