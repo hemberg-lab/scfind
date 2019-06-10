@@ -1665,7 +1665,7 @@ server.scfind.w2v <- function(object, dictionary)
                 } 
                 else 
                 {
-                    ""
+                    '<p>Have you tried to use operators "NOT", "OR" & "ORNOT" in your query?<br>By the way, `scfind` also supports query with RS and MeSH IDs.</p>Have fun with your single cell data analysis!<br>(Note: Query without operators will be treated as "AND")'
                 }
             })
             
