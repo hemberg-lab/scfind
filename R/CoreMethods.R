@@ -6,6 +6,7 @@
 #' @param dataset.name name of the dataset that will be prepended in each cell_type
 #' @param assay.name name of the SingleCellExperiment assay that will be considered for the generation of the index
 #' @param cell.type.label the cell.type metadata of the colData SingleCellExperiment that will be used for the index
+#' @param qb number of bits per cell that are going to be used for quantile compression of the expression data
 #' 
 #' @name buildCellTypeIndex
 #'
@@ -19,7 +20,7 @@
 #' @importFrom Rcpp cpp_object_initializer
 #' @useDynLib scfind 
 #' 
-buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name = 'counts', cell.type.label = 'cell_type1')
+buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name = 'counts', cell.type.label = 'cell_type1', qb = 2)
 {
 
     if (grepl(dataset.name,'.'))
@@ -49,6 +50,12 @@ buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name = 'counts', 
         exprs <- "[["(sce@assays$data, assay.name)
 
         ef <- new(EliasFanoDB)
+       
+        qb.set <- ef$setQB(qb)
+        if (qb.set == 1)
+        {
+            stop("Setting the quantization bits failed")
+        }
         for (cell.type in cell.types) {
             inds.cell <- which(cell.type == cell.types.all)
             if(length(inds.cell) < 2)
@@ -70,7 +77,9 @@ buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name = 'counts', 
         }
     }
 
+
     index <- new("SCFind", index = ef, datasets = dataset.name)
+
 
     return(index)
 }
@@ -286,9 +295,17 @@ setMethod("cellTypeMarkers",
 #' @param object SCFind object
 #'
 #' @return a character list
-get.cell.types.names <- function(object)
+get.cell.types.names <- function(object, datasets)
 {
-    return(object@index$getCellTypes())
+    if(missing(datasets)) 
+    {
+        return(object@index$getCellTypes())
+    }
+    else
+    {
+        return(object@index$getCellTypes()[lapply(strsplit(object@index$getCellTypes(), "\\."), `[[`, 1) %in% datasets])
+    }
+    
 }
 #' @rdname cellTypeMarkers
 #' @aliases cellTypeMarkers
@@ -379,7 +396,7 @@ setMethod("hyperQueryCellTypes",
 #' @return a named numeric vector containing p-values
 findCellTypes.geneList <- function(object, gene.list, datasets)
 {
-    datasets <- select.datasets(object, datasets)
+    datasets <- if(missing(datasets)) object@datasets else select.datasets(object, datasets)
     
     if(length(grep("^-|^\\*", gene.list)) == 0)
     {
@@ -388,7 +405,6 @@ findCellTypes.geneList <- function(object, gene.list, datasets)
     else
     {
         pos <- caseCorrect(object, grep("^[^-\\*]", gene.list, value = T))
-        if(length(pos) == 0) stop ("At least one postiive gene (without operators) should be provided")
         excl.or <- grep("^-\\*|^\\*-", gene.list, value = T)
         or <- caseCorrect(object, sub("\\*", "", setdiff(grep("^\\*", gene.list, value = T), excl.or)))
         excl <- caseCorrect(object, sub("-", "", setdiff(grep("^-", gene.list, value = T), excl.or)))
@@ -405,17 +421,28 @@ findCellTypes.geneList <- function(object, gene.list, datasets)
             cat('\n')
         }
 
-        # Create unique variable for each cell by pairing cell types to cell ID
-        cell.to.id  <- pair.id(object@index$findCellTypes(pos, datasets))
-        if (length(or) == 0) message(paste("Found", length(cell.to.id), "cells co-expressing", toString(pos)))
-            
+        
+        cell.to.id  <- NULL
+        
+        # Using pair.id to create unique variable for each cell by pairing cell types to cell ID
+        
+        if(length(pos) == 0 && length(or) == 0 && (length(excl) != 0 || length(excl.or) != 0)) 
+        {
+            # When no positive selection, include all cells
+            cell.to.id <- lapply(as.list(object@index$getCellTypeSupport(cellTypeNames(object, datasets))), seq)
+            names(cell.to.id) <- cellTypeNames(object, datasets)
+            cell.to.id <- pair.id(cell.to.id)
+        } 
+
+
         if(length(or) != 0)
         {
             # Include any cell expresses gene in OR condition
             gene.or <- c()
             for(i in 1: length(or))
             {
-                tmp.id <- pair.id(object@index$findCellTypes(or[i], datasets))
+                tmp.id <- pair.id(object@index$findCellTypes(c(pos, or[i]), datasets))
+                if(length(pos) != 0 && !is.null(tmp.id)) message(paste("Found", length(tmp.id), if(length(tmp.id) > 1)"cells" else "cell", "co-expressing", paste(c(pos, or[i]), collapse=" ∧ ") ))
                 if(!is.null(tmp.id))
                 {
                     cell.to.id <- unique(c(cell.to.id, tmp.id))
@@ -427,23 +454,28 @@ findCellTypes.geneList <- function(object, gene.list, datasets)
                     cell.to.id <- cell.to.id
                 }
             }
-                message(paste("Found", length(cell.to.id), "cells", if(length(pos) > 1) "co-expressing" else "expressing", toString(pos), ", also expressing", paste(gene.or, collapse=" ∨ ")))
-            }
-            
+                if( length(pos) == 0 && length(gene.or) != 0) message(paste("Found", length(cell.to.id), if(length(cell.to.id) > 1) "cells" else "cell", "expressing", paste(gene.or, collapse=" ∨ ")))
+        }
+        else
+        {
+            cell.to.id  <- if(length(pos) != 0) pair.id(object@index$findCellTypes(pos, datasets)) else cell.to.id
+            if(length(pos) != 0) message(paste("Found", length(cell.to.id), if(length(pos) > 1) "cells co-expressing" else "cell expressing", paste(pos, collapse = " ∧ ")))
+        }
+        
             count.cell <- length(cell.to.id)
             gene.excl <- NULL
-            if(length(excl) != 0)
-            {
-                # Negative selection
-                cell.to.id <- setdiff(cell.to.id, pair.id(object@index$findCellTypes(excl, datasets)))
-            }
+
             if(length(excl.or) != 0)
             {
                 # Negative select cell in OR condition
-                
                 for(i in 1: length(excl.or))
                 {
-                    ex.tmp.id <- pair.id(object@index$findCellTypes(excl.or[i], datasets))
+                    ex.tmp.id <- pair.id(object@index$findCellTypes(c(excl, excl.or[i]), datasets))
+                    
+                    message(paste("Excluded", sum(cell.to.id %in% ex.tmp.id),
+                                  if(sum(cell.to.id %in% ex.tmp.id) > 1)"cells" else "cell",
+                                  if(length(excl) != 0) paste("co-expressing", paste( c(excl, excl.or[i]), collapse=" ∧ ")) else paste("expressing", excl.or[i]) ))
+                    
                     if(!is.null(ex.tmp.id))
                     {
                         cell.to.id <- setdiff(cell.to.id, ex.tmp.id)
@@ -454,28 +486,50 @@ findCellTypes.geneList <- function(object, gene.list, datasets)
                         cell.to.id <- cell.to.id
                     }
                 }
-                    
-            }
-            
-            count.cell <- count.cell - length(cell.to.id)
-            if(is.null(gene.excl)) 
-            {
-                if(count.cell != 0) message(paste("Excluded", count.cell, if(count.cell > 1) "cells" else "cell", 
-                                                  if(length(excl) > 1) "co-expressing" else "expressing", toString(excl)) )
+                count.cell <- count.cell - length(cell.to.id)
+                if(count.cell > 0 && length(gene.excl) == 0) message("Excluded", count.cell, if(count.cell > 1) "cells" else "cell", "expressing", paste(excl, collapse=" ∧ "))    
             }
             else
             {
-                message(paste("Excluded", count.cell, if(count.cell > 1) "cells" else "cell", 
-                              if(length(excl) != 0) paste(if(length(excl) > 1) "co-expressing" else "expressing", 
-                                                          toString(excl), ", also expressing") else "expressing", paste(gene.excl, collapse=" ∨ ") 
-                              ))
+                if(length(excl) != 0)
+                {
+                    # Negative selection
+                    cell.to.id <- setdiff(cell.to.id, pair.id(object@index$findCellTypes(excl, datasets)))
+                    count.cell <- count.cell - length(cell.to.id)
+                    if(count.cell > 0) message(paste("Excluded", count.cell, if(count.cell > 1) "cells" else "cell", if(length(excl) > 1) "co-expressing" else "expressing", paste(excl, collapse = " ∧ "))) else message("No Cell Is Excluded!")
+                }
             }
+            
             # Generate a new list
             df <- do.call(rbind, strsplit(as.character(cell.to.id), "#"))
-            result <- as.list(setNames(as.numeric(split(df[,2], seq(nrow(df)))), df[,1]))
-            
-            if(length(unique(df[,1])) == nrow(df)) return(result) else return(unstack(stack(result)))
-            
+            if(!is.null(df))
+            {
+                result <- as.list(setNames(as.numeric(split(df[,2], seq(nrow(df)))), df[,1]))
+                if(length(unique(df[,1])) == nrow(df)) 
+                {
+                    return(result)
+                } 
+                else 
+                {
+
+                    if(length(unique(names(result))) == 1) 
+                    {
+                        tmp <-list(stack(result)$values)
+                        names(tmp) <- unique(names(result))
+                        return(tmp)
+                    }  
+                    else 
+                    {
+                        return(unstack(stack(result)))
+                    }
+
+                }
+            }
+            else
+            {
+                message("No Cell Is Found!")
+                return(list())
+            }
         }
 }
 
@@ -483,8 +537,7 @@ findCellTypes.geneList <- function(object, gene.list, datasets)
 #' @aliases findCellTypes
 setMethod("findCellTypes", 
           signature(object = "SCFind",
-                    gene.list = "character",
-                    dataset = "character"), 
+                    gene.list = "character"), 
           findCellTypes.geneList)
 
 #' Get all genes in the database
@@ -511,30 +564,273 @@ setMethod("scfindGenes", signature(object = "SCFind"), scfind.get.genes.in.db)
 #' 
 #' @param object the \code{SCFind} object
 #' @param gene.list genes to be searched in the gene.index
-#' @param min.cells 
-#' @param min.fraction 
+#' @param datasets the datasets that will be considered
+#' @param min.cells threshold of cell hit of a cell type
+#' @param min.fraction portion of total cell as threshold
 #' 
 #' @name findCellTypeSpecificities
 #' @return the list of number of cell type for each gene
-findCellTypeSpecificities <- function(object, gene.list = c(), min.cells=10, min.fraction=.25) {
-    
-    if(min.fraction >= 1 || min.fraction <= 0) stop("min.fraction reached limit, please use values > 0 and < 1.0.")
-    message("Calculating number of cell-types for each gene...")
-    
-    gene.names <- if(length(gene.list) == 0) object@index$genes() else gene.list
-    gene.specificity <- list()
-    
-    for (i in 1:length(gene.names)) {
-        setTxtProgressBar(txtProgressBar(1, length(gene.names), style = 3), i) 
-        gene.specificity[[gene.names[i]]] <- cell.type.specificity(object, gene.names[i], min.cells=min.cells, min.fraction=min.fraction)
+cell.type.specificity <- function(object, gene.list, datasets, min.cells=10, min.fraction=.25)
+{
+    if(min.fraction >= 1 || min.fraction <= 0) stop("min.fraction reached limit, please use values > 0 and < 1.0.") else message("Calculating cell-types for each gene...")
+    datasets <- if(missing(datasets)) object@datasets else select.datasets(object, datasets)
+    if(missing(gene.list)) 
+    {
+        res <- object@index$geneSupportInCellTypes(object@index$genes(), datasets) 
     }
-    cat('\n')
-    return(gene.specificity)
+    else 
+    {
+        gene.list <- caseCorrect(object, gene.list)
+        res <- object@index$geneSupportInCellTypes(gene.list, datasets)
+    }
+    
+    res.tissue <- res
+    names(res.tissue) <- gsub("\\.", "#", names(res.tissue))
+    df <- cbind(stack(res), stack(unlist(res.tissue)))
+    # df[,4] <- sub("^[^.]+\\.", "", df[,4])
+    df[,1] <- object@index$getCellTypeSupport( sub("^[^.]+\\.", "", df[,4])) * min.fraction
+    if(length(which(df[,1] < min.cells)) != 0) df[which(df[,1] < min.cells),1] <- min.cells
+    if(nrow(df) != 0) df <- df[which(df[,3] > df[,1]),] else return(split(rep(0, length(gene.list)), gene.list))
+    if(nrow(df) != 0) return(as.list(summary(df[,2], maxsum=nrow(df)))) else return(split(rep(0, length(gene.list)), gene.list))
 }
 
 #' @rdname findCellTypeSpecificities
 #' @aliases findCellTypeSpecificities
 setMethod("findCellTypeSpecificities", 
+          signature(object = "SCFind"), 
+          cell.type.specificity)
+
+
+#' Find out how many tissues each gene is found
+#' 
+#' @param object the \code{SCFind} object
+#' @param gene.list genes to be searched in the gene.index
+#' @param min.cells threshold of cell hit of a tissue
+#' 
+#' @name findTissueSpecificities
+#' @return the list of number of tissue for each gene
+tissue.specificity <- function(object, gene.list, min.cells = 10)
+{
+    if(length(object@datasets) <= 1) stop("Index contains 1 dataset only.") else message("Calculating tissues for each gene...")
+    if(missing(gene.list)) 
+    {
+        res  <- object@index$geneSupportInCellTypes(object@index$genes(), object@datasets)
+    }
+    else
+    {
+        gene.list <- caseCorrect(object, gene.list)
+        res <- object@index$geneSupportInCellTypes(gene.list, object@datasets)
+    }
+    
+    if(length(res) > 0) res.tissue <- res else return(split(rep(0, length(gene.list)), gene.list))
+    names(res.tissue) <- gsub("\\.", "#", names(res.tissue))
+    df <- cbind(stack(res), stack(unlist(res.tissue)))
+    df[,5] <- gsub("^[^.]*\\.([^.]*)\\..*$","\\1",df[,4])
+    df <- aggregate(df[,1], by=list(df[,5], df[,2]), FUN=sum)
+    df <- df[which(df[,3] > min.cells),]
+    
+    if(nrow(df) != 0) return(as.list(summary(df[,2], maxsum=nrow(df)))) else return(split(rep(0, length(gene.list)), gene.list))
+}
+
+#' @rdname findTissueSpecificities
+#' @aliases findTissueSpecificities
+setMethod("findTissueSpecificities", 
+          signature(object = "SCFind"), 
+          tissue.specificity)
+
+#' Find the set of genes that are ubiquitously expressed in a query of cell types
+#' 
+#' @param object the \code{SCFind} object
+#' @param cell.types a list of cell types for the list to evaluated
+#' @param min.recall threshold of minimun recall value
+#' @param max.genes threshold of number of genes to be considered for each cell type
+#' 
+#' @name findHouseKeepingGenes
+#' @return the list of gene that ubiquitously expressed in a query of cell types
+#' 
+house.keeping.genes <- function(object, cell.types, min.recall=.5, max.genes=1000) {
+    if(min.recall >= 1 || min.recall <= 0) stop("min.recall reached limit, please use values > 0 and < 1.0.") 
+    if(max.genes > length(object@index$genes())) stop(paste("max.genes exceeded limit, please use values > 0 and < ", length(object@index$genes()))) else message("Searching for house keeping genes...")
+    df <- cellTypeMarkers(object, cell.types[1], top.k=max.genes, sort.field="recall", message=F)
+    house.keeping.genes <- df$genes[which(df$recall>min.recall)]
+    
+    for (i in 2:length(cell.types)) {
+        setTxtProgressBar(txtProgressBar(1, length(cell.types), style = 3), i) 
+        df <- cellTypeMarkers(object, cell.types[i], top.k=max.genes, sort.field="recall", message=F)
+        house.keeping.genes <- intersect(house.keeping.genes, df$genes[which(df$recall>min.recall)])
+        if (length(house.keeping.genes)==0) { stop("No house keeping gene is found.") }
+    }
+    cat('\n')
+    return( house.keeping.genes )
+}
+
+
+#' @rdname findHouseKeepingGenes
+#' @aliases findHouseKeepingGenes
+setMethod("findHouseKeepingGenes", 
+          signature(object = "SCFind",
+                    cell.types = "character"), 
+          house.keeping.genes)
+
+#'  Find the signature genes for a cell-type
+#' 
+#' @param object the \code{SCFind} object
+#' @param cell.types a list of cell types for the list to evaluated
+#' @param max.genes threshold of number of genes to be considered for each cell type
+#' @param min.cells threshold of cell hit of a tissue
+#' @param max.pval threshold of p-value
+#' 
+#' @name findGeneSignatures
+#' @return the list of gene signatures in a query of cell types
+#' 
+gene.signatures <- function(object, cell.types, max.genes=1000, min.cells=10, max.pval=0) 
+{
+    message("Searching for gene signatures...")
+    cell.types.all <- if(missing(cell.types)) object@index$getCellTypes() else cellTypeNames(object)[tolower(cellTypeNames(object)) %in% tolower(cell.types)]
+    signatures <- list()
+    if(length(cell.types.all) != 0)
+    {
+        for (i in 1:length(cell.types.all)) {
+            if(i > 1) setTxtProgressBar(txtProgressBar(1, length(cell.types.all), style = 3), i)
+            signatures[[cell.types.all[i]]] <- find.signature(object, cell.types.all[i], max.genes=max.genes, min.cells=min.cells, max.pval=max.pval)
+        }
+        cat('\n')
+        return( signatures )
+    } 
+    else
+    {
+        return(message(paste0("Ignored ", toString(cell.types),". Cell type not found in index.")))
+    }
+}
+
+#' @rdname findGeneSignatures
+#' @aliases findGeneSignatures
+setMethod("findGeneSignatures", 
+          signature(object = "SCFind"), 
+          gene.signatures)
+
+#'  Look at all other genes and rank them based on the similarity of their expression pattern to the pattern defined by the gene query
+#' 
+#' @param object the \code{SCFind} object
+#' @param gene.list genes to be searched in the gene.index
+#' @param datasets the datasets that will be considered
+#' @param top.k how many genes to retrieve
+#' 
+#' @name findSimilarGenes
+#' @return the list of genes and their similarities presented in Jaccard indices
+#' 
+similar.genes <- function(object, gene.list, datasets, top.k=5) {
+    message("Searching for genes with similar pattern...")
+    datasets <- if(missing(datasets)) object@datasets else select.datasets(object, datasets)
+    gene.list <- caseCorrect(object, gene.list)
+    e <- object@index$findCellTypes(gene.list, datasets) #the cells expressing the genes in gene.list
+    n.e <- length(unlist(e))
+    if (n.e>0) {
+        gene.names <- setdiff(object@index$genes(), gene.list)
+        similarities <- rep(0, length(gene.names))
+        ns <- rep(0, length(gene.names))
+        ms <- rep(0, length(gene.names))
+        for (i in 1:length(gene.names)) {
+            setTxtProgressBar(txtProgressBar(1, length(gene.names), style = 3), i) 
+            f <- object@index$findCellTypes(gene.names[i], datasets) #find expression pattern of other gene
+            if (length(f)>0) {
+                m <- rep(0, length(e))
+                for (j in 1:length(names(e))) {
+                    m[j] <- length(intersect(e[[j]], f[[names(e)[j]]]))
+                }
+                #calculate the Jaccard index for the similarity of the cells expressing the gene
+                similarities[i] <- sum(m)/(n.e + length(unlist(f)) - sum(m))
+                ns[i] <- length(unlist(f))
+                ms[i] <- sum(m)            
+            }
+        }
+        cat('\n')
+        r <- sort(similarities, index.return=T)
+        inds <- tail(r$ix, top.k)
+        res <- data.frame("gene" = gene.names[inds], "Jaccard"=similarities[inds], "overlap"=ms[inds], "n"=ns[inds])
+        return( res )
+    }
+    else
+    {
+        message(paste("Cannot find cell expressing", toString(gene.list), "in the index."))
+        return( c() )
+    }
+}
+
+
+#' @rdname findSimilarGenes
+#' @aliases findSimilarGenes
+setMethod("findSimilarGenes", 
           signature(object = "SCFind",
                     gene.list = "character"), 
-          findCellTypeSpecificities)
+          similar.genes)
+
+
+
+
+#'  Load up dictionaries for free text search function
+#' 
+#' @param w2v the word2vec model
+#' @param dictionary valid dictionary generated from hemberg-lab
+#' @param priority setting priority of dictionary
+#' 
+#' @name scfindQ2loadDictionaries
+#' @return the list of dictionaries
+#' 
+read_all_dictionaries <- function(w2v, dictionary, priority)
+{
+    if(missing(dictionary)) stop("Please provide paths to dictionaries.")
+    dictionaries <- read_dictionaries(dictionary)
+
+    default <- c("meshID2genename","chemicalmeshID2genename","gwastraits2genename","phrase2genename")
+    dictionary2genenames <- names(dictionaries)[!names(dictionaries) %in% c("priority", "stopwords", "variant2genename", "readme", grep("id$", names(dictionaries), value = T, ignore.case=T))]
+
+    if(missing(priority))
+    {
+
+
+        if(any(grepl("^priority$", names(dictionaries))))
+        {
+            priority <- c(dictionaries$priority, setdiff(dictionary2genenames, dictionaries$priority))
+            message("Dictionaries priority by-default: ")
+        }
+        else
+        {
+
+            priority <- c(default, setdiff(dictionary2genenames, default))
+            message("Dictionaries priority is set as: ")
+        }
+    }
+    else
+    {
+        priority <- c(priority, setdiff(default, priority))
+        message("Dictionaries priority is customised by user: ")
+    }
+
+    message(cat(paste(names(dictionaries)[match( priority, names(dictionaries),nomatch = 0)], collapse = "\n")))
+    dictionaries[['priority']] <- priority
+
+    if(missing(w2v))
+    {
+        warning('No word2vec file is provided. Only dictionary will be loaded.')
+    }
+    else
+    {
+        cat('\nReading word2vec file...')
+        dictionaries[['model']] <- read_w2v(w2v)
+    }
+
+    message(paste0("Total object size : ", floor(object.size(dictionaries)/1024/1024), " MB"))
+    message(paste0("Species : ", dictionaries$readme$species))
+    return(dictionaries)
+}
+
+
+
+#' @rdname scfindQ2loadDictionaries
+#' @aliases scfindQ2loadDictionaries
+setMethod("scfindQ2loadDictionaries", 
+          signature( dictionary = "character"), 
+          read_all_dictionaries)
+
+

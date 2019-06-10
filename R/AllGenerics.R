@@ -16,7 +16,8 @@ setGeneric(name = "buildCellTypeIndex",
            def = function(sce,
                           dataset.name = '',
                           assay.name = 'logcounts',
-                          cell.type.label = 'cell_type1')
+                          cell.type.label = 'cell_type1',
+                          qb = 2)
            {
                standardGeneric("buildCellTypeIndex")
            })
@@ -57,7 +58,7 @@ setGeneric(name = "cellTypeMarkers" ,  function(object,
 
 #' @export
 #'
-setGeneric(name = "cellTypeNames", function(object){
+setGeneric(name = "cellTypeNames", function(object, datasets){
    standardGeneric("cellTypeNames")
 })
 
@@ -73,7 +74,7 @@ setGeneric(name = "evaluateMarkers", function(object,
 
 
 #' @export
-setGeneric(name = "scfindShiny", function(object) {
+setGeneric(name = "scfindShiny", function(object, dictionary) {
     standardGeneric("scfindShiny")
 })
 
@@ -114,17 +115,69 @@ setGeneric(name = "scfindGenes", function(object){
     standardGeneric("scfindGenes")
 })
 
+
+#' Find out how many cell-types each gene is found
+#' 
+#' @export
+setGeneric(name = "findCellTypeSpecificities", function(object, 
+                                                        gene.list,
+                                                        datasets,
+                                                        min.cells = 10, 
+                                                        min.fraction = .25){
+    standardGeneric("findCellTypeSpecificities")
+})
+
+#' Find out how many tissues each gene is found
+#' 
+#' @export
+setGeneric(name = "findTissueSpecificities", function(object, 
+                                                        gene.list,
+                                                        min.cells = 10){
+    standardGeneric("findTissueSpecificities")
+})
+
+#' Find the set of genes that are ubiquitously expressed in a query of cell types
+#' 
+#' @export
+setGeneric(name = "findHouseKeepingGenes", function(object, 
+                                                    cell.types,
+                                                    min.recall = .5, 
+                                                    max.genes = 1000){
+    standardGeneric("findHouseKeepingGenes")
+})
+
+#' Find the signature genes for a cell-type
+#' 
+#' @export
+setGeneric(name = "findGeneSignatures", function(object, 
+                                                 cell.types,
+                                                 max.genes = 1000,
+                                                 min.cells = 10,
+                                                 max.pval = 0){
+    standardGeneric("findGeneSignatures")
+})
+
+#' Look at all other genes and rank them based on the similarity of their expression pattern to the pattern defined by the gene query
+#' 
+#' @export
+setGeneric(name = "findSimilarGenes", function(object, gene.list, datasets, top.k = 5){
+    standardGeneric("findSimilarGenes")
+})
+
+
+
+
 #' @export
 setGeneric(name = "scfindShinyServer", function(object){
     standardGeneric("scfindShinyServer")
 })
 
-
 #' @export
-setGeneric(name = "findCellTypeSpecificities", function(object, 
-                                                        gene.list=c(), 
-                                                        min.cells=10, 
-                                                        min.fraction=.25){
-    standardGeneric("findCellTypeSpecificities")
+setGeneric(name = "scfindShinyW2VServer", function(object, dictionary){
+    standardGeneric("scfindShinyW2VServer")
 })
 
+#' @export
+setGeneric(name = "scfindQ2loadDictionaries", function(w2v, dictionary, priority){
+    standardGeneric("scfindQ2loadDictionaries")
+})

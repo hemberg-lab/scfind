@@ -7,12 +7,13 @@
 \alias{scfindShiny,SCFind-method}
 \title{Opens \code{scfind} index in an interactive session in a web browser.}
 \usage{
-scfind.interactive(object)
+scfind.interactive(object, dictionary)
 
 \S4method{scfindShiny}{SCFind}(object)
 }
 \arguments{
 \item{object}{an object of \code{SCFind} class}
+\item{dictionary}{a dictionary of word2vec model}
 }
 \value{
 Opens a browser window with an interactive \code{shiny} app and visualize queries on the dataset.
