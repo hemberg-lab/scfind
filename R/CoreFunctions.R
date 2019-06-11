@@ -901,3 +901,61 @@ query2CellTypes <- function(object, dictionary, query, datasets, optimize = T, a
     }
     return(result)
 }
+
+# Prepare for the drag and drop building index feature
+hackCellTypeIndex.SCESet <- function(matrix, annotation, qb = 2)
+{
+    
+    if (grepl(dataset.name,'.'))
+    {
+        stop("The dataset name should not contain any dots")
+    }
+    
+    
+    cell.types.all <- as.factor(annotation$cell_type1)
+    cell.types <- levels(cell.types.all)
+    new.cell.types <- hash(keys = cell.types, values = paste0(dataset.name, '.', cell.types))
+    genenames <- unique(rownames(matrix))
+    
+    if (length(cell.types) > 0)
+    {
+        non.zero.cell.types <- c()
+        index <- hash()
+
+        exprs <- matrix
+        
+        ef <- new(EliasFanoDB)
+        
+        qb.set <- ef$setQB(qb)
+        if (qb.set == 1)
+        {
+            stop("Setting the quantization bits failed")
+        }
+        for (cell.type in cell.types) {
+            inds.cell <- which(cell.type == cell.types.all)
+            if(length(inds.cell) < 2)
+            {
+                ## print(paste('Skipping', cell.type))
+                next
+            }
+            non.zero.cell.types <- c(non.zero.cell.types, cell.type)
+            message(paste("\tIndexing", cell.type, "as", new.cell.types[[cell.type]], " with ", length(inds.cell), " cells."))
+            cell.type.exp <- exprs[,inds.cell]
+            if(is.matrix(exprs))
+            {
+                ef$indexMatrix(new.cell.types[[cell.type]], cell.type.exp)
+            }
+            else
+            {
+                ef$indexMatrix(new.cell.types[[cell.type]], as.matrix(cell.type.exp))
+            }
+        }
+    }
+    
+    
+    index <- new("SCFind", index = ef, datasets = dataset.name)
+    
+    
+    return(index)
+}
+
