@@ -24,7 +24,7 @@ ui.scfind <- function()
                             
                             .shiny-notification {
                             position:fixed;
-                            height: 80px;
+                            height: 100px;
                             width: 400px;
                             top: 12%;
                             left: calc(50% - 200px);
@@ -460,6 +460,7 @@ else if (last.query.state() == "checkbox")
                     datasetName <- gsub("liver", "Human Liver Atlas ", datasetName)
                     datasetName <- gsub("spinalcord", "Mouse Spinal Cord Atlas ", datasetName)
                     datasetName <- gsub("atacseq", "Mouse sci-ATAC-seq Atlas ", datasetName)
+                    datasetName <- gsub("kidney", "Human Kidney Atlas ", datasetName)
                 } else {
                     datasetName <- ''
                 }
@@ -875,65 +876,61 @@ output$geneSupportHisto <- renderPlot({
             output$cellUMAP <- renderPlot({
                 s = input$cellTypesData_rows_selected # return row number, NULL
                 selection <- if(all(startsWith(object@index$genes(), "chr") == T)) gsub(":|-", "_", input$geneCheckbox) else caseCorrect(object, input$geneCheckbox)
-                highlightCells <- c()
-                hits.summary <- c()
 
+                umap_highlight <- data.frame()
+                
+                
                 df <- cell.types()
-                if(!is.null(s) && length(object@metadata) != 0 && nrow(df) != 0){
-
-                      rdt <- phyper.test(object, df, input$datasetCheckbox)
-
-                      umapChoice = input$subdataset[length(input$subdataset)]
-                      getDatasetUmap <- object@metadata[[object@metadata[[1]]$umap[which(object@metadata[[1]]$dataset == umapChoice)]]]
-                      getDatasetUmap <- getDatasetUmap[which(!is.na(rownames(getDatasetUmap))),]
-
-                      selectedCellTypes <- as.character(rdt$cell_type[s])
-                      subCellTypes <- grep(paste0(umapChoice, "."), selectedCellTypes, value = T)
-                      subCellTypes <- sub(paste0(umapChoice, "."), "", subCellTypes)
-
-                    # get coordinations of selected celltypes
-                    for(j in 1: length(subCellTypes)){
-                        highlightCells <- c(highlightCells, grep(paste0("^",subCellTypes[j],"$"), rownames(getDatasetUmap)))
-                    }
-
+                
+                if(!is.null(s) && length(object@metadata) != 0 && nrow(df) != 0 && length(selection) != 0){
+                    
+                    rdt <- phyper.test(object, df, input$datasetCheckbox)
+                    
+                    
+                    umapChoice = input$subdataset[length(input$subdataset)]
+                    
+                    getDatasetUmap <- object@metadata[[paste0("umap.", umapChoice)]]
+                    
+                    selectedCellTypes <- as.character(rdt$cell_type[s])
+                    
+                    subCellTypes <- grep(paste0(umapChoice, "."), selectedCellTypes, value = T)
+                    subCellTypes <- sub(paste0(umapChoice, "."), "", subCellTypes)
                     # get hits
-                    if (length(selection) != 0 && length(subCellTypes) != 0){
-
-                        true.hits <- object@index$findCellTypes(selection, umapChoice)
-                        hit.ct <- paste0(umapChoice,".",subCellTypes)
-
-                        for(i in 1: length(hit.ct)){
-                            subct.id <- true.hits[[grep(paste0("^",hit.ct[i],"$"), names(true.hits))]]
-                            hits <- rep(F, length(grep(paste0("^",subCellTypes[i],"$"), rownames(getDatasetUmap))))
-                            hits[subct.id] <- T
-                            hits.summary <- c(hits.summary, hits)
+                    if (length(selection) != 0 && length(subCellTypes) != 0){ 
+                        true.hits <- findCellTypes.geneList(object, selection, umapChoice)
+                        
+                        for( j in subCellTypes)
+                        {
+                            getCluster <- subset(getDatasetUmap, rownames(getDatasetUmap) == j )
+                            getCluster <- data.frame(x = getCluster[,1], y = getCluster[,2], col = rownames(getCluster), shape = F)
+                            getCluster$shape[true.hits[[paste0(umapChoice, ".", j)]]] <- T
+                            umap_highlight <- data.frame(rbind(umap_highlight, getCluster))
                         }
-                    }
-
-
-
+                    } 
+                    
                     umap_plot <- data.frame(x = getDatasetUmap[,1], y = getDatasetUmap[,2], col = rownames(getDatasetUmap))
-                    umap_highlight <- data.frame(x = getDatasetUmap[highlightCells,1], y = getDatasetUmap[highlightCells,2], col = rownames(getDatasetUmap)[highlightCells], shape = hits.summary)
-                    umap_truehits <- data.frame(x = umap_highlight[grep(T, hits.summary),1], y = umap_highlight[grep(T, hits.summary),2], col =umap_highlight[grep(T, hits.summary),3])
+                    umap_truehits <- data.frame(subset(umap_highlight, shape == T))
 
-g <- ggplot() + geom_point(aes(x, y, group = col), data = umap_plot, colour = alpha("grey", .3)) +
-    geom_point(aes(x, y, colour = col), data = umap_highlight, alpha = .5, shape = 21)+
-    geom_point(aes(x, y), data = umap_truehits, shape = 21, colour = "black")+
-    labs(x = "UMAP1", y = "UMAP2", color = "") +
-    theme_bw() + theme(axis.line = element_line(colour = "black"),
-                       panel.border = element_rect(colour = "black", fill=NA, size=2),
-                       plot.background = element_blank(),
-                       legend.position = "bottom",
-                       axis.text.x = element_blank(),
-                       axis.text.y = element_blank(),
-                       axis.ticks = element_blank(),
-                       panel.grid.major = element_blank(),
-                       panel.grid.minor = element_blank(),
-                       text = element_text(size=20),
-                       legend.text = element_text(size=14),
-                       aspect.ratio = 1) +
-    guides(colour = guide_legend(nrow = 4,byrow = TRUE))
-
+                    
+                    g <- ggplot() + geom_point(aes(x, y, group = col), data = umap_plot, colour = alpha("grey", .3)) +
+                        geom_point(aes(x, y, colour = col), data = umap_highlight, alpha = .5, shape = 21)+
+                        geom_point(aes(x, y), data = umap_truehits, shape = 21, colour = "black")+
+                        labs(x = "UMAP1", y = "UMAP2", color = "") +
+                        theme_bw() + 
+                        theme(axis.line = element_line(colour = "black"),
+                              panel.border = element_rect(colour = "black", fill=NA, size=2),
+                              plot.background = element_blank(),
+                              legend.position = "bottom",
+                              axis.text.x = element_blank(),
+                              axis.text.y = element_blank(),
+                              axis.ticks = element_blank(),
+                              panel.grid.major = element_blank(),
+                              panel.grid.minor = element_blank(),
+                              text = element_text(size=20),
+                              legend.text = element_text(size=14),
+                              aspect.ratio = 1) +
+                        guides(colour = guide_legend(nrow = 4,byrow = TRUE))
+                    
                     g
                 } else {
                     g <- plot(0,type='n',axes=FALSE,ann=FALSE)
@@ -978,7 +975,7 @@ server.scfind.w2v <- function(object, dictionary)
             initial.OR <- "initial"
             initial.EX <- "initial"
             initial.EXOR <- "initial"
-            exampleQuery <- c("Autoimmune diseases, except b-cell relate to diabetes or rs75444904 Dpp4", "endurance capacity for marathon col5a1 rs12722 or MESH:D001177")
+            exampleQuery <- c("Autoimmune diseases, except b-cell relate to diabetes or rs75444904 Dpp4", "endurance capacity for marathon col5a1 or rs12722 not MESH:D001177")
             greedy <- reactiveVal(0.6)
             gene.list <- reactiveVal(c())
             gene.list.or <- reactiveVal(c())
@@ -1271,6 +1268,7 @@ server.scfind.w2v <- function(object, dictionary)
                     datasetName <- gsub("malaria", "Malaria Cell Atlas ", datasetName)
                     datasetName <- gsub("liver", "Human Liver Atlas ", datasetName)
                     datasetName <- gsub("spinalcord", "Mouse Spinal Cord Atlas ", datasetName)
+                    datasetName <- gsub("kidney", "Human Kidney Atlas ", datasetName)
                 } else {
                     datasetName <- ''
                 }
@@ -1715,46 +1713,40 @@ server.scfind.w2v <- function(object, dictionary)
                                if(length(gene.list.ex()) != 0) { paste0("-", if(is.null(input$geneExCheckbox)) gene.list.ex() else input$geneExCheckbox ) },
                                if(length(gene.list.ex.or()) != 0) { paste0("*-", if(is.null(input$geneExOrCheckbox)) gene.list.ex.or() else input$geneExOrCheckbox )})
                 
-                highlightCells <- c()
-                hits.summary <- c()
+                umap_highlight <- data.frame()
                 
                 df <- cell.types()
+                
                 if(!is.null(s) && length(object@metadata) != 0 && nrow(df) != 0 && length(selection) != 0){
                      
                     rdt <- phyper.test(object, df, input$datasetCheckbox)
                     rdt <- data.frame(rdt[order(rdt$pval, decreasing = F), ])
 
                     umapChoice = input$subdataset[length(input$subdataset)]
-                    getDatasetUmap <- object@metadata[[object@metadata[[1]]$umap[which(object@metadata[[1]]$dataset == umapChoice)]]]
-                    getDatasetUmap <- getDatasetUmap[which(!is.na(rownames(getDatasetUmap))),]
-                    
+
+                    getDatasetUmap <- object@metadata[[paste0("umap.", umapChoice)]]
+
                     selectedCellTypes <- as.character(rdt$cell_type[s])
+                    
                     subCellTypes <- grep(paste0(umapChoice, "."), selectedCellTypes, value = T)
                     subCellTypes <- sub(paste0(umapChoice, "."), "", subCellTypes)
-                    
-                    # get coordinations of selected celltypes
-                    for(j in 1: length(subCellTypes)){
-                        highlightCells <- c(highlightCells, grep(paste0("^",subCellTypes[j],"$"), rownames(getDatasetUmap)))
-                    }
-                    
+
                     # get hits
                     if (length(selection) != 0 && length(subCellTypes) != 0){ 
                         true.hits <- findCellTypes.geneList(object, selection, umapChoice)
-                        hit.ct <- paste0(umapChoice,".",subCellTypes)
-                        
-                        for(i in 1: length(hit.ct)){
-                            subct.id <- true.hits[[grep(paste0("^",hit.ct[i],"$"), names(true.hits))]]
-                            hits <- rep(F, length(grep(paste0("^",subCellTypes[i],"$"), rownames(getDatasetUmap))))
-                            hits[subct.id] <- T
-                            hits.summary <- c(hits.summary, hits)
+
+                        for( j in subCellTypes)
+                        {
+                            getCluster <- subset(getDatasetUmap, rownames(getDatasetUmap) == j )
+                            getCluster <- data.frame(x = getCluster[,1], y = getCluster[,2], col = rownames(getCluster), shape = F)
+                            getCluster$shape[true.hits[[paste0(umapChoice, ".", j)]]] <- T
+                            umap_highlight <- data.frame(rbind(umap_highlight, getCluster))
                         }
                     } 
                     
                     
-                    
                     umap_plot <- data.frame(x = getDatasetUmap[,1], y = getDatasetUmap[,2], col = rownames(getDatasetUmap))
-                    umap_highlight <- data.frame(x = getDatasetUmap[highlightCells,1], y = getDatasetUmap[highlightCells,2], col = rownames(getDatasetUmap)[highlightCells], shape = hits.summary)
-                    umap_truehits <- data.frame(x = umap_highlight[grep(T, hits.summary),1], y = umap_highlight[grep(T, hits.summary),2], col =umap_highlight[grep(T, hits.summary),3])
+                    umap_truehits <- data.frame(subset(umap_highlight, shape == T))
                     
                     g <- ggplot() + geom_point(aes(x, y, group = col), data = umap_plot, colour = alpha("grey", .3)) +
                         geom_point(aes(x, y, colour = col), data = umap_highlight, alpha = .5, shape = 21)+
@@ -1790,7 +1782,7 @@ server.scfind.w2v <- function(object, dictionary)
                 {
 
                     selection <- if(length(selection) > 15) sample(selection,10) else selection
-                    withProgress(message = "Asking for the 'cloud'...", value = 0, {
+                    withProgress(message = "Shoot for the moon, you'll land among the word'cloud'...", value = 0, {
                         suppressMessages(gene2wordcloud(dictionary = dictionary, gene.list = selection))
                     })
                    
@@ -1870,7 +1862,7 @@ scfind.interactive <- function(object, dictionary) {
     
     shinyApp(
         ui = ui.scfind(),
-        server = if(missing(dictionary)) server.scfind(object) else server.scfind.w2v(object, dictionary)
+        server = if(missing(dictionary) || all(startsWith(tolower(object@index$genes()), "chr"))) server.scfind(object) else server.scfind.w2v(object, dictionary)
     )
 }
 
