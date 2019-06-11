@@ -1782,7 +1782,9 @@ server.scfind.w2v <- function(object, dictionary)
                 {
 
                     selection <- if(length(selection) > 15) sample(selection,10) else selection
+
                     withProgress(message = "Shoot for the moon, you'll land among the wordclouds...", value = 0, {
+
                         suppressMessages(gene2wordcloud(dictionary = dictionary, gene.list = selection))
                     })
                    
