@@ -22,31 +22,31 @@ std::string str_join( const std::vector<std::string>& elements, const char* cons
 
 // Accepts a vector, transforms and returns a quantization logical vector
 // This function aims for space efficiency of the expression vector
-Quantile lognormalcdf(const std::vector<int>& ids, const Rcpp::NumericVector& v, unsigned int bits, bool raw_counts)
+Quantile lognormalcdf(const std::vector<std::pair<int,double> >& sparse_vector, unsigned int bits, bool raw_counts)
 {
   
   std::function<double(const double&)> expr_tran = raw_counts ? [](const double& x) {return log(x + 1);}: [](const double& x){return x;};  
 
   Quantile expr;
-  expr.mu = std::accumulate(ids.begin(),ids.end(), 0.0, [&v, &expr_tran](const double& mean, const int& index){
-      return  mean + expr_tran(v[index - 1]);
-    }) / ids.size();
+  expr.mu = std::accumulate(sparse_vector.begin(),sparse_vector.end(), 0.0, [&expr_tran](const double& mean, const std::pair<int,double>& value){
+      return  mean + expr_tran(value.second);
+    }) / sparse_vector.size();
   expr.sigma = sqrt(
                     std::accumulate(
-                                    ids.begin(), 
-                                    ids.end(), 
+                                    sparse_vector.begin(), 
+                                    sparse_vector.end(), 
                                     0.0, 
-                                    [&v, &expr, &expr_tran](const double& variance, const int& index){
-                                      return pow(expr.mu - expr_tran(v[index - 1]), 2);
-                                    }) / ids.size());
+                                    [&expr, &expr_tran](const double& variance, const std::pair<int, double>& value){
+                                      return pow(expr.mu - expr_tran(value.second), 2);
+                                    }) / sparse_vector.size());
   // initialize vector with zeros
-  expr.quantile.resize(ids.size() * bits, 0);
+  expr.quantile.resize(sparse_vector.size() * bits, 0);
   //Rcpp::Rcerr << "Mean,std" << expr.mu << "," << expr.sigma << std::endl;
   //Rcpp::Rcerr << "ids size " << ids.size() << " v size " << v.size() << std::endl;
   int expr_quantile_i = 0;
-  for (auto const& s : ids)
+  for (auto const& s : sparse_vector)
   {
-    unsigned int t = round(normalCDF(expr_tran(v[s]), expr.mu, expr.sigma) * (1 << bits));
+    unsigned int t = round(normalCDF(expr_tran(s.second), expr.mu, expr.sigma) * (1 << bits));
     std::bitset<BITS> q = int2bin_core(t);
     for (unsigned int i = 0; i < bits; ++i)
     {

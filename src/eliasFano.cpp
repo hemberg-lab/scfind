@@ -318,31 +318,30 @@ Rcpp::RawVector EliasFanoDB::getByteStream()
   
 } 
 
-long EliasFanoDB::eliasFanoCoding(const std::vector<int>& ids, const Rcpp::NumericVector& values) 
+long EliasFanoDB::eliasFanoCoding(const std::vector<std::pair<int,double> >& sparse_vector, const int items) 
 {
     
-  if(ids.empty())
+  if(sparse_vector.empty())
   {
     return -1;
   }
-  int items = values.size();
 
     
   EliasFano ef;
-  ef.l = int(log2(items / (float)ids.size()) + 0.5) + 1;
-  ef.idf = log2(items / (float)ids.size());
+  ef.l = int(log2(items / (float)sparse_vector.size()) + 0.5) + 1;
+  ef.idf = log2(items / (float)sparse_vector.size());
   int l = ef.l;
 
   int prev_indexH = 0;
-  ef.L.resize(l * ids.size(), false);
+  ef.L.resize(l * sparse_vector.size(), false);
 
   BoolVec::iterator l_iter = ef.L.begin();
-  ef.expr = lognormalcdf(ids, values, this->quantization_bits);
+  ef.expr = lognormalcdf(sparse_vector, this->quantization_bits);
   
     
-  for (auto expr = ids.begin(); expr != ids.end(); ++expr)
+  for (auto expr = sparse_vector.begin(); expr != sparse_vector.end(); ++expr)
   {
-    BitSet32 c = int2bin_bounded(*expr, l);
+          BitSet32 c = int2bin_bounded(expr->first, l);
     
     for( int i = 0; i < l; i++, ++l_iter)
     {
@@ -350,7 +349,7 @@ long EliasFanoDB::eliasFanoCoding(const std::vector<int>& ids, const Rcpp::Numer
       *l_iter = c.second[i];
     }
     //Use a unary code for the high bits
-    unsigned int upper_bits = (*expr >> l);
+    unsigned int upper_bits = (expr->first >> l);
     unsigned int m =  ef.H.size() + upper_bits - prev_indexH + 1;
     prev_indexH = upper_bits;
     ef.H.resize(m, false);
@@ -561,12 +560,14 @@ long EliasFanoDB::encodeMatrix(const std::string& cell_type_name, const Rcpp::Nu
     
     // Collect indices of sparse vector for this gene
     const Rcpp::NumericVector& expression_vector = gene_matrix(gene_row, Rcpp::_);
-    std::deque<int> sparse_index;
+    std::deque< std::pair<int, double> > sparse_index;
+    
     int i = 0;
     for (Rcpp::NumericVector::const_iterator expr = expression_vector.begin(); expr != expression_vector.end(); ++expr)
     {
       i++; // 1 based indexing!
       
+     
       if (*expr > 0)
       {
         // Not Thread safe as well
@@ -574,7 +575,7 @@ long EliasFanoDB::encodeMatrix(const std::string& cell_type_name, const Rcpp::Nu
         current_cells[i - 1].features++;
         // End of critical area
         
-        sparse_index.push_back(i);
+        sparse_index.push_back(std::make_pair(i, *expr));
       }
     }
     if (sparse_index.empty())
@@ -588,11 +589,11 @@ long EliasFanoDB::encodeMatrix(const std::string& cell_type_name, const Rcpp::Nu
     auto db_entry = this->index.insert(std::make_pair(gene_names[gene_row], GeneContainer())).first;
     
     // Cast it as a vector
-    std::vector<int> ids(sparse_index.begin(), sparse_index.end());
+    std::vector<std::pair<int, double> > sparse_vector(sparse_index.begin(), sparse_index.end());
 
     // Is total reads or non zero reads ?
-    gene_it->second.total_reads += ids.size();
-    auto ef_index = eliasFanoCoding(ids, expression_vector);
+    gene_it->second.total_reads += sparse_vector.size();
+    auto ef_index = eliasFanoCoding(sparse_vector, gene_matrix.ncol());
     // Insert the entry to index
     if (ef_index != -1)
     {

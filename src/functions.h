@@ -1,3 +1,4 @@
+
 #pragma once
 
 #include <bitset>
@@ -63,7 +64,7 @@ inline double normalCDF(const double& x, const double& mu, const double& sigma)
 
 // Accepts a vector, transforms and returns a quantization logical vector
 // This function aims for space efficiency of the expression vector
-Quantile lognormalcdf(const std::vector<int>& ids, const Rcpp::NumericVector& v, unsigned int bits, bool raw_counts = true);
+Quantile lognormalcdf(const std::vector<std::pair<int,double>>& sparse_vector, unsigned int bits, bool raw_counts = true);
 
 
 int byteToBoolVector(const std::vector<char> buf, std::vector<bool>& bool_vec);

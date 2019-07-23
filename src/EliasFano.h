@@ -218,7 +218,7 @@ class EliasFanoDB
 
   Rcpp::RawVector getByteStream();
 
-  long eliasFanoCoding(const std::vector<int>& ids, const Rcpp::NumericVector& values);
+  long eliasFanoCoding(const std::vector<std::pair<int,double>>&, const int items);
   
   std::vector<int> eliasFanoDecoding(const EliasFano& ef) const; 
 
