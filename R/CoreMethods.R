@@ -72,7 +72,7 @@ buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name = 'counts', 
             }
             else
             {
-                ef$indexMatrix(new.cell.types[[cell.type]], as.matrix(cell.type.exp))
+                ef$indexSpMatrix(new.cell.types[[cell.type]], cell.type.exp, rownames(cell.type.exp))
             }
         }
     }

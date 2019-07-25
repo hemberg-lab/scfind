@@ -10,6 +10,10 @@
 #include <unordered_map>
 
 
+// [[Rcpp::depends(RcppArmadillo)]]
+
+#include <RcppArmadillo.h>
+
 #include "functions.h"
 
 #define SERIALIZATION_VERSION 6
@@ -227,6 +231,7 @@ class EliasFanoDB
   // This is invoked on slices of the expression matrix of the dataset 
   long encodeMatrix(const std::string& cell_type_name, const Rcpp::NumericMatrix& gene_matrix);
 
+  long encodeSpMatrix(const std::string& cell_type_name, const arma::sp_mat& gene_matrix, const Rcpp::CharacterVector& gene_names);
 
   Rcpp::List total_genes();
   

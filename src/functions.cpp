@@ -1,6 +1,11 @@
 
 #include "functions.h"
 
+#include <sstream>
+#include <functional>
+#include <iostream>
+#include <numeric>
+#include <Rcpp.h>
 
 std::string str_join( const std::vector<std::string>& elements, const char* const separator)
 {
@@ -36,7 +41,7 @@ Quantile lognormalcdf(const std::vector<std::pair<int,double> >& sparse_vector, 
                                     sparse_vector.begin(), 
                                     sparse_vector.end(), 
                                     0.0, 
-                                    [&expr, &expr_tran](const double& variance, const std::pair<int, double>& value){
+                                    [&expr, &expr_tran](const double& variasnce, const std::pair<int, double>& value){
                                       return pow(expr.mu - expr_tran(value.second), 2);
                                     }) / sparse_vector.size());
   // initialize vector with zeros

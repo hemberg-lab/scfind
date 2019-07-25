@@ -5,7 +5,6 @@
 #include <exception>
 #include <stdexcept>
 
-#include "scfind_types.h"
 #include "fp_growth.h"
 #include "functions.h"
 #include "EliasFano.h"
@@ -615,7 +614,83 @@ long EliasFanoDB::encodeMatrix(const std::string& cell_type_name, const Rcpp::Nu
   //Rcpp::Rcerr << "Total Warnings: "<<warnings << std::endl;
 }
 
+long EliasFanoDB::encodeSpMatrix(const std::string& cell_type_name, const arma::sp_mat& gene_matrix, const Rcpp::CharacterVector& gene_name_vector)
+{
 
+  CellType cell_type;
+  cell_type.name = cell_type_name;
+  cell_type.total_cells = gene_matrix.n_cols;
+  
+  int cell_type_id = insertNewCellType(cell_type);
+
+  const std::vector<std::string> gene_names =  Rcpp::as<std::vector<std::string>>(gene_name_vector);
+  
+  // Increase the cell number present in the index
+  this->total_cells += gene_matrix.n_cols;
+
+
+  // Store the metadata for the cell
+  std::vector<CellMeta> current_cells(gene_matrix.n_cols);
+
+
+  //
+
+  const arma::sp_mat gm = gene_matrix.t();
+  // This can be scaled!
+  for (size_t gene_row = 0; gene_row < gene_matrix.n_rows; ++gene_row)
+  {
+
+    // Collect indices of sparse vector for this gene
+    std::deque< std::pair<int, double> > sparse_index;
+    for( arma::sp_mat::const_col_iterator cell = gm.begin_col(gene_row);
+         cell != gm.end_col(gene_row); ++cell)
+    {
+      // We transposed , so we need to access by row now
+      auto cell_index = cell.row() + 1;
+      sparse_index.push_back(std::make_pair(cell_index, *cell));
+      current_cells[cell_index - 1].reads += *cell;
+      current_cells[cell_index - 1].features++;
+    }
+    
+    if (sparse_index.empty())
+    {
+      continue;
+    }
+    
+    // Insert the gene gene metadata database
+    auto gene_it = this->genes.insert(std::make_pair(gene_names[gene_row], GeneMeta())).first;
+    // Insert the gene in the index
+    auto db_entry = this->index.insert(std::make_pair(gene_names[gene_row], GeneContainer())).first;
+    
+    // Cast it as a vector
+    std::vector<std::pair<int, double>> sparse_vector(sparse_index.begin(), sparse_index.end());
+    
+    
+    // Is total reads or non zero reads ?
+    gene_it->second.total_reads += sparse_vector.size();
+    auto ef_index = eliasFanoCoding(sparse_vector, gene_matrix.n_cols);
+    // Insert the entry to index
+    if (ef_index != -1)
+    {
+      db_entry->second.insert(std::make_pair(cell_type_id, ef_index));
+    }
+  }
+  
+  int i = 0; // 1 based indexing
+  for (auto const& cell : current_cells)
+  {
+    if (cell.reads == 0)
+    {
+      Rcpp::Rcerr << "Vector of zeros detected for cell " << cell_type_name << " " << i << std::endl;
+    }
+    this->cells.insert({CellID(cell_type_id, ++i), cell});
+  }
+  
+  return 0;
+  
+    
+
+}
 
 const std::vector<EliasFanoDB::CellTypeName> EliasFanoDB::getCellTypes() const
 {
@@ -1561,6 +1636,7 @@ RCPP_MODULE(EliasFanoDB)
     .constructor()
     .method("setQB", &EliasFanoDB::setQuantizationBits)
     .method("indexMatrix", &EliasFanoDB::encodeMatrix)
+    .method("indexSpMatrix",&EliasFanoDB::encodeSpMatrix)
     .method("queryGenes", &EliasFanoDB::queryGenes)
     .method("zgs", &EliasFanoDB::queryZeroGeneSupport)
     .method("decode", &EliasFanoDB::decode)

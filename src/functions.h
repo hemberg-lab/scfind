@@ -2,8 +2,8 @@
 #pragma once
 
 #include <bitset>
-#include <Rcpp.h>
-
+#include <vector>
+#include <cmath>
 
 #define BITS 32
 #define ALL 1
