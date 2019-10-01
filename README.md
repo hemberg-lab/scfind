@@ -25,4 +25,4 @@ __Q__: Is __scfind__ published?
 __A__: Not yet
 
 __Q__: What is __scfind__ licence?  
-__A__: GPL-3
+__A__: MIT
