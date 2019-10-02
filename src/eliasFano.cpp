@@ -1065,7 +1065,10 @@ Rcpp::List EliasFanoDB::_findCellTypes(const std::vector<GeneName>& gene_names, 
 
 // TODO(Nikos) this function can be optimized.. It uses the native quering mechanism
 // that casts the results into native R data structures
-Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_list, const Rcpp::CharacterVector datasets_active,unsigned int min_support_cutoff = 5, bool console_message = false)
+Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_list, 
+                                             const Rcpp::CharacterVector datasets_active, 
+                                             unsigned int min_support_cutoff = 5, 
+                                             bool console_message = false)
 {
     
   std::vector<std::string> query;
@@ -1092,32 +1095,28 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
     for (auto const& _ct : cell_type_names)
     {
       const auto ct = Rcpp::as<std::string>(_ct);
-        
-      if (cells.find(ct) == cells.end())
-      {
-        cells[ct] = std::map<int, Transaction>();
-      }
-
+      // Cell Type level
+      auto ret_ct = cells.insert(std::make_pair(ct, std::map<int, Transaction>()));
+      auto& cell_index = *(ret_ct.first);
+      
       std::vector<unsigned int> ids  = Rcpp::as<std::vector<unsigned int> >(gene_hits[ct]);
-      auto& cell_index = cells[ct];
-      // For all the hits
+      // For all the cell hits
       for (auto const& id : ids)
       {
-        // search for the id in the cell type space!
-        if (cell_index.find(id) == cell_index.end())
+        auto ret_ci cell_index.insert(std::make_pair(id, Transaction()));
+        // if cell was just added count it
+        if (ret_ci.second)
         {
-          // insert new cell
-          cell_index[id] = Transaction();
           cells_present++;
         }
-        // Add gene hit in the cell
-        cell_index[id].push_back(gene_name);
+        // Add gene hit for the cell
+        ret_ci.first->push_back(gene_name);
       }
     }
   }
 
   Rcpp::Rcerr << "Query Done: found " << cells_present << " rules" << std::endl;
-    
+  
   // Collect all transactions for fp-growth
   std::vector<Transaction> transactions;
   transactions.reserve(cells_present);
