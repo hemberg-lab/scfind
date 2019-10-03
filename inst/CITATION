@@ -1,19 +1,19 @@
-citHeader("To cite scmap in publications use:")
+citHeader("To cite scfind in publications use:")
 
 citEntry(entry="article",
-         title = "scfind - Fast search for genes in large scRNA-seq collections",
+         title = "Fast searches of large collections of single cell data using scfind",
          author = personList(
+             as.person("Jimmy Tsz Hang Lee"),
              as.person("Nikolaos Patikas"),
-             as.person("Jimmy Lee"),
              as.person("Vladimir Yu. Kiselev"),
              as.person("Martin Hemberg")),
          year = 2019,
          journal = "bioRxiv",
-         url = "https://github.com/hemberg-lab/scfind",
+         url = "https://doi.org/10.1101/788596",
          textVersion = 
              paste(
-                 "Nikolaos Patikas, Jimmy Lee, Vladimir Yu. Kiselev, Martin Hemberg (2019): ", 
-                 "scfind - Fast search for genes in large scRNA-seq collections",
+                 "Jimmy Tsz Hang Lee, Nikolaos Patikas, Vladimir Yu. Kiselev, Martin Hemberg (2019): ", 
+                 "Fast searches of large collections of single cell data using scfind",
                  "github,",
                  "URL: https://github.com/hemberg-lab/scfind" )
          )
