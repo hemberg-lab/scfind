@@ -23,7 +23,7 @@ library("scfind")
 # Please install the latest version of Rtools at https://cran.r-project.org/bin/windows/Rtools/ prior to installation of scfind
 ```
 
-__Update__ The latest version (3.5.0) of `scfind` released on 3rd October 2019 has provided 2 datasets and 2 pre-processed `scfind` indexes as example. To update the latest version:
+__Update__ The latest version (`3.5.0`) of __scfind__ released on 3rd October 2019 has provided 2 datasets and 2 pre-processed `scfind` indexes as example. To update the latest version:
 
 ```
 install.packages("devtools")
@@ -32,7 +32,7 @@ devtools::install_github("hemberg-lab/scfind", force = TRUE)
 
 __Q__: Where can I find the `scfind` example datasets and indexes?
 
-__A__: The latest version of the package has provided a list of example `SingleCellExperiment` objects and `scfind` indexes created from the [The Tabula Muris Consortium](https://doi.org/10.1038/s41586-018-0590-4) for your first `scfind` experience:
+__A__: The latest version of the package has provided a list of example `SingleCellExperiment` objects and __scfind__ indexes created from the [The Tabula Muris Consortium](https://doi.org/10.1038/s41586-018-0590-4) for your first __scfind__ experience:
 
 ```
 library("scfind")
@@ -44,7 +44,7 @@ data(tmfacs)
 data(tm10x)
 ```
 
-The detail of building scfind index from `SingleCellExperiment` object is described in [this page](https://github.com/hemberg-lab/scfind/blob/master/Vignettes/scfind.Rmd). 
+The detail of building __scfind__ index from `SingleCellExperiment` object is described in [this page](https://github.com/hemberg-lab/scfind/blob/master/Vignettes/scfind.Rmd). 
 
 ```
 library("scfind")
@@ -60,7 +60,7 @@ scfind.index <-  buildCellTypeIndex(sce = sce.bladder,
 
 You can use the `mergeDataset` function to combine more than one datasets into one super index. The function `saveObject` allows you to save your index for future use.
 
-To Quick Start `scfind` with pre-processed indexes:
+To Quick Start __scfind__ with pre-computed indexes:
 
 ```
 # `scfind` index of the `Tabula Muris (FACS)` dataset
