@@ -23,7 +23,7 @@ library("scfind")
 # Please install the latest version of Rtools at https://cran.r-project.org/bin/windows/Rtools/ prior to installation of scfind
 ```
 
-__Update__ The latest version (`3.5.0`) of __scfind__ released on 3rd October 2019 has provided 2 datasets and 2 pre-processed `scfind` indexes as example. To update the latest version:
+__Update__ The latest version (`3.5.0`) of __scfind__ released on 3rd October 2019 has provided 2 datasets and 2 pre-processed __scfind__ indexes as example. To update the latest version:
 
 ```
 install.packages("devtools")
