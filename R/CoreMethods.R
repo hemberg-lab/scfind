@@ -364,9 +364,15 @@ cell.types.phyper.test <- function(object, gene.list, datasets)
 {
     
     result <- findCellTypes.geneList(object, gene.list, datasets)
-    
-    return(phyper.test(object, result, datasets))
-
+    if(!identical(result, list()))
+    {
+        return(phyper.test(object, result, datasets))
+    }
+    else
+    {
+        message("No Cell Is Found!")
+        return(data.frame(cell_type = c(), cell_hits = c(), total_cells = c(), pval = c()))
+    }
 }
 
 #' @rdname hyperQueryCellTypes

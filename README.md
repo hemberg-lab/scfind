@@ -17,15 +17,71 @@ __A__: If you would like to install the latest development version of scfind ple
 install.packages("devtools")
 devtools::install_github("hemberg-lab/scfind")
 
+library("scfind")
+
 # For Windows users:
 # Please install the latest version of Rtools at https://cran.r-project.org/bin/windows/Rtools/ prior to installation of scfind
 ```
 
+__Update__ The latest version (3.5.0) of `scfind` released on 3rd October 2019 has provided 2 datasets and 2 pre-processed `scfind` indexes as example. To update the latest version:
+
+```
+install.packages("devtools")
+devtools::install_github("hemberg-lab/scfind", force = TRUE)
+```
+
+__Q__: Where can I find the `scfind` example datasets and indexes?
+
+__A__: The latest version of the package has provided a list of example `SingleCellExperiment` objects and `scfind` indexes created from the [The Tabula Muris Consortium](https://doi.org/10.1038/s41586-018-0590-4) for your first `scfind` experience:
+
+```
+library("scfind")
+
+# List of `Tabula Muris (FACS)` `SingleCellExperiment` objects
+data(tmfacs)
+
+# List of `Tabula Muris (10X)` `SingleCellExperiment` objects
+data(tm10x)
+```
+
+The detail of building scfind index from `SingleCellExperiment` object is described in [this page](https://github.com/hemberg-lab/scfind/blob/master/Vignettes/scfind.Rmd). 
+
+```
+library("scfind")
+library("SingleCellExperiment")
+
+# To build the `Bladder` index
+sce.bladder <- readRDS(url(tmfacs[1]))
+scfind.index <-  buildCellTypeIndex(sce = sce.bladder, 
+                             cell.type.label = "cell_type1",
+                             dataset.name = "Bladder", 
+                             assay.name = "counts")
+```
+
+You can use the `mergeDataset` function to combine more than one datasets into one super index. The function `saveObject` allows you to save your index for future use.
+
+To Quick Start `scfind` with pre-processed indexes:
+
+```
+# `scfind` index of the `Tabula Muris (FACS)` dataset
+data(ExampleIndex_TabulaMurisFACS)
+
+scfind.index.tmfacs <- loadObject(file = url(ExampleIndex_TabulaMurisFACS))
+
+# `scfind` index of the `Tabula Muris (10X)` dataset
+data(ExampleIndex_TabulaMuris10X)
+
+scfind.index.tm10x <- loadObject(file = url(ExampleIndex_TabulaMuris10X))
+```
+
 __Q__: Where can I report bugs, comments, issues or suggestions?
+
 __A__: Please use [this page](https://github.com/hemberg-lab/scfind/issues).
 
 __Q__: Is __scfind__ published?  
+
 __A__: Not yet, but a copy of __scmap__ manuscript is available on [bioRxiv](https://doi.org/10.1101/788596).
 
-__Q__: What is __scfind__ licence?  
+__Q__: What is __scfind__ licence?
+
 __A__: MIT
