@@ -58,7 +58,7 @@ scfind.index <-  buildCellTypeIndex(sce = sce.bladder,
                              assay.name = "counts")
 ```
 
-You can use the `mergeDataset` function to combine more than one datasets into one super index. The function `saveObject` allows you to save your index for future use.
+You can use the `mergeDataset` function to combine more than one dataset into one super index. The function `saveObject` allows you to save your index for future use.
 
 To Quick Start __scfind__ with pre-computed indexes:
 
