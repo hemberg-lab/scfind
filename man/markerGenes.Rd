@@ -7,19 +7,21 @@
 \alias{markerGenes,SCFind,character-method}
 \title{Performs query optimization and return the best candidate gene sets}
 \usage{
-markerGenes(object, gene.list, datasets, message = 0)
+markerGenes(object, gene.list, datasets, log.message = 0)
 
-find.marker.genes(object, gene.list, datasets, message = 0)
+find.marker.genes(object, gene.list, datasets, log.message = 0)
 
 \S4method{markerGenes}{SCFind,character}(object, gene.list, datasets,
-  message = 0)
+  log.message = 0)
 }
 \arguments{
 \item{object}{SCFind object}
 
-\item{gene.list}{A list of Genes existing in the database}
+\item{gene.list}{A list of nGenes existing in the database}
 
 \item{datasets}{the datasets of the objects to be considered}
+
+\item{log.message}{whether to print a verbose message}
 }
 \value{
 hierarchical list of queries and their respective scores

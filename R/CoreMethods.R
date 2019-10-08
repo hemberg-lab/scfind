@@ -221,17 +221,17 @@ setMethod("mergeSCE",
 #' This function can be used with quite long gene lists
 #' that otherwise would have no cell hits in the database
 #' 
-#' @name markerGenes
 #' @param object SCFind object
-#' @param gene.list A list of Genes existing in the database
+#' @param gene.list A list of nGenes existing in the database
 #' @param datasets the datasets of the objects to be considered
-#' 
+#' @param log.message whether to print a verbose message
+#'
+#' @name markerGenes
 #' @return hierarchical list of queries and their respective scores
-find.marker.genes <-  function(object, gene.list, datasets, message = 0)
+find.marker.genes <-  function(object, gene.list, datasets, log.message = 0)
 {
     datasets <- select.datasets(object, datasets)
-    results <- object@index$findMarkerGenes(as.character(caseCorrect(object, gene.list)), as.character(datasets), 5, message)
-    
+    results <- object@index$findMarkerGenes(as.character(caseCorrect(object, gene.list)), as.character(datasets), 5, log.message)
     return(results)
 }
 
@@ -253,20 +253,19 @@ setMethod("markerGenes",
 #' @param background.cell.types the universe of cell.types to consider
 #' @param top.k how many genes to retrieve
 #' @param sort.field the dataframe will be sorted according to this field
-#' @param message turn on/off messsage
 #'
 #' @return a data.frame that each row represent a gene score for a specific cell type 
-cell.type.marker <- function(object, cell.types, background.cell.types, top.k, sort.field, message = T)
+cell.type.marker <- function(object, cell.types, background.cell.types, top.k, sort.field)
 {
     if (missing(background.cell.types))
     {
-        if(message == T) message("Considering the whole DB..")
+
         background.cell.types <- cellTypeNames(object)
     }
     all.cell.types <- object@index$cellTypeMarkers(cell.types, background.cell.types)
     if (!(sort.field %in% colnames(all.cell.types)))
     {
-        if(message == T) message(paste("Column", sort.field, "not found"))
+        message(paste("Column", sort.field, "not found"))
         sort.field <- 'f1'
     }
     all.cell.types <- all.cell.types[order(all.cell.types[[sort.field]], decreasing = T)[1:top.k],]
@@ -288,6 +287,7 @@ setMethod("cellTypeMarkers",
 #' 
 #' @name cellTypeNames
 #' @param object SCFind object
+#' @param datasets individual datasets to consider
 #'
 #' @return a character list
 get.cell.types.names <- function(object, datasets)
@@ -302,8 +302,8 @@ get.cell.types.names <- function(object, datasets)
     }
     
 }
-#' @rdname cellTypeMarkers
-#' @aliases cellTypeMarkers
+#' @rdname cellTypeNames
+#' @aliases cellTypeNames
 setMethod("cellTypeNames",
           signature(
               object = "SCFind"),
@@ -392,7 +392,10 @@ setMethod("hyperQueryCellTypes",
 #' (Operators: "-gene" to exclude a gene | "*gene" either gene is expressed
 #' "*-gene" either gene is expressed to be excluded)
 #' @param datasets the datasets that will be considered
-#' 
+#'
+#'
+#' @importFrom utils setTxtProgressBar stack unstack tail
+#'
 #' @name findCellTypes
 #' @return a named numeric vector containing p-values
 findCellTypes.geneList <- function(object, gene.list, datasets)
@@ -645,19 +648,20 @@ setMethod("findTissueSpecificities",
 #' @param cell.types a list of cell types for the list to evaluated
 #' @param min.recall threshold of minimun recall value
 #' @param max.genes threshold of number of genes to be considered for each cell type
-#' 
+#'
+#' @importFrom utils txtProgressBar
 #' @name findHouseKeepingGenes
 #' @return the list of gene that ubiquitously expressed in a query of cell types
 #' 
 house.keeping.genes <- function(object, cell.types, min.recall=.5, max.genes=1000) {
     if(min.recall >= 1 || min.recall <= 0) stop("min.recall reached limit, please use values > 0 and < 1.0.") 
     if(max.genes > length(object@index$genes())) stop(paste("max.genes exceeded limit, please use values > 0 and < ", length(object@index$genes()))) else message("Searching for house keeping genes...")
-    df <- cellTypeMarkers(object, cell.types[1], top.k=max.genes, sort.field="recall", message=F)
+    df <- cellTypeMarkers(object, cell.types[1], top.k=max.genes, sort.field="recall")
     house.keeping.genes <- df$genes[which(df$recall>min.recall)]
     
     for (i in 2:length(cell.types)) {
         setTxtProgressBar(txtProgressBar(1, length(cell.types), style = 3), i) 
-        df <- cellTypeMarkers(object, cell.types[i], top.k=max.genes, sort.field="recall", message=F)
+        df <- cellTypeMarkers(object, cell.types[i], top.k=max.genes, sort.field="recall")
         house.keeping.genes <- intersect(house.keeping.genes, df$genes[which(df$recall>min.recall)])
         if (length(house.keeping.genes)==0) { stop("No house keeping gene is found.") }
     }
@@ -680,6 +684,8 @@ setMethod("findHouseKeepingGenes",
 #' @param max.genes threshold of number of genes to be considered for each cell type
 #' @param min.cells threshold of cell hit of a tissue
 #' @param max.pval threshold of p-value
+#'
+#' @importFrom utils setTxtProgressBar
 #' 
 #' @name findGeneSignatures
 #' @return the list of gene signatures in a query of cell types
@@ -716,7 +722,8 @@ setMethod("findGeneSignatures",
 #' @param gene.list genes to be searched in the gene.index
 #' @param datasets the datasets that will be considered
 #' @param top.k how many genes to retrieve
-#' 
+#'
+#' @importFrom utils setTxtProgressBar
 #' @name findSimilarGenes
 #' @return the list of genes and their similarities presented in Jaccard indices
 #' 

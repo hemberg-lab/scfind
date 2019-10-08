@@ -272,9 +272,10 @@ ui.scfind <- function()
 #' @name scfindShinyServer
 #' @aliases scfindShinyServer
 #'
-#' @importFrom shiny reactive updateCheckboxGroupInput renderPlot stopApp checkboxGroupInput observeEvent observe reactiveVal renderText renderPrint
+#' @importFrom shiny reactive updateCheckboxGroupInput renderPlot stopApp checkboxGroupInput observeEvent observe reactiveVal renderText renderPrint renderUI Progress updateTextInput updateSelectInput
 #' @importFrom DT renderDataTable datatable
 #' @importFrom data.table as.data.table data.table
+#' @importFrom grDevices rainbow
 #' @importFrom ggplot2 ggplot geom_bar geom_col ggtitle xlab ylab aes coord_flip theme_minimal
 server.scfind <- function(object)
 {

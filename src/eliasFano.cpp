@@ -998,9 +998,7 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
   std::vector<int> query_cell_type_cardinality;
   std::vector<int> query_cell_cardinality;
   std::vector<int> query_gene_cardinality;
-
   std::map<CellTypeName, std::map<int, Transaction> > cells;
-
   int cells_present = 0;
     
   // Perform an OR query on the database as a first step
