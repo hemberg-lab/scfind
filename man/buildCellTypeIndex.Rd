@@ -9,11 +9,11 @@
 \title{Builds an \code{SCFind} object from a \code{SingleCellExperiment} object}
 \usage{
 buildCellTypeIndex.SCESet(sce, dataset.name, assay.name = "counts",
-  cell.type.label = "cell_type1")
+  cell.type.label = "cell_type1", qb = 2)
 
 \S4method{buildCellTypeIndex}{SingleCellExperiment}(sce,
   dataset.name = "", assay.name = "counts",
-  cell.type.label = "cell_type1")
+  cell.type.label = "cell_type1", qb = 2)
 }
 \arguments{
 \item{sce}{object of SingleCellExperiment class}
@@ -23,6 +23,8 @@ buildCellTypeIndex.SCESet(sce, dataset.name, assay.name = "counts",
 \item{assay.name}{name of the SingleCellExperiment assay that will be considered for the generation of the index}
 
 \item{cell.type.label}{the cell.type metadata of the colData SingleCellExperiment that will be used for the index}
+
+\item{qb}{number of bits per cell that are going to be used for quantile compression of the expression data}
 }
 \value{
 an SCFind object

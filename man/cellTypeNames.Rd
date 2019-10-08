@@ -5,7 +5,7 @@
 \alias{get.cell.types.names}
 \title{Return a vector with all existing cell type names in the database}
 \usage{
-get.cell.types.names(object)
+get.cell.types.names(object, datasets)
 }
 \arguments{
 \item{object}{SCFind object}

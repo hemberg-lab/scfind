@@ -7,11 +7,12 @@
 \alias{markerGenes,SCFind,character-method}
 \title{Performs query optimization and return the best candidate gene sets}
 \usage{
-markerGenes(object, gene.list, datasets)
+markerGenes(object, gene.list, datasets, message = 0)
 
-find.marker.genes(object, gene.list, datasets)
+find.marker.genes(object, gene.list, datasets, message = 0)
 
-\S4method{markerGenes}{SCFind,character}(object, gene.list, datasets)
+\S4method{markerGenes}{SCFind,character}(object, gene.list, datasets,
+  message = 0)
 }
 \arguments{
 \item{object}{SCFind object}

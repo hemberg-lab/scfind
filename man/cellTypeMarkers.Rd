@@ -9,15 +9,15 @@
 \title{return all the gene markers for a specified cell.type}
 \usage{
 cellTypeMarkers(object, cell.types, background.cell.types, top.k = 5,
-  sort.field = "f1")
+  sort.field = "f1", message = T)
 
 cell.type.marker(object, cell.types, background.cell.types, top.k,
-  sort.field)
+  sort.field, message = T)
 
 \S4method{cellTypeMarkers}{SCFind,character}(object, cell.types,
-  background.cell.types, top.k = 5, sort.field = "f1")
+  background.cell.types, top.k = 5, sort.field = "f1", message = T)
 
-\S4method{cellTypeNames}{SCFind}(object)
+\S4method{cellTypeNames}{SCFind}(object, datasets)
 }
 \arguments{
 \item{object}{SCFind object}
@@ -29,6 +29,8 @@ cell.type.marker(object, cell.types, background.cell.types, top.k,
 \item{top.k}{how many genes to retrieve}
 
 \item{sort.field}{the dataframe will be sorted according to this field}
+
+\item{message}{turn on/off messsage}
 }
 \value{
 a data.frame that each row represent a gene score for a specific cell type
