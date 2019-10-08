@@ -50,8 +50,8 @@ setGeneric(name = "cellTypeMarkers" ,  function(object,
                                                cell.types,
                                                background.cell.types,
                                                top.k = 5,
-                                               sort.field = 'f1',
-                                               message = T){
+                                               sort.field = 'f1'
+                                               ){
     standardGeneric("cellTypeMarkers")
 })
 
@@ -104,7 +104,7 @@ setGeneric(name = "hyperQueryCellTypes", function(object,
 #'
 #' @export
 
-setGeneric(name = "markerGenes", function(object, gene.list, datasets, message = 0)
+setGeneric(name = "markerGenes", function(object, gene.list, datasets, log.message = 0)
 {
     standardGeneric("markerGenes")
 })
