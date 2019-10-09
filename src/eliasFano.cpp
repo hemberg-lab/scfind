@@ -1077,9 +1077,7 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
   std::vector<int> query_cell_type_cardinality;
   std::vector<int> query_cell_cardinality;
   std::vector<int> query_gene_cardinality;
-
   std::map<CellTypeName, std::map<int, Transaction> > cells;
-
   int cells_present = 0;
     
   // Perform an OR query on the database as a first step
@@ -1174,8 +1172,6 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
     
     // cell_type_relevance
     qs.reset();
-    // qs.cell_type_relevance(*this, genes_results, gene_set);
-    // query_scores.push_back(qs.query_score);
     query_cell_cardinality.push_back(item.second);
 
     
@@ -1183,42 +1179,16 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
     qs.reset();
     qs.cell_tfidf(*this, gene_set);
     query_tfidf.push_back(qs.query_score);
-    // Calculate cell_type cardinality
-    // Refactor code in the QueryScore
-    // Now this needs to be executed in a serial manner ( no atomicity )
-    if (qs.query_score != 0)
-    {
-      int available_cell_types = qs.calculate_cell_types(gene_set);
-      query_cell_type_cardinality.push_back(available_cell_types);
-    }
-    else
-    {
-      Rcpp::Rcerr << "Zero cell types with non zero cells" << std::endl;
-      query_cell_type_cardinality.push_back(0);
-    }
     // other fields
     query_gene_cardinality.push_back(gene_set.size());
     query.push_back(view_string);
   }
 
-  // std::vector<int> query_rank(query_scores.size());    
-  // std::iota(query_rank.begin(), 
-  //           query_rank.end(), 
-  //           1);
-  
-  // std::sort(query_rank.begin(), 
-  //           query_rank.end(), 
-  //           [&query_scores](const int& i1, const int& i2){
-  //             return query_scores[i1] < query_scores[i2];
-  //           });
-
   // Dump the list
   return Rcpp::DataFrame::create(Rcpp::Named("Genes") = Rcpp::wrap(query_gene_cardinality),
                                  Rcpp::Named("Query") = Rcpp::wrap(query),
-                                 // Rcpp::Named("Rank") = Rcpp::wrap(query_rank),
                                  Rcpp::Named("tfidf") = Rcpp::wrap(query_tfidf),
-                                 Rcpp::Named("Cells") = Rcpp::wrap(query_cell_cardinality),
-                                 Rcpp::Named("Cell Types") = Rcpp::wrap(query_cell_type_cardinality));
+                                 Rcpp::Named("Cells") = Rcpp::wrap(query_cell_cardinality));
 }
 
 

@@ -15,7 +15,9 @@ cell.types.phyper.test(object, gene.list, datasets)
 \arguments{
 \item{object}{the \code{SCFind} object}
 
-\item{gene.list}{the list of genes to be queried}
+\item{gene.list}{genes to be searched in the gene.index 
+(Operators: "-gene" to exclude a gene | "*gene" either gene is expressed
+"*-gene" either gene is expressed to be excluded)}
 
 \item{datasets}{the datasets vector that will be tested as background for the hypergeometric test}
 }

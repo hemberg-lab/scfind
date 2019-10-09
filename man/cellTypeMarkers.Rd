@@ -5,7 +5,6 @@
 \alias{cellTypeMarkers}
 \alias{cell.type.marker}
 \alias{cellTypeMarkers,SCFind,character-method}
-\alias{cellTypeNames,SCFind-method}
 \title{return all the gene markers for a specified cell.type}
 \usage{
 cellTypeMarkers(object, cell.types, background.cell.types, top.k = 5,
@@ -16,8 +15,6 @@ cell.type.marker(object, cell.types, background.cell.types, top.k,
 
 \S4method{cellTypeMarkers}{SCFind,character}(object, cell.types,
   background.cell.types, top.k = 5, sort.field = "f1")
-
-\S4method{cellTypeNames}{SCFind}(object)
 }
 \arguments{
 \item{object}{SCFind object}
