@@ -217,6 +217,31 @@ barplot(data3 ,
         ylim = c(0, 1.1))
 ```
 
+# *In silico* cell sorting with logical operators 
+
+`scfind` keeps track on individual cells. This allows cell sorting by adding the logical operators ("*" as OR, "-" as NOT) in front of each gene name.
+```{r}
+## To find cells that has the expression pattern of NOT expressing the gene `Il2ra` and OR expressing the gene `Ptprc` in the Thymus dataset
+findCellTypes(object = geneIndex, 
+              gene.list = c("-Il2ra", "*Ptprc", "Il7r"), 
+              datasets = "Thymus")
+
+hyperQueryCellTypes(object = geneIndex,
+                    gene.list = c("-Il2ra", "*Ptprc", "Il7r"), 
+                    datasets = "Thymus")
+
+## Without logical operators
+findCellTypes(object = geneIndex, 
+              gene.list = c("Il2ra", "Ptprc", "Il7r"), 
+              datasets = "Thymus")
+
+hyperQueryCellTypes(object = geneIndex,
+                    gene.list = c("Il2ra", "Ptprc", "Il7r"), 
+                    datasets = "Thymus")
+
+```
+
+
 # Interactive Session
 __Note__ `scfind` can also be run in an interactive `Shiny` session:
 ```{r}
