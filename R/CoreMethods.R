@@ -47,8 +47,12 @@ buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name = 'counts', 
         {
             message(paste("Generating index for", dataset.name, "from '", assay.name, "' assay"))
         }
-        exprs <- "[["(sce@assays$data, assay.name)
+        
+        sce.version <- as.numeric(unlist(strsplit(as.character(packageVersion("SingleCellExperiment")), "[.]" )))
+        ## Check for memory leaks to be replaced with the higher level counts(sce)
+        exprs <- if ( sce.version[1] <= 1  && sce.version[2] < 7)  sce@assays$data[[assay.name]] else sce@assays@data[[assay.name]]
 
+        
         ef <- new(EliasFanoDB)
        
         qb.set <- ef$setQB(qb)
