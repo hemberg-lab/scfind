@@ -1095,20 +1095,20 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
       const auto ct = Rcpp::as<std::string>(_ct);
       // Cell Type level
       auto ret_ct = cells.insert(std::make_pair(ct, std::map<int, Transaction>()));
-      auto& cell_index = *(ret_ct.first);
+      auto& cell_index = ret_ct.first->second;
       
       std::vector<unsigned int> ids  = Rcpp::as<std::vector<unsigned int> >(gene_hits[ct]);
       // For all the cell hits
       for (auto const& id : ids)
       {
-        auto ret_ci cell_index.insert(std::make_pair(id, Transaction()));
+        auto ret_ci = cell_index.insert(std::make_pair(id, Transaction()));
         // if cell was just added count it
         if (ret_ci.second)
         {
           cells_present++;
         }
         // Add gene hit for the cell
-        ret_ci.first->push_back(gene_name);
+        ret_ci.first->second.push_back(gene_name);
       }
     }
   }
