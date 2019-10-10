@@ -1,86 +1,71 @@
-
 #' The scfind main class object
+#'
 #' @export
-setClass("SCFind", representation(index = "Rcpp_EliasFanoDB", datasets = "character", serialized = "raw"))
+setClass("SCFind",
+         representation(
+             index = "ANY", #Index is type of Rcpp_EliasFanoDB but this removes the warning
+             datasets = "character",
+             serialized = "raw",
+             metadata = "list"
+             ))
 
-#' @examples TODO
+
 #' 
 #' @export
 setGeneric(name = "buildCellTypeIndex",
            def = function(sce,
                           dataset.name = '',
                           assay.name = 'logcounts',
-                          cell.type.label = 'cell_type1')
+                          cell.type.label = 'cell_type1',
+                          qb = 2)
            {
                standardGeneric("buildCellTypeIndex")
            })
 
 
-#' 
-#' @examples TODO
 #' @export 
 setGeneric(name = "mergeDataset", def = function(object, new.object) {
     standardGeneric("mergeDataset")
 })
  
-#' @examples TODO
+
 #' @export 
 setGeneric(name = "mergeSCE", def = function(object, sce, dataset.name) {
     standardGeneric("mergeSCE")
 })
 
 
+#' queries cells that contain all the genes from the list
 #' @export
-#' 
-#' @examples TODO
-#'
-#' 
-setGeneric(name = "queryGene", def = function(object, gene, datasets) {
-    standardGeneric("queryGene")
-})
-
-#' @export
-#' 
-#' @examples
-#' library(SingleCellExperiment)
-#' sce <- SingleCellExperiment(assays = list(normcounts = as.matrix(yan)), colData = ann)
-#' # this is needed to calculate dropout rate for feature selection
-#' # important: normcounts have the same zeros as raw counts (fpkm)
-#' counts(sce) <- normcounts(sce)
-#' logcounts(sce) <- log2(normcounts(sce) + 1)
-#' # use gene names as feature symbols
-#' rowData(sce)$feature_symbol <- rownames(sce)
-#' isSpike(sce, 'ERCC') <- grepl('^ERCC-', rownames(sce))
-#' # remove features with duplicated names
-#' sce <- sce[!duplicated(rownames(sce)), ]
-#' index <- buildCellIndex(sce)
-#' res <- findCell(index, genelist = c('SOX6', 'SNAI3'))
-#' 
 setGeneric(name = "findCellTypes", function(object, gene.list, datasets) {
     standardGeneric("findCellTypes")
 })
 
 
+#' return all the gene markers for a specified cell.type
+#'
 #' @export
 #'
 setGeneric(name = "cellTypeMarkers" ,  function(object,
                                                cell.types,
                                                background.cell.types,
                                                top.k = 5,
-                                               sort.field = 'f1'){
+                                               sort.field = 'f1'
+                                               ){
     standardGeneric("cellTypeMarkers")
-
 })
+
 
 #' @export
 #'
-setGeneric(name = "cellTypeNames", function(object){
+setGeneric(name = "cellTypeNames", function(object, datasets){
    standardGeneric("cellTypeNames")
 })
 
 #' @export
 #'
-setGeneric(name = "evaluateMarkers", function(object, gene.list,
+setGeneric(name = "evaluateMarkers", function(object,
+                                              gene.list,
                                               cell.types,
                                               background.cell.types,
                                               sort.field = 'f1'){
@@ -101,6 +86,7 @@ setGeneric(name = "loadObject", function(filename){
 })
 
 #' Generic to be used instead of saveRDS
+#' 
 #' @export
 setGeneric(name = "saveObject", function(object, file){
     standardGeneric("saveObject")
@@ -114,8 +100,11 @@ setGeneric(name = "hyperQueryCellTypes", function(object,
 
 })
 
+#' Performs query optimization and return the best candidate gene sets
+#'
 #' @export
-setGeneric(name = "markerGenes", function(object, gene.list, datasets)
+
+setGeneric(name = "markerGenes", function(object, gene.list, datasets, log.message = 0)
 {
     standardGeneric("markerGenes")
 })
@@ -125,6 +114,58 @@ setGeneric(name = "markerGenes", function(object, gene.list, datasets)
 setGeneric(name = "scfindGenes", function(object){
     standardGeneric("scfindGenes")
 })
+
+
+#' Find out how many cell-types each gene is found
+#' 
+#' @export
+setGeneric(name = "findCellTypeSpecificities", function(object, 
+                                                        gene.list,
+                                                        datasets,
+                                                        min.cells = 10, 
+                                                        min.fraction = .25){
+    standardGeneric("findCellTypeSpecificities")
+})
+
+#' Find out how many tissues each gene is found
+#' 
+#' @export
+setGeneric(name = "findTissueSpecificities", function(object, 
+                                                        gene.list,
+                                                        min.cells = 10){
+    standardGeneric("findTissueSpecificities")
+})
+
+#' Find the set of genes that are ubiquitously expressed in a query of cell types
+#' 
+#' @export
+setGeneric(name = "findHouseKeepingGenes", function(object, 
+                                                    cell.types,
+                                                    min.recall = .5, 
+                                                    max.genes = 1000){
+    standardGeneric("findHouseKeepingGenes")
+})
+
+#' Find the signature genes for a cell-type
+#' 
+#' @export
+setGeneric(name = "findGeneSignatures", function(object, 
+                                                 cell.types,
+                                                 max.genes = 1000,
+                                                 min.cells = 10,
+                                                 max.pval = 0){
+    standardGeneric("findGeneSignatures")
+})
+
+#' Look at all other genes and rank them based on the similarity of their expression pattern to the pattern defined by the gene query
+#' 
+#' @export
+setGeneric(name = "findSimilarGenes", function(object, gene.list, datasets, top.k = 5){
+    standardGeneric("findSimilarGenes")
+})
+
+
+
 
 #' @export
 setGeneric(name = "scfindShinyServer", function(object){
