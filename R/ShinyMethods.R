@@ -730,7 +730,7 @@ server.scfind <- function(object)
                             
                             locus <- peak.indx[i,]
                             
-                            ucsc_end <- paste0("' class='ucsc' target='_blank' title='Click to view Mouse mm9: ", locus$input, " UCSC Genome Browser'>", "【")
+                            ucsc_end <- paste0("' class='ucsc' target='_blank' title='Click to view Mouse mm9: ", locus$input, " UCSC Genome Browser'>", "[")
                             ucsc_a <- paste(ucsc, locus$chromosome, "%3A", locus[2], "%2D", locus[3], ucsc_end, sep="")
 
                             gap <- locus[2] - locus[1]
@@ -738,7 +738,7 @@ server.scfind <- function(object)
                             chromosome <- if(gap < 200) c() else paste0(locus[1], (if(gap<=400) paste(rep("&#8594;", (gap/200))) else paste("&#8594;", "...", "&#8594;")))
     
                             gap <- locus[3] - locus[2]        
-                            chromosome <- paste0(chromosome, ucsc_a, locus[2], paste(rep("&#187;", (gap/100)),collapse = ""), locus[3], "】", "</a>" )
+                            chromosome <- paste0(chromosome, ucsc_a, locus[2], paste(rep("&#187;", (gap/100)),collapse = ""), locus[3], "]", "</a>" )
                             
                             gap <- locus[4] - locus[3]
                             
