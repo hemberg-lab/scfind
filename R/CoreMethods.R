@@ -418,10 +418,10 @@ findCellTypes.geneList <- function(object, gene.list, datasets)
         {
             message ("Warning: Same gene labeled with different operators!") 
             message ("There is a priority to handle operators:")
-            message (paste("Cells with", paste(pos, collapse=" ∧ "),"expression will be included.", 
-                           if(length(or) != 0) "Then cells with", paste(or, collapse=" ∨ "), "expression will be included."))
-            message (paste("The result will be excluded by", paste(excl, collapse=" ∧ "), 
-                           if(length(excl.or != 0)) paste("and further be excluded by", paste(excl.or, collapse=" ∨ "))))
+            message (paste("Cells with", paste(pos, collapse=" ^ "),"expression will be included.", 
+                           if(length(or) != 0) "Then cells with", paste(or, collapse=" v "), "expression will be included."))
+            message (paste("The result will be excluded by", paste(excl, collapse=" ^ "), 
+                           if(length(excl.or != 0)) paste("and further be excluded by", paste(excl.or, collapse=" v "))))
             cat('\n')
         }
 
@@ -446,7 +446,7 @@ findCellTypes.geneList <- function(object, gene.list, datasets)
             for(i in 1: length(or))
             {
                 tmp.id <- pair.id(object@index$findCellTypes(c(pos, or[i]), datasets))
-                if(length(pos) != 0 && !is.null(tmp.id)) message(paste("Found", length(tmp.id), if(length(tmp.id) > 1)"cells" else "cell", "co-expressing", paste(c(pos, or[i]), collapse=" ∧ ") ))
+                if(length(pos) != 0 && !is.null(tmp.id)) message(paste("Found", length(tmp.id), if(length(tmp.id) > 1)"cells" else "cell", "co-expressing", paste(c(pos, or[i]), collapse=" ^ ") ))
                 if(!is.null(tmp.id))
                 {
                     cell.to.id <- unique(c(cell.to.id, tmp.id))
@@ -458,12 +458,12 @@ findCellTypes.geneList <- function(object, gene.list, datasets)
                     cell.to.id <- cell.to.id
                 }
             }
-                if( length(pos) == 0 && length(gene.or) != 0) message(paste("Found", length(cell.to.id), if(length(cell.to.id) > 1) "cells" else "cell", "expressing", paste(gene.or, collapse=" ∨ ")))
+                if( length(pos) == 0 && length(gene.or) != 0) message(paste("Found", length(cell.to.id), if(length(cell.to.id) > 1) "cells" else "cell", "expressing", paste(gene.or, collapse=" v ")))
         }
         else
         {
             cell.to.id  <- if(length(pos) != 0) pair.id(object@index$findCellTypes(pos, datasets)) else cell.to.id
-            if(length(pos) != 0) message(paste("Found", length(cell.to.id), if(length(pos) > 1) "cells co-expressing" else "cell expressing", paste(pos, collapse = " ∧ ")))
+            if(length(pos) != 0) message(paste("Found", length(cell.to.id), if(length(pos) > 1) "cells co-expressing" else "cell expressing", paste(pos, collapse = " ^ ")))
         }
         
             count.cell <- length(cell.to.id)
@@ -478,7 +478,7 @@ findCellTypes.geneList <- function(object, gene.list, datasets)
                     
                     message(paste("Excluded", sum(cell.to.id %in% ex.tmp.id),
                                   if(sum(cell.to.id %in% ex.tmp.id) > 1)"cells" else "cell",
-                                  if(length(excl) != 0) paste("co-expressing", paste( c(excl, excl.or[i]), collapse=" ∧ ")) else paste("expressing", excl.or[i]) ))
+                                  if(length(excl) != 0) paste("co-expressing", paste( c(excl, excl.or[i]), collapse=" ^ ")) else paste("expressing", excl.or[i]) ))
                     
                     if(!is.null(ex.tmp.id))
                     {
@@ -491,7 +491,7 @@ findCellTypes.geneList <- function(object, gene.list, datasets)
                     }
                 }
                 count.cell <- count.cell - length(cell.to.id)
-                if(count.cell > 0 && length(gene.excl) == 0) message("Excluded", count.cell, if(count.cell > 1) "cells" else "cell", "expressing", paste(excl, collapse=" ∧ "))    
+                if(count.cell > 0 && length(gene.excl) == 0) message("Excluded", count.cell, if(count.cell > 1) "cells" else "cell", "expressing", paste(excl, collapse=" ^ "))    
             }
             else
             {
@@ -500,7 +500,7 @@ findCellTypes.geneList <- function(object, gene.list, datasets)
                     # Negative selection
                     cell.to.id <- setdiff(cell.to.id, pair.id(object@index$findCellTypes(excl, datasets)))
                     count.cell <- count.cell - length(cell.to.id)
-                    if(count.cell > 0) message(paste("Excluded", count.cell, if(count.cell > 1) "cells" else "cell", if(length(excl) > 1) "co-expressing" else "expressing", paste(excl, collapse = " ∧ "))) else message("No Cell Is Excluded!")
+                    if(count.cell > 0) message(paste("Excluded", count.cell, if(count.cell > 1) "cells" else "cell", if(length(excl) > 1) "co-expressing" else "expressing", paste(excl, collapse = " ^ "))) else message("No Cell Is Excluded!")
                 }
             }
             
