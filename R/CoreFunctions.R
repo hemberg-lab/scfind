@@ -44,15 +44,16 @@ caseCorrect <- function(object, gene.list)
 
         ## Convert to lowercase
         normalized.query.genes <- tolower(gene.list)
-        normalized.db.genes <- tolower(actual.gene.names)
+        normalized.db.genes <- tolower(db.genes)
         no.match.id <- 0
         indices <- match(normalized.query.genes, tolower(db.genes), nomatch = no.match.id)
         ## Split to matches and misses
         matches <- indices[ indices > no.match.id]
         misses <- indices[ indices == no.match.id]
         
-        if (length(indices) > 0)
+        if (length(matches) > 0)
         {
+            ## Get the original gene names
             gene.corr <- db.genes[matches]
             if (length(misses) > 0)
             {

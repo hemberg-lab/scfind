@@ -404,7 +404,15 @@ findCellTypes.geneList <- function(object, gene.list, datasets)
     
     if(length(grep("^-|^\\*", gene.list)) == 0)
     {
-        return(object@index$findCellTypes(caseCorrect(object, gene.list), datasets))
+        sanitized.genes <- caseCorrect(object, gene.list)
+        if(is.character(sanitized.genes))
+        {
+            return(object@index$findCellTypes(sanitized.genes, datasets))
+        }
+        else
+        {
+            return(list())
+        }
     }
     else
     {
@@ -730,17 +738,17 @@ setMethod("findGeneSignatures",
 similar.genes <- function(object, gene.list, datasets, top.k=5) {
     message("Searching for genes with similar pattern...")
     datasets <- if(missing(datasets)) object@datasets else select.datasets(object, datasets)
-    gene.list <- caseCorrect(object, gene.list)
-    e <- object@index$findCellTypes(gene.list, datasets) #the cells expressing the genes in gene.list
+    
+    e <- findCellTypes.geneList(object, gene.list, datasets) #the cells expressing the genes in gene.list
     n.e <- length(unlist(e))
     if (n.e>0) {
-        gene.names <- setdiff(object@index$genes(), gene.list)
+        gene.names <- setdiff(object@index$genes(), caseCorrect(gene.list))
         similarities <- rep(0, length(gene.names))
         ns <- rep(0, length(gene.names))
         ms <- rep(0, length(gene.names))
         for (i in 1:length(gene.names)) {
             setTxtProgressBar(txtProgressBar(1, length(gene.names), style = 3), i) 
-            f <- object@index$findCellTypes(gene.names[i], datasets) #find expression pattern of other gene
+            f <- findCellTypes.geneList(gene.names[i], datasets) #find expression pattern of other gene
             if (length(f)>0) {
                 m <- rep(0, length(e))
                 for (j in 1:length(names(e))) {
