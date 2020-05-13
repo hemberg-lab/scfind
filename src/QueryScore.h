@@ -18,6 +18,7 @@ public:
     int cartesian_product_sets;
     int support_in_datasets;
   } GeneScore;
+
   friend class EliasFanoDB;
   int cells_in_query;
   int cell_types_in_query;

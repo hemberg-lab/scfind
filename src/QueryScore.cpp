@@ -58,11 +58,7 @@ void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasF
   
 
   int total_cells_in_universe = db.getTotalCells(datasets);
-  std::vector<std::string> gs_names = Rcpp::as<std::vector<std::string>>(gene_results.names());
   
-  
-  
-    
   std::vector<int> gene_support = Rcpp::as<std::vector<int>>(db.totalCells(gene_results.names(), datasets));
   for (size_t gene_row = 0; gene_row < tmp_strings.size(); ++gene_row)
   {
@@ -91,16 +87,18 @@ void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasF
       int expr_index = 0;
       for (auto const& cell_id : expr_indices)
       {
+
+        // Generate cell identifier
         CellID cell(ct_id, cell_id);
         
-        // insert if it does not exist
+        // insert cell if it does not exist
         auto ins_res = tfidf.insert(std::make_pair(cell, std::make_pair(tmpl_cont, 0)));
-        
         // assign the decompressed expression vector to the data structure
         std::vector<double>& tfidf_vec = ins_res.first->second.first;
+        auto& gene_support = ins_res.first->second.second;
+        
         
         // increase gene_support
-        auto& gene_support = ins_res.first->second.second;
         gene_support++;
         
         // tfidf calculation ( the expression value , the total reads of that cell and the gene transcript abundance)
@@ -119,21 +117,18 @@ void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasF
 unsigned int QueryScore::geneSetCutoffHeuristic(const float percentile)
 {
   
-  bool estimate_cutoff = this->genes.size() > 7 ? true : false;
+  unsigned int min_genes = 7;
+  bool estimate_cutoff = this->genes.size() > min_genes ? true : false;
 
   if (not estimate_cutoff)
   {
+    Rcpp::Rcerr << "Cutoff set to 1 due because low number of genes (less than"<< min_genes << ")" <<std::endl;
     return 1;
   }
-
-  std::vector<std::pair<std::string, int>> gs_pairs;
-  gs_pairs.reserve(this->genes.size());
-
-  // iterate through cells for (gene cutoff)
+  
+  
   std::vector<int> genes_subset(this->genes.size(), 0);
-  
-  
-  
+  // iterate all cells
   for (auto const& c : this->tfidf)
   {
     size_t i = 0;
@@ -142,7 +137,6 @@ unsigned int QueryScore::geneSetCutoffHeuristic(const float percentile)
       genes_subset[i++] += v > 0 ? c.second.second - 1 : 0;
     }
   }
-
  
   for (auto& v : this->genes)
   {
@@ -150,15 +144,11 @@ unsigned int QueryScore::geneSetCutoffHeuristic(const float percentile)
     v.second.cartesian_product_sets /= this->genes.size();
     const auto& current_gene_name = v.first;
     int union_sum = std::accumulate(
-      gs_pairs.begin(), 
-      gs_pairs.end(), 
+      this->genes.begin(), 
+      this->genes.end(),
       0, 
-      [&current_gene_name](const int& sum, const std::pair<std::string,int>& gs_pair){
-        if(gs_pair.first == current_gene_name)
-        {
-          return sum;
-        }
-        return sum + gs_pair.second;
+      [&current_gene_name](const int& sum, const std::pair<std::string,GeneScore>& gene_score){
+        return sum + gene_score.second.support_in_datasets;
       });
     float mean_overlap = float(union_sum) / tfidf.size(); // normalize by cell size
     // how much the genes contribute to the overlap
@@ -167,10 +157,10 @@ unsigned int QueryScore::geneSetCutoffHeuristic(const float percentile)
   }
 
 
-  int i = 0;
+
   for (auto const& v : this->genes)
   {  
-    Rcpp::Rcerr << "Cutoff proposed for gene " << v.first << ": " << v.second.cartesian_product_sets <<" with support " << gs_pairs[i++].second << std::endl;
+    Rcpp::Rcerr << "Cutoff proposed for gene " << v.first << ": " << v.second.cartesian_product_sets <<" with support " << v.second.support_in_datasets << std::endl;
   }
 
   // Estimate cutoff using a heuristic
@@ -185,9 +175,6 @@ unsigned int QueryScore::geneSetCutoffHeuristic(const float percentile)
 
   Rcpp::Rcerr << "Cutoff for FP-growth estimated at the "<<percentile * 100 <<" of proposed cutoffs: " << cutoff << "cells" <<std::endl;
   return cutoff;
-
-
-
 }
 
 
