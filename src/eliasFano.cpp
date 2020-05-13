@@ -840,12 +840,7 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
     
     // cell_type_relevance
     query_cell_cardinality.push_back(item.second);
-
-    
-    // query tfidf
-    qs.reset();
-    qs.cell_tfidf(*this, gene_set);
-    query_tfidf.push_back(qs.query_score);
+    query_tfidf.push_back(qs.cell_tfidf(*this, gene_set));
     
     // other fields
     query_gene_cardinality.push_back(gene_set.size());
@@ -1097,6 +1092,7 @@ const std::vector<EliasFanoDB::CellTypeName> EliasFanoDB::_getCellTypes() const
   }
   return cts;
 }
+
 // Returns a map of cell types and cell id's that contain all genes in the gene_set
 std::map<std::string, std::vector<int>> EliasFanoDB::intersect_cells(std::set<std::string> gene_set, Rcpp::List genes_results) const
 {

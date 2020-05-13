@@ -5,11 +5,13 @@
 
 
 
-QueryScore::QueryScore() : cells_in_query(0), query_score(0)
+QueryScore::QueryScore()
 {}
 
 void QueryScore::cell_type_relevance(const EliasFanoDB& db, const Rcpp::List& genes_results, const std::set<std::string>& gene_set)
 {
+  int query_score, cell_types_in_query;
+  int cells_in_query;
   // for a specific gene set get the intersection of the cells as a map
   std::map<std::string, std::vector<int> > ct_map = db.intersect_cells(gene_set, genes_results);  
   
@@ -40,11 +42,6 @@ void QueryScore::cell_type_relevance(const EliasFanoDB& db, const Rcpp::List& ge
   cell_types_in_query = ct_map.size();
 }
 
-void QueryScore::reset()
-{
-  this->query_score = 0;
-  this->cells_in_query = 0;
-}
 
 void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasFanoDB& db, const Rcpp::CharacterVector& datasets)
 {
@@ -126,9 +123,9 @@ unsigned int QueryScore::geneSetCutoffHeuristic(const float percentile)
     return 1;
   }
   
-  
   std::vector<int> genes_subset(this->genes.size(), 0);
-  // iterate all cells
+  
+  // TODO : Explain a bit more what is happening here
   for (auto const& c : this->tfidf)
   {
     size_t i = 0;
@@ -156,8 +153,6 @@ unsigned int QueryScore::geneSetCutoffHeuristic(const float percentile)
     v.second.cartesian_product_sets *= mean_overlap;
   }
 
-
-
   for (auto const& v : this->genes)
   {  
     Rcpp::Rcerr << "Cutoff proposed for gene " << v.first << ": " << v.second.cartesian_product_sets <<" with support " << v.second.support_in_datasets << std::endl;
@@ -175,24 +170,24 @@ unsigned int QueryScore::geneSetCutoffHeuristic(const float percentile)
 
   Rcpp::Rcerr << "Cutoff for FP-growth estimated at the "<<percentile * 100 <<" of proposed cutoffs: " << cutoff << "cells" <<std::endl;
   return cutoff;
+
 }
 
 
 
-void QueryScore::cell_tfidf(const EliasFanoDB& db, const std::set<std::string>& gene_set)
+float QueryScore::cell_tfidf(const EliasFanoDB& db, const std::set<std::string>& gene_set)
 {
  
-  this->query_score = 0;
+  float score = 0;
   float min = genes[*(gene_set.begin())].tfidf;
   for(auto const& g : gene_set)
   {
     float tfidf = genes[g].tfidf;
     min = tfidf < min ? tfidf : min;
-    this->query_score += tfidf;
-
+    score += tfidf;
   }
-  this->query_score *= min;
-
+  score *= min;
+  return score;
 }
 
 
