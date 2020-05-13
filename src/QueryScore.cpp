@@ -1,4 +1,8 @@
 #include "QueryScore.h"
+#include "typedef.h"
+#include "utils.h"
+#include "EliasFano.h"
+
 
 
 QueryScore::QueryScore() : cells_in_query(0), query_score(0)

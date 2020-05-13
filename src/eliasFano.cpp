@@ -5,12 +5,13 @@
 #include <exception>
 #include <stdexcept>
 
-#include "scfind_types.h"
-#include "fp_growth.h"
-#include "utils.h"
+
 #include "EliasFano.h"
 #include "Serialization.h"
 #include "QueryScore.h"
+#include "typedef.h"
+#include "utils.h"
+
 
 CellMeta::CellMeta() : reads(0), features(0)
 {}
@@ -274,6 +275,10 @@ EliasFanoDB::EliasFanoDB():
 {
     
 }
+
+EliasFanoDB::EliasFanoDB(SEXPREC*& obj)
+{}
+
 
 
 int EliasFanoDB::queryZeroGeneSupport(const Rcpp::CharacterVector& datasets) const
@@ -746,8 +751,14 @@ Rcpp::List EliasFanoDB::_findCellTypes(const std::vector<GeneName>& gene_names, 
   return t;
 }
 
+
+
+
+
+
+
 // that casts the results into native R data structures
-Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_list, const Rcpp::CharacterVector datasets_active, unsigned int min_support_cutoff = 5, bool console_message = false)
+Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_list, const Rcpp::CharacterVector datasets_active, unsigned int min_support_cutoff = 5,bool console_message = false)
 {
     
   std::vector<std::string> query;
@@ -756,47 +767,24 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
   std::vector<int> query_cell_type_cardinality;
   std::vector<int> query_cell_cardinality;
   std::vector<int> query_gene_cardinality;
-  std::map<CellTypeName, std::map<int, Transaction> > cells;
-  int cells_present = 0;
+  
+
+  
     
   // Perform an OR query on the database as a first step
   const Rcpp::List genes_results = queryGenes(gene_list, datasets_active);
+  std::map<CellTypeName, std::map<int, Transaction> > cells = transposeResultToCell(genes_results);
+
+  unsigned int cells_present = std::accumulate(cells.begin(),
+                                               cells.end(),
+                                               0 , 
+                                               [](const int& sum, const std::pair<CellTypeName, std::map<int, Transaction> >& celltype){
+                                                 return sum + celltype.second.size();
+                                              });
   
-  // Start inversing the list to a cell level
-  const std::vector<std::string> gene_names = Rcpp::as<std::vector<std::string>>(genes_results.names());
-  for (auto const& gene_name : gene_names)
-  {
-    // Gene hits contains the cell type hierarchy
-    const Rcpp::List& gene_hits = genes_results[gene_name];
-    const Rcpp::CharacterVector& cell_type_names = gene_hits.names();
-    for (auto const& _ct : cell_type_names)
-    {
-      const auto ct = Rcpp::as<std::string>(_ct);
-        
-      if (cells.find(ct) == cells.end())
-      {
-        cells[ct] = std::map<int, Transaction>();
-      }
-
-      std::vector<unsigned int> ids  = Rcpp::as<std::vector<unsigned int> >(gene_hits[ct]);
-      auto& cell_index = cells[ct];
-      // For all the hits
-      for (auto const& id : ids)
-      {
-        // search for the id in the cell type space!
-        if (cell_index.find(id) == cell_index.end())
-        {
-          // insert new cell
-          cell_index[id] = Transaction();
-          cells_present++;
-        }
-        // Add gene hit in the cell
-        cell_index[id].push_back(gene_name);
-      }
-    }
-  }
-
-  Rcpp::Rcerr << "Query Done: found " << cells_present << " rules" << std::endl;
+  
+  Rcpp::Rcerr << "Query Results Transposed: found " << cells_present << " sets" << std::endl;
+  
     
   // Collect all transactions for fp-growth
   std::vector<Transaction> transactions;
@@ -817,6 +805,8 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
   Rcpp::Rcerr << transactions.size() << " transactions" << std::endl;
   // Run fp-growth algorithm
 
+
+  // Estimate cutoff using a heuristic
   QueryScore qs;
   qs.estimateExpression(genes_results, *this, datasets_active, console_message);
   std::vector<int> cutoffs;
@@ -827,16 +817,18 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
   }
 
   std::sort(cutoffs.begin(), cutoffs.end());
+  
   min_support_cutoff = cutoffs[cutoffs.size()/2];
   
+
+
+
   Rcpp::Rcerr << "Running fp-growth tree with " << min_support_cutoff << " cutoff"<< std::endl;
   const FPTree fptree{transactions, min_support_cutoff};
   const std::set<Pattern> patterns = fptree_growth(fptree);
   Rcpp::Rcerr << "Found " << patterns.size() << " geneset patterns " << std::endl;
   
   // Iterate through the calculated frequent patterns
-  
-  
   for (auto const& item : patterns)
   {
     

@@ -1,4 +1,6 @@
 
+#include <vector>
+#include "EliasFano.h"
 #include "utils.h"
 
 
@@ -140,5 +142,48 @@ int getSizeBoolVector(const std::vector<bool>& v)
   }
   return size;
 }
+
+
+
+std::map<EliasFanoDB::CellTypeName, std::map<int, Transaction> >  transposeResultToCell(const Rcpp::List& genes_results)
+{
+  std::map<EliasFanoDB::CellTypeName, std::map<int, Transaction> > cells;
+  
+  const std::vector<std::string> gene_names = Rcpp::as<std::vector<std::string>>(genes_results.names());
+  // Start inversing the list to a cell level
+  for (auto const& gene_name : gene_names)
+  {
+    // Gene hits contains the cell type hierarchy
+    const Rcpp::List& gene_hits = genes_results[gene_name];
+    const Rcpp::CharacterVector& cell_type_names = gene_hits.names();
+    for (auto const& _ct : cell_type_names)
+    {
+      const auto ct = Rcpp::as<std::string>(_ct);
+        
+      if (cells.find(ct) == cells.end())
+      {
+        cells[ct] = std::map<int, Transaction>();
+      }
+
+      std::vector<unsigned int> ids  = Rcpp::as<std::vector<unsigned int> >(gene_hits[ct]);
+      auto& cell_index = cells[ct];
+      // For all the hits
+      for (auto const& id : ids)
+      {
+        // search for the id in the cell type space!
+        if (cell_index.find(id) == cell_index.end())
+        {
+          // insert new cell
+          cell_index[id] = Transaction();
+        }
+        // Add gene hit in the cell
+        cell_index[id].push_back(gene_name);
+      }
+    }
+  }
+
+  return cells;
+}
+
 
 

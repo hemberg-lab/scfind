@@ -1,5 +1,4 @@
-#ifndef FPTREE_HPP
-#define FPTREE_HPP
+#pragma once
 
 #include <cstdint>
 #include <map>
@@ -10,9 +9,8 @@
 // #include <deque>
 #include <utility>
 
+#include "typedef.h"
 
-using Item = std::string;
-using Transaction = std::vector<Item>;
 using TransformedPrefixPath = std::pair<Transaction, uint64_t>;
 using Pattern = std::pair<std::set<Item>, uint64_t>;
 
@@ -41,4 +39,3 @@ struct FPTree {
 std::set<Pattern> fptree_growth(const FPTree&);
 
 
-#endif  // FPTREE_HPP

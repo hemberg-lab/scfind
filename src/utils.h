@@ -1,25 +1,14 @@
 #pragma once
 
-#include <bitset>
+
+#include <map>
 #include <Rcpp.h>
 
+#include "fp_growth.h"
+#include "const.h"
+#include "EliasFano.h"
 
-#define BITS 32
-#define ALL 1
-#define AND 2
-
-
-typedef std::pair<unsigned short, std::bitset<BITS> > BitSet32;
-typedef std::vector<bool> BoolVec;
-
-// struct that holds the quantization vector
-typedef struct
-{
-  double mu;
-  double sigma;
-  std::vector<bool> quantile;
-} Quantile;
-
+std::map< EliasFanoDB::CellTypeName, std::map<int, Transaction> >  transposeResultToCell(const Rcpp::List& genes_results);
 
 
 std::string str_join( const std::vector<std::string>& elements, const char* const separator);

@@ -1,8 +1,12 @@
 #pragma once
-#include "EliasFano.h"
+
 #include <Rcpp.h>
 #include <vector>
 #include <set>
+
+#include "typedef.h"
+
+class EliasFanoDB;
 
 class QueryScore
 {
@@ -20,10 +24,6 @@ public:
   std::map<std::string, GeneScore> genes;
   // CellID (cell type , cell number)
   std::unordered_map<CellID , std::pair<std::vector<double>, int> > tfidf;
-
-  
-  
-
   
   QueryScore();
   void reset();

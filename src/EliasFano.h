@@ -1,5 +1,6 @@
 #pragma once
 #include <iostream>
+#include <Rcpp.h>
 #include <algorithm>
 #include <utility>
 #include <map>
@@ -7,133 +8,8 @@
 #include <set>
 #include <unordered_map>
 
-
-#include "utils.h"
-
-#define SERIALIZATION_VERSION 6
-
-
-typedef struct
-{
-  BoolVec H;
-  BoolVec L;
-  int l;
-  float idf; // tfidf
-  Quantile expr;
-  int getSize() const
-  {
-    return L.size() / l;
-  }
-} EliasFano;
-
-typedef struct
-{
-  int gene;
-  int cell_type;
-  int index;
-} IndexRecord;
-
-//' @export
-class EliasFanoDB;
-RCPP_EXPOSED_CLASS(EliasFanoDB)
-
-typedef int EliasFanoID;
-typedef int CellTypeID;
-
-
-
-class GeneMeta
-{
-public:
-  int total_reads;
-  GeneMeta();
-  void merge(const GeneMeta& other);
-};
-
-class CellMeta
-{
-public:                                               
-  int reads;
-  int features;
-  int getReads() const 
-  {
-    return reads;
-  }
-  
-  int getFeatures() const
-  {
-    return features;
-  }
-  CellMeta();
-};
-
-class CellID
-{
-public:
-  CellTypeID cell_type;
-  int cell_id;
-  CellID(CellTypeID, int);
-  bool operator==(const CellID& obj) const
-  {
-    return (obj.cell_type == cell_type) && (obj.cell_id == cell_id);
-
-  }
-};
-
-namespace std
-{
-  template<>
-  struct hash<CellID>
-  {
-    inline size_t operator()(const CellID& cid) const
-    {
-      return hash<CellTypeID>()(cid.cell_type) ^ hash<int>()(cid.cell_id);
-    }
-  };
-
-}
-
-class CellType
-{
-public:
-  std::string name;
-  int total_cells;
-  int getTotalCells()const 
-  {
-    return total_cells;
-  }
-};
-
-typedef struct
-{
-  int tp;
-  int fp;
-  int tn;
-  int fn;
-  float inv_precision() const
-  {
-    return  (tp + fp) / float(tp);
-  }
-  float inv_recall() const
-  {
-    return (fn + tp) /  float(tp);
-  }
-
-  float recall() const
-  {
-    return 1 / inv_recall();
-  }
-
-  float precision() const
-  {
-    return 1 / inv_precision();
-  }
-
-  float f1() const
-  {
-    return 2/(inv_precision() + inv_recall());
-  }
-} CellTypeMarker;
+#include "const.h"
+#include "typedef.h"
 
 //' @export EliasFanoDB 
 class EliasFanoDB
@@ -168,6 +44,8 @@ class EliasFanoDB
   
 
   EliasFanoDB();
+
+  EliasFanoDB(SEXPREC*&);
   
   void dumpGenes();
 
@@ -272,7 +150,6 @@ class EliasFanoDB
   Rcpp::List getCellTypeMeta(const std::string&) const;
 
   std::map<std::string, std::vector<int> > intersect_cells(std::set<std::string> gene_set, Rcpp::List genes_results) const ;
-
   int dbSize();
   
   void dumpEFsize(int);
