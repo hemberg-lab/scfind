@@ -1,8 +1,8 @@
 
 #include <vector>
-#include "EliasFano.h"
 #include "utils.h"
-
+#include "typedef.h"
+#include "fp_growth.h"
 
 std::string str_join( const std::vector<std::string>& elements, const char* const separator)
 {
@@ -185,5 +185,83 @@ std::map<EliasFanoDB::CellTypeName, std::map<int, Transaction> >  transposeResul
   return cells;
 }
 
+// Wrapper function
+std::set<Pattern> FPGrowthFrequentItemsetMining(const Rcpp::List& genes_results, const unsigned int min_support_cutoff)
+{
+  const std::map<EliasFanoDB::CellTypeName, std::map<int, Transaction> > result_by_celltype = transposeResultToCell(genes_results);
+ 
+  // Find out how many cells are in the query
+  const unsigned int cells_present = std::accumulate(result_by_celltype.begin(),
+                                               result_by_celltype.end(),
+                                               0 , 
+                                               [](const int& sum, const std::pair<EliasFanoDB::CellTypeName, std::map<int, Transaction> >& celltype){
+                                                 return sum + celltype.second.size();
+                                              });
+  
+  Rcpp::Rcerr << "Query Results Transposed: found " << cells_present << " sets" << std::endl;
+  
+  // Collect all transactions for fp-growth
+  std::vector<Transaction> transactions;
+  transactions.reserve(cells_present);
+  for (auto const & ct : result_by_celltype)
+  {
+    // Iterate Cells of cell type
+    for (auto const & cl : ct.second)
+    {
+      // Maybe sort? Should be sorted
+      // std::sort(cl.second.begin(), cl.second.end());
+      if (cl.second.size() != 1)
+      {
+        transactions.push_back(std::vector<Item>(cl.second.begin(), cl.second.end()));
+      }
+    }
+  }
+
+  Rcpp::Rcerr << transactions.size() << " transactions" << std::endl;
+
+  const FPTree fptree{transactions, min_support_cutoff};
+  return fptree_growth(fptree);
+}
+
+
+
+std::set<Pattern> exhaustiveFrequentItemsetMining(const Rcpp::List& genes_results, const unsigned int min_support_cutoff)
+{
+  std::map<EliasFanoDB::CellTypeName, std::map<int, Transaction> > cells;
+  const std::vector<std::string> gene_names = Rcpp::as<std::vector<std::string>>(genes_results.names());
+  // Start inversing the list to a cell level
+  for (auto const& gene_name : gene_names)
+  {
+    // Gene hits contains the cell type hierarchy
+    const Rcpp::List& gene_hits = genes_results[gene_name];
+    const Rcpp::CharacterVector& cell_type_names = gene_hits.names();
+    for (auto const& _ct : cell_type_names)
+    {
+      const auto ct = Rcpp::as<std::string>(_ct);
+        
+      if (cells.find(ct) == cells.end())
+      {
+        cells[ct] = std::map<int, Transaction>();
+      }
+
+      std::vector<unsigned int> ids  = Rcpp::as<std::vector<unsigned int> >(gene_hits[ct]);
+      auto& cell_index = cells[ct];
+      // For all the hits
+      for (auto const& id : ids)
+      {
+        // search for the id in the cell type space!
+        if (cell_index.find(id) == cell_index.end())
+        {
+          // insert new cell
+          cell_index[id] = Transaction();
+        }
+        // Add gene hit in the cell
+        cell_index[id].push_back(gene_name);
+      }
+    }
+  }
+
+  return std::set<Pattern>();
+}
 
 

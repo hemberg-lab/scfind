@@ -2,14 +2,23 @@
 
 
 #include <map>
+#include <set>
 #include <Rcpp.h>
 
-#include "fp_growth.h"
+
 #include "const.h"
+#include "typedef.h"
 #include "EliasFano.h"
+
 
 std::map< EliasFanoDB::CellTypeName, std::map<int, Transaction> >  transposeResultToCell(const Rcpp::List& genes_results);
 
+
+std::set<Pattern> FPGrowthFrequentItemsetMining(const Rcpp::List& genes_results, const unsigned int min_support_cutoff);
+std::set<Pattern> exhaustiveFrequentItemsetMining(const Rcpp::List& gene_results, const unsigned int min_support_cutoff);
+
+
+// helper functions
 
 std::string str_join( const std::vector<std::string>& elements, const char* const separator);
 
@@ -38,8 +47,6 @@ inline BitSet32 int2bin(unsigned int id)
   return make_pair(__builtin_clz(id), int2bin_core(id));
 }
 
-
-
 inline double normalCDF(const double& x, const double& mu, const double& sigma)
 {
   // this is an inline function for the cdm of the normal distribution
@@ -61,4 +68,6 @@ int getSizeBoolVector(const std::vector<bool>& v);
 
 
 std::vector<double> decompressValues(const Quantile& q, const unsigned char& quantization_bits);
+
+
 

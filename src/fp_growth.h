@@ -12,7 +12,7 @@
 #include "typedef.h"
 
 using TransformedPrefixPath = std::pair<Transaction, uint64_t>;
-using Pattern = std::pair<std::set<Item>, uint64_t>;
+
 
 
 struct FPNode {

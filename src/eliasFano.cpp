@@ -687,7 +687,7 @@ Rcpp::List EliasFanoDB::findCellTypes(const Rcpp::CharacterVector& gene_names, c
   return _findCellTypes(Rcpp::as<std::vector<std::string>>(gene_names), cell_types_bg);
 }
 
-
+// TODO(Nikos) REFACTOR
 // And query
 Rcpp::List EliasFanoDB::_findCellTypes(const std::vector<GeneName>& gene_names, const std::vector<EliasFanoDB::CellTypeName>& cell_types_bg) const
 {
@@ -718,8 +718,6 @@ Rcpp::List EliasFanoDB::_findCellTypes(const std::vector<GeneName>& gene_names, 
                                                         return true;
                                                     return false;
                                                   }), cts.end());
-
-  
 
   // intersect cells
   for (auto const& ct : cts)
@@ -752,56 +750,19 @@ Rcpp::List EliasFanoDB::_findCellTypes(const std::vector<GeneName>& gene_names, 
 }
 
 
-
-
 // that casts the results into native R data structures
-Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_list, const Rcpp::CharacterVector datasets_active, const int user_cutoff = -1)
+Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_list, const Rcpp::CharacterVector datasets_active, bool exhaustive, const int user_cutoff)
 {
-    
+  
   std::vector<std::string> query;
   std::vector<double> query_scores;
   std::vector<double> query_tfidf;
   std::vector<int> query_cell_type_cardinality;
   std::vector<int> query_cell_cardinality;
   std::vector<int> query_gene_cardinality;
-  
 
-  
-    
   // Perform an OR query on the database as a first step
   const Rcpp::List genes_results = queryGenes(gene_list, datasets_active);
-  const std::map<CellTypeName, std::map<int, Transaction> > result_by_celltype = transposeResultToCell(genes_results);
-  
-  // Find out how many cells are in the query
-  const unsigned int cells_present = std::accumulate(result_by_celltype.begin(),
-                                               result_by_celltype.end(),
-                                               0 , 
-                                               [](const int& sum, const std::pair<CellTypeName, std::map<int, Transaction> >& celltype){
-                                                 return sum + celltype.second.size();
-                                              });
-  
-  
-  Rcpp::Rcerr << "Query Results Transposed: found " << cells_present << " sets" << std::endl;
-    
-  // Collect all transactions for fp-growth
-  std::vector<Transaction> transactions;
-  transactions.reserve(cells_present);
-  for (auto const & ct : result_by_celltype)
-  {
-    // Iterate Cells of cell type
-    for (auto const & cl : ct.second)
-    {
-      // Maybe sort? Should be sorted
-      // std::sort(cl.second.begin(), cl.second.end());
-      if (cl.second.size() != 1)
-      {
-        transactions.push_back(std::vector<Item>(cl.second.begin(), cl.second.end()));
-      }
-    }
-  }
-    
-  Rcpp::Rcerr << transactions.size() << " transactions" << std::endl;
-  
 
   QueryScore qs;
   qs.estimateExpression(genes_results, *this, datasets_active);
@@ -815,13 +776,9 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
   {
     min_support_cutoff = user_cutoff;
   }
-
-  // Run fp-growth algorithm
-  Rcpp::Rcerr << "Running fp-growth tree with " << min_support_cutoff << " cutoff "<< std::endl;
-  const FPTree fptree{transactions, min_support_cutoff};
-  const std::set<Pattern> patterns = fptree_growth(fptree);
-  Rcpp::Rcerr << "Found " << patterns.size() << " geneset patterns " << std::endl;
   
+  std::set<Pattern> patterns = exhaustive ? exhaustiveFrequentItemsetMining(genes_results, min_support_cutoff) : FPGrowthFrequentItemsetMining(genes_results, min_support_cutoff);
+
   // Iterate through the calculated frequent patterns
   for (auto const& item : patterns)
   {
@@ -834,10 +791,7 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
     {
       continue;
     }
-    
     std::string view_string = str_join(std::vector<Item>(gene_set.begin(), gene_set.end()), ",");
-
-    
     // cell_type_relevance
     query_cell_cardinality.push_back(item.second);
     query_tfidf.push_back(qs.cell_tfidf(*this, gene_set));

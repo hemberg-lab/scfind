@@ -13,7 +13,7 @@ typedef int CellTypeID;
 
 using Item = std::string;
 using Transaction = std::vector<Item>;
-
+using Pattern = std::pair<std::set<Item>, uint64_t>;
 
 typedef struct
 {

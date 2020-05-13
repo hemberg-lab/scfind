@@ -111,7 +111,7 @@ class EliasFanoDB
 
   // TODO(Nikos) this function can be optimized.. It uses the native quering mechanism
   // that casts the results into native R data structures
-  Rcpp::DataFrame findMarkerGenes(const Rcpp::CharacterVector& gene_list, const Rcpp::CharacterVector datasets_active, const int user_cutoff);
+  Rcpp::DataFrame findMarkerGenes(const Rcpp::CharacterVector& gene_list, const Rcpp::CharacterVector datasets_active, bool exhaustive = false, const int user_cutoff = -1);
   
 
   Rcpp::DataFrame _findCellTypeMarkers(const Rcpp::CharacterVector& cell_types, 
