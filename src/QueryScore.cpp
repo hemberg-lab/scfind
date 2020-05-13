@@ -48,16 +48,20 @@ void QueryScore::reset()
 
 void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasFanoDB& db, const Rcpp::CharacterVector& datasets, bool console_message = false)
 {
+
   Rcpp::Rcout << "calculating tfidf for the reduced expression matrix... " << std::endl;
+
+
   // Store temporarily the strings so we can insert those in the map
-  // TODO(Nikos) check if genes are unique in the set.. Possibly this can be done in the R side ?
-  
   const auto& tmp_strings = Rcpp::as<std::vector<std::string>>(gene_results.names());
   const auto tmpl_cont = std::vector<double>(tmp_strings.size(), 0);
   int total_cells_in_universe = db.getTotalCells(datasets);
+
   
   Rcpp::IntegerVector gene_support = db.totalCells(gene_results.names(), datasets);
+
   std::vector<int> gs = Rcpp::as<std::vector<int>>(gene_support);
+  
   std::vector<std::string> gs_names = Rcpp::as<std::vector<std::string>>(gene_support.names());
   std::vector<std::pair<std::string, int>> gs_pairs;
   gs_pairs.reserve(gs_names.size());
@@ -177,7 +181,7 @@ void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasF
       v.second.cartesian_product_sets = 1;
     }
 
-  }  
+  }
 }
 
 
@@ -195,7 +199,7 @@ void QueryScore::cell_tfidf(const EliasFanoDB& db, const std::set<std::string>& 
 
   }
   this->query_score *= min;
-  
+
 }
 
 

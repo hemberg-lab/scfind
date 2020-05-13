@@ -754,11 +754,8 @@ Rcpp::List EliasFanoDB::_findCellTypes(const std::vector<GeneName>& gene_names, 
 
 
 
-
-
-
 // that casts the results into native R data structures
-Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_list, const Rcpp::CharacterVector datasets_active, unsigned int min_support_cutoff = 5,bool console_message = false)
+Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_list, const Rcpp::CharacterVector datasets_active, const int user_cutoff = -1, bool console_message = false)
 {
     
   std::vector<std::string> query;
@@ -773,10 +770,11 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
     
   // Perform an OR query on the database as a first step
   const Rcpp::List genes_results = queryGenes(gene_list, datasets_active);
-  std::map<CellTypeName, std::map<int, Transaction> > cells = transposeResultToCell(genes_results);
-
-  unsigned int cells_present = std::accumulate(cells.begin(),
-                                               cells.end(),
+  const std::map<CellTypeName, std::map<int, Transaction> > result_by_celltype = transposeResultToCell(genes_results);
+  
+  // Find out how many cells are in the query
+  const unsigned int cells_present = std::accumulate(result_by_celltype.begin(),
+                                               result_by_celltype.end(),
                                                0 , 
                                                [](const int& sum, const std::pair<CellTypeName, std::map<int, Transaction> >& celltype){
                                                  return sum + celltype.second.size();
@@ -784,45 +782,52 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
   
   
   Rcpp::Rcerr << "Query Results Transposed: found " << cells_present << " sets" << std::endl;
-  
     
   // Collect all transactions for fp-growth
   std::vector<Transaction> transactions;
   transactions.reserve(cells_present);
-  for (auto & ct : cells)
+  for (auto const & ct : result_by_celltype)
   {
-    for (auto & cl : ct.second)
+    // Iterate Cells of cell type
+    for (auto const & cl : ct.second)
     {
-      // Maybe sort?        
+      // Maybe sort? Should be sorted
       // std::sort(cl.second.begin(), cl.second.end());
       if (cl.second.size() != 1)
       {
-        transactions.push_back(std::vector<std::string>(cl.second.begin(), cl.second.end()));
+        transactions.push_back(std::vector<Item>(cl.second.begin(), cl.second.end()));
       }
     }
   }
     
   Rcpp::Rcerr << transactions.size() << " transactions" << std::endl;
-  // Run fp-growth algorithm
+  
 
-
-  // Estimate cutoff using a heuristic
   QueryScore qs;
   qs.estimateExpression(genes_results, *this, datasets_active, console_message);
-  std::vector<int> cutoffs;
-  
-  for (auto const& v : qs.genes)
+
+  unsigned int min_support_cutoff = 0;
+  if (user_cutoff < 0)
   {
-    cutoffs.push_back(v.second.cartesian_product_sets);
+    // Estimate cutoff using a heuristic
+    std::vector<int> cutoffs;
+  
+    for (auto const& v : qs.genes)
+    {
+      cutoffs.push_back(v.second.cartesian_product_sets);
+    }
+    std::sort(cutoffs.begin(), cutoffs.end());
+    min_support_cutoff = cutoffs[cutoffs.size()/2];
+    Rcpp::Rcerr << "Cutoff for FP-growth estimated: " << min_support_cutoff << "cells" <<std::endl;
+  }
+  else
+  {
+    // User specified cutoff
+    min_support_cutoff = user_cutoff;
   }
 
-  std::sort(cutoffs.begin(), cutoffs.end());
-  
-  min_support_cutoff = cutoffs[cutoffs.size()/2];
-  
 
-
-
+  // Run fp-growth algorithm
   Rcpp::Rcerr << "Running fp-growth tree with " << min_support_cutoff << " cutoff"<< std::endl;
   const FPTree fptree{transactions, min_support_cutoff};
   const std::set<Pattern> patterns = fptree_growth(fptree);
@@ -846,7 +851,6 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
 
     
     // cell_type_relevance
-    qs.reset();
     query_cell_cardinality.push_back(item.second);
 
     
@@ -854,6 +858,7 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
     qs.reset();
     qs.cell_tfidf(*this, gene_set);
     query_tfidf.push_back(qs.query_score);
+    
     // other fields
     query_gene_cardinality.push_back(gene_set.size());
     query.push_back(view_string);
