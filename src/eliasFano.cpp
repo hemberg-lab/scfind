@@ -1093,63 +1093,6 @@ const std::vector<EliasFanoDB::CellTypeName> EliasFanoDB::_getCellTypes() const
   return cts;
 }
 
-// Returns a map of cell types and cell id's that contain all genes in the gene_set
-std::map<std::string, std::vector<int>> EliasFanoDB::intersect_cells(std::set<std::string> gene_set, Rcpp::List genes_results) const
-{
-  
-  std::map<std::string, std::vector<int> > ct_map;
-  
-  // First gene init set for intersections
-  auto git = gene_set.begin();
-     
-  const Rcpp::List& first_gene = genes_results[*git];
-  const std::vector<std::string> initial_cell_types = Rcpp::as<std::vector<std::string> >(first_gene.names());
-  for (auto const& ct : initial_cell_types)
-  {
-    ct_map[ct] = Rcpp::as< std::vector<int> >(first_gene[ct]);
-  }
-
-  for (++git; git != gene_set.end(); ++git)
-  {
-    const Rcpp::List& g_res = genes_results[*git];
-    std::vector<std::string> cell_types = Rcpp::as<std::vector<std::string> >(g_res.names());
-    std::vector<std::string> cell_types_in_ct_map;
-    cell_types_in_ct_map.reserve(ct_map.size());
-    for (auto const& ct : ct_map)
-    {
-      cell_types_in_ct_map.push_back(ct.first);
-    }
-        
-    std::sort(cell_types_in_ct_map.begin(), cell_types_in_ct_map.end());
-    std::sort(cell_types.begin(), cell_types.end());
-        
-        
-    std::vector<std::string> ct_intersection;
-    std::set_intersection(cell_types_in_ct_map.begin(),
-                          cell_types_in_ct_map.end(),
-                          cell_types.begin(),
-                          cell_types.end(),
-                          std::back_inserter(ct_intersection));
-
-    // Update ct_map with the values that have been thrown out cause of the intersection
-    for(auto m_it = ct_map.begin(); m_it != ct_map.end();)
-    {
-      auto f_it = std::find(ct_intersection.begin(),ct_intersection.end(), m_it->first);
-      if (f_it == ct_intersection.end())
-      {
-        m_it = ct_map.erase(m_it);
-      }
-      else
-      {
-        ++m_it;
-      }
-    }
-        
-  }
-
-  return ct_map;
-
-}
 
 int EliasFanoDB::dbSize()
 {

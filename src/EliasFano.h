@@ -149,7 +149,6 @@ class EliasFanoDB
 
   Rcpp::List getCellTypeMeta(const std::string&) const;
 
-  std::map<std::string, std::vector<int> > intersect_cells(std::set<std::string> gene_set, Rcpp::List genes_results) const ;
   int dbSize();
   
   void dumpEFsize(int);

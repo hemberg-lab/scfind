@@ -8,40 +8,6 @@
 QueryScore::QueryScore()
 {}
 
-void QueryScore::cell_type_relevance(const EliasFanoDB& db, const Rcpp::List& genes_results, const std::set<std::string>& gene_set)
-{
-  int query_score, cell_types_in_query;
-  int cells_in_query;
-  // for a specific gene set get the intersection of the cells as a map
-  std::map<std::string, std::vector<int> > ct_map = db.intersect_cells(gene_set, genes_results);  
-  
-  // Remove all empty records
-  for (auto it = ct_map.begin(); it != ct_map.end();)
-  {
-    it = it->second.empty() ? ct_map.erase(it) : ++it;
-  }
-
-  for (auto const& _ct : ct_map)
-  {
-    // const std::string& ct = _ct.first;
-    auto cct =  db.cell_types.find(_ct.first);
-    
-    double tfidf = 0;
-    for (auto const&  g : gene_set)
-    {
-      auto dbg = db.index.find(g);
-      auto gct = dbg->second.find(cct->second);
-      const auto& ef = db.ef_data[gct->second];
-      tfidf += ef.idf;
-    }
-    query_score += tfidf * log(_ct.second.size());
-    cells_in_query += _ct.second.size();
-  }
-  // Get the mean ct size
-  query_score /= ct_map.size();
-  cell_types_in_query = ct_map.size();
-}
-
 
 void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasFanoDB& db, const Rcpp::CharacterVector& datasets)
 {
