@@ -755,7 +755,7 @@ Rcpp::List EliasFanoDB::_findCellTypes(const std::vector<GeneName>& gene_names, 
 
 
 // that casts the results into native R data structures
-Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_list, const Rcpp::CharacterVector datasets_active, const int user_cutoff = -1, bool console_message = false)
+Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_list, const Rcpp::CharacterVector datasets_active, const int user_cutoff = -1)
 {
     
   std::vector<std::string> query;
@@ -804,7 +804,7 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
   
 
   QueryScore qs;
-  qs.estimateExpression(genes_results, *this, datasets_active, console_message);
+  qs.estimateExpression(genes_results, *this, datasets_active);
 
   unsigned int min_support_cutoff = 0;
   if (user_cutoff < 0)

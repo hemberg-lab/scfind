@@ -46,7 +46,7 @@ void QueryScore::reset()
   this->cells_in_query = 0;
 }
 
-void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasFanoDB& db, const Rcpp::CharacterVector& datasets, bool console_message = false)
+void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasFanoDB& db, const Rcpp::CharacterVector& datasets)
 {
 
   Rcpp::Rcout << "calculating tfidf for the reduced expression matrix... " << std::endl;
@@ -97,6 +97,8 @@ void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasF
     
     const Rcpp::List& cts = gene_results[gene];
     const auto ct_names = Rcpp::as<std::vector<std::string>>(cts.names());
+    
+    
     for(auto const& cell_type : ct_names)
     {
       const Rcpp::IntegerVector& expr_indices  = cts[cell_type];
@@ -125,7 +127,7 @@ void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasF
         // tfidf calculation ( the expression value , the total reads of that cell and the gene transcript abundance)
         tfidf_vec[gene_row] = (expr_values[expr_index++] / db.cells.at(cell).reads) * gene_idf;
 
-        console_message == true ? Rcpp::Rcout << "gene " << gene << " cell type " << cell_type << " " << db.cells.at(cell).reads << std::endl : Rcpp::Rcout << ""; 
+        // console_message == true ? Rcpp::Rcout << "gene " << gene << " cell type " << cell_type << " " << db.cells.at(cell).reads << std::endl : Rcpp::Rcout << ""; 
 
         gene_score += tfidf_vec[gene_row];
         
