@@ -55,36 +55,15 @@ void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasF
   // Store temporarily the strings so we can insert those in the map
   const auto& tmp_strings = Rcpp::as<std::vector<std::string>>(gene_results.names());
   const auto tmpl_cont = std::vector<double>(tmp_strings.size(), 0);
+  
+
   int total_cells_in_universe = db.getTotalCells(datasets);
-
+  std::vector<std::string> gs_names = Rcpp::as<std::vector<std::string>>(gene_results.names());
   
-  Rcpp::IntegerVector gene_support = db.totalCells(gene_results.names(), datasets);
-
-  std::vector<int> gs = Rcpp::as<std::vector<int>>(gene_support);
   
-  std::vector<std::string> gs_names = Rcpp::as<std::vector<std::string>>(gene_support.names());
-  std::vector<std::pair<std::string, int>> gs_pairs;
-  gs_pairs.reserve(gs_names.size());
-  std::transform(
-    gs.begin(), 
-    gs.end(), 
-    gs_names.begin(),
-    std::back_inserter(gs_pairs),
-    [](const int& support, const std::string& gene_name){
-      return std::make_pair(gene_name, support);
-    });
   
-  // Iterate through the genes to calculate the tfidf matrix
-  // and do the cutoff estimation at once (for performance reasons)
-  
-  // for the cutoff estimation each gene is assigned a score .
-  // That way we can estimate the distribution of the input gene list 
-  // and do more accurate cutoff estimations
-
-  // Build the reduced expression matrix
     
-  bool estimate_cutoff = tmp_strings.size() > 7 ? true : false;
-    
+  std::vector<int> gene_support = Rcpp::as<std::vector<int>>(db.totalCells(gene_results.names(), datasets));
   for (size_t gene_row = 0; gene_row < tmp_strings.size(); ++gene_row)
   {
 
@@ -92,7 +71,7 @@ void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasF
     // Rcpp::Rcerr << "Gene: " << gene << std::endl;
     float gene_idf = total_cells_in_universe / ((float)db.genes.at(gene).total_reads);
     // get the current score of the gene
-    GeneScore g = {0, gene_row, 0};
+    GeneScore g = {0, gene_row, 0, gene_support[gene_row]};
     double& gene_score = this->genes.insert(std::make_pair(gene, g)).first->second.tfidf;
     
     const Rcpp::List& cts = gene_results[gene];
@@ -134,56 +113,81 @@ void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasF
       }
     }
   }
-    
-  if (estimate_cutoff)
+}
+
+
+unsigned int QueryScore::geneSetCutoffHeuristic(const float percentile)
+{
+  
+  bool estimate_cutoff = this->genes.size() > 7 ? true : false;
+
+  if (not estimate_cutoff)
   {
-    // iterate through cells for (gene cutoff)
-    std::vector<int> genes_subset(this->genes.size(), 0);
-    for (auto const& c : this->tfidf)
+    return 1;
+  }
+
+  std::vector<std::pair<std::string, int>> gs_pairs;
+  gs_pairs.reserve(this->genes.size());
+
+  // iterate through cells for (gene cutoff)
+  std::vector<int> genes_subset(this->genes.size(), 0);
+  
+  
+  
+  for (auto const& c : this->tfidf)
+  {
+    size_t i = 0;
+    for (auto const& v : c.second.first)
     {
-      size_t i = 0;
-      for (auto const& v : c.second.first)
-      {
-        genes_subset[i++] += v > 0 ? c.second.second - 1 : 0;
-      }
+      genes_subset[i++] += v > 0 ? c.second.second - 1 : 0;
     }
+  }
 
  
-    for (auto& v : this->genes)
-    {
-      v.second.cartesian_product_sets = genes_subset[v.second.index];
-      v.second.cartesian_product_sets /= this->genes.size();
-      const auto& current_gene_name = v.first;
-      int union_sum = std::accumulate(
-        gs_pairs.begin(), 
-        gs_pairs.end(), 
-        0, 
-        [&current_gene_name](const int& sum, const std::pair<std::string,int>& gs_pair){
-          if(gs_pair.first == current_gene_name)
-          {
-            return sum;
-          }
-          return sum + gs_pair.second;
-        });
-      float mean_overlap = float(union_sum) / tfidf.size(); // normalize by cell size
-      // how much the genes contribute to the overlap
-      mean_overlap /= log(this->genes.size());
-      v.second.cartesian_product_sets *= mean_overlap;
-    }
-    int i = 0;
-    for (auto const& v : this->genes)
-    {  
-      Rcpp::Rcerr << "Cutoff proposed for gene " << v.first << ": " << v.second.cartesian_product_sets <<" with support " << gs_pairs[i++].second << std::endl;
-    }
-  }
-  else
+  for (auto& v : this->genes)
   {
-    for (auto& v : this->genes)
-    {
-      v.second.cartesian_product_sets = 1;
-    }
-
+    v.second.cartesian_product_sets = genes_subset[v.second.index];
+    v.second.cartesian_product_sets /= this->genes.size();
+    const auto& current_gene_name = v.first;
+    int union_sum = std::accumulate(
+      gs_pairs.begin(), 
+      gs_pairs.end(), 
+      0, 
+      [&current_gene_name](const int& sum, const std::pair<std::string,int>& gs_pair){
+        if(gs_pair.first == current_gene_name)
+        {
+          return sum;
+        }
+        return sum + gs_pair.second;
+      });
+    float mean_overlap = float(union_sum) / tfidf.size(); // normalize by cell size
+    // how much the genes contribute to the overlap
+    mean_overlap /= log(this->genes.size());
+    v.second.cartesian_product_sets *= mean_overlap;
   }
+
+
+  int i = 0;
+  for (auto const& v : this->genes)
+  {  
+    Rcpp::Rcerr << "Cutoff proposed for gene " << v.first << ": " << v.second.cartesian_product_sets <<" with support " << gs_pairs[i++].second << std::endl;
+  }
+
+  // Estimate cutoff using a heuristic
+  std::vector<int> gene_proposed_cutoffs;
+  for (auto const& v : this->genes)
+  {
+    gene_proposed_cutoffs.push_back(v.second.cartesian_product_sets);
+  }
+  std::sort(gene_proposed_cutoffs.begin(), gene_proposed_cutoffs.end());
+  
+  unsigned int cutoff = gene_proposed_cutoffs[int((gene_proposed_cutoffs.size() * percentile)+0.5)];
+
+  Rcpp::Rcerr << "Cutoff for FP-growth estimated at the "<<percentile * 100 <<" of proposed cutoffs: " << cutoff << "cells" <<std::endl;
+  return cutoff;
+
+
+
 }
 
 

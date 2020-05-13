@@ -809,26 +809,15 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
   unsigned int min_support_cutoff = 0;
   if (user_cutoff < 0)
   {
-    // Estimate cutoff using a heuristic
-    std::vector<int> cutoffs;
-  
-    for (auto const& v : qs.genes)
-    {
-      cutoffs.push_back(v.second.cartesian_product_sets);
-    }
-    std::sort(cutoffs.begin(), cutoffs.end());
-    min_support_cutoff = cutoffs[cutoffs.size()/2];
-    Rcpp::Rcerr << "Cutoff for FP-growth estimated: " << min_support_cutoff << "cells" <<std::endl;
+    min_support_cutoff = qs.geneSetCutoffHeuristic();
   }
   else
   {
-    // User specified cutoff
     min_support_cutoff = user_cutoff;
   }
 
-
   // Run fp-growth algorithm
-  Rcpp::Rcerr << "Running fp-growth tree with " << min_support_cutoff << " cutoff"<< std::endl;
+  Rcpp::Rcerr << "Running fp-growth tree with " << min_support_cutoff << " cutoff "<< std::endl;
   const FPTree fptree{transactions, min_support_cutoff};
   const std::set<Pattern> patterns = fptree_growth(fptree);
   Rcpp::Rcerr << "Found " << patterns.size() << " geneset patterns " << std::endl;
@@ -836,7 +825,6 @@ Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_l
   // Iterate through the calculated frequent patterns
   for (auto const& item : patterns)
   {
-    
     
     Rcpp::List gene_query;
     const auto& gene_set = item.first;
