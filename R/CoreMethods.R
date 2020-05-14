@@ -229,7 +229,7 @@ setMethod("mergeSCE",
 #'
 #' @name markerGenes
 #' @return hierarchical list of queries and their respective scores
-find.marker.genes <-  function(object, gene.list, datasets, exhaustive, user.cutoff)
+find.marker.genes <-  function(object, gene.list, datasets, exhaustive, support.cutoff)
 {
     datasets <- select.datasets(object, datasets)
     results <- object@index$findMarkerGenes(as.character(caseCorrect(object, gene.list)), as.character(datasets), exhaustive, support.cutoff)
