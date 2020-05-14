@@ -1,8 +1,7 @@
 Package: scfind
 Type: Package
 Title: A search tool for single cell RNA-seq data by gene lists
-Version: 3.6.0
-Author: Vladimir Kiselev
+Version: 3.6.1
 Maintainer: Nikolaos Patikas <nik.patik@gmail.com>
 Authors@R: c(person("Vladimir", "Kiselev",
              email = "vladimir.yu.kiselev@gmail.com",
