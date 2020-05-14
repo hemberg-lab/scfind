@@ -31,16 +31,16 @@ Quantile lognormalcdf(const std::vector<int>& ids, const Rcpp::NumericVector& v,
 
   Quantile expr;
   expr.mu = std::accumulate(ids.begin(),ids.end(), 0.0, [&v, &expr_tran](const double& mean, const int& index){
-      return  mean + expr_tran(v[index - 1]);
-    }) / ids.size();
+                                                          return  mean + expr_tran(v[index - 1]);
+                                                        }) / ids.size();
   expr.sigma = sqrt(
-                    std::accumulate(
-                                    ids.begin(), 
-                                    ids.end(), 
-                                    0.0, 
-                                    [&v, &expr, &expr_tran](const double& variance, const int& index){
-                                      return pow(expr.mu - expr_tran(v[index - 1]), 2);
-                                    }) / ids.size());
+    std::accumulate(
+      ids.begin(), 
+      ids.end(), 
+      0.0, 
+      [&v, &expr, &expr_tran](const double& variance, const int& index){
+        return pow(expr.mu - expr_tran(v[index - 1]), 2);
+      }) / ids.size());
   // initialize vector with zeros
   expr.quantile.resize(ids.size() * bits, 0);
   //Rcpp::Rcerr << "Mean,std" << expr.mu << "," << expr.sigma << std::endl;
@@ -52,7 +52,7 @@ Quantile lognormalcdf(const std::vector<int>& ids, const Rcpp::NumericVector& v,
     std::bitset<BITS> q = int2bin_core(t);
     for (unsigned int i = 0; i < bits; ++i)
     {
-       expr.quantile[expr_quantile_i++] = q[i];
+      expr.quantile[expr_quantile_i++] = q[i];
     }
   }
   return expr;
@@ -60,16 +60,16 @@ Quantile lognormalcdf(const std::vector<int>& ids, const Rcpp::NumericVector& v,
 
 float inverf(float x)
 {
-   float tt1, tt2, lnx, sgn;
-   sgn = (x < 0) ? -1.0f : 1.0f;
+  float tt1, tt2, lnx, sgn;
+  sgn = (x < 0) ? -1.0f : 1.0f;
    
-   x = (1 - x)*(1 + x);        // x = 1 - x*x;uo
-   lnx = logf(x);
+  x = (1 - x)*(1 + x);        // x = 1 - x*x;uo
+  lnx = logf(x);
 
-   tt1 = 2 / (PI * 0.147) + 0.5f * lnx;
-   tt2 = 1 / 0.147 * lnx;
+  tt1 = 2 / (PI * 0.147) + 0.5f * lnx;
+  tt2 = 1 / 0.147 * lnx;
    
-   return(sgn*sqrtf(-tt1 + sqrtf(tt1*tt1 - tt2)));
+  return(sgn*sqrtf(-tt1 + sqrtf(tt1*tt1 - tt2)));
 }
 
 
@@ -192,11 +192,11 @@ std::set<Pattern> FPGrowthFrequentItemsetMining(const Rcpp::List& genes_results,
  
   // Find out how many cells are in the query
   const unsigned int cells_present = std::accumulate(result_by_celltype.begin(),
-                                               result_by_celltype.end(),
-                                               0 , 
-                                               [](const int& sum, const std::pair<EliasFanoDB::CellTypeName, std::map<int, Transaction> >& celltype){
-                                                 return sum + celltype.second.size();
-                                              });
+                                                     result_by_celltype.end(),
+                                                     0 , 
+                                                     [](const int& sum, const std::pair<EliasFanoDB::CellTypeName, std::map<int, Transaction> >& celltype){
+                                                       return sum + celltype.second.size();
+                                                     });
   
   Rcpp::Rcerr << "Query Results Transposed: found " << cells_present << " sets" << std::endl;
   
@@ -227,7 +227,7 @@ std::set<Pattern> FPGrowthFrequentItemsetMining(const Rcpp::List& genes_results,
 
 class CellIDs
 {
-public:
+ public:
   EliasFanoDB::GeneName gene_name;
   std::deque<CellID> cell_ids;
   CellIDs(const EliasFanoDB::GeneName& gene_name) : gene_name(gene_name)
@@ -242,8 +242,13 @@ int findAllGeneSets(const CellVectors& query_results, std::set<Pattern>& gene_se
 {
 
   int gene_number = query_results.size();
-  unsigned long gene_limit = 1 << query_results.size();
+  unsigned long gene_limit = 1 << (gene_number + 1) ;
   
+  if(gene_number > 32)
+  {
+    return 1;
+  }
+
   // mask is a set of genes that each bit set states the gene presence
   for (unsigned long mask = 1; mask < gene_limit; ++mask)
   {
@@ -304,7 +309,6 @@ int findAllGeneSets(const CellVectors& query_results, std::set<Pattern>& gene_se
 
 std::set<Pattern> exhaustiveFrequentItemsetMining(const Rcpp::List& genes_results, const unsigned int min_support_cutoff)
 {
-
   
   std::set<Pattern> results;
 
