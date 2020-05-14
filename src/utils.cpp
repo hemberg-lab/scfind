@@ -225,43 +225,137 @@ std::set<Pattern> FPGrowthFrequentItemsetMining(const Rcpp::List& genes_results,
 
 
 
+class CellIDs
+{
+public:
+  EliasFanoDB::GeneName gene_name;
+  std::deque<CellID> cell_ids;
+  CellIDs(const EliasFanoDB::GeneName& gene_name) : gene_name(gene_name)
+  {
+
+  }
+};
+
+typedef std::vector< CellIDs > CellVectors;
+
+int findAllGeneSets(const CellVectors& query_results, std::set<Pattern>& gene_sets, const unsigned int min_support_cutoff)
+{
+
+  int gene_number = query_results.size();
+  unsigned long gene_limit = 1 << query_results.size();
+  
+  // mask is a set of genes that each bit set states the gene presence
+  for (unsigned long mask = 1; mask < gene_limit; ++mask)
+  {
+    // auto& vector it->second;
+    std::deque<CellID> current_cell_vector;
+    bool set = false;
+    bool fail = false;
+    Pattern current_pattern;
+    // https://stackoverflow.com/a/7774362/4864088
+    for(unsigned char i = 0; i < gene_number; ++i)
+    {
+      if (char(mask >> i) & (0x01))
+      {
+        if (!set)
+        {
+          // on first gene set the set;
+          current_cell_vector = query_results[i].cell_ids;
+          current_pattern.first.insert(query_results[i].gene_name);
+          current_pattern.second = current_cell_vector.size();
+          set = true;
+        }
+        else
+        {
+          const auto& current_gene_cells = query_results[i].cell_ids;
+          std::deque<CellID> intersection;
+          std::set_intersection(
+            current_gene_cells.begin(),
+            current_gene_cells.end(), 
+            current_cell_vector.begin(),
+            current_cell_vector.end(),
+            std::back_inserter(intersection)
+                                );
+          if (intersection.size() < min_support_cutoff)
+          {
+            // no reason to go further
+            fail = true;
+            break;
+          }
+          else
+          {
+            current_pattern.first.insert(query_results[i].gene_name);
+            current_pattern.second = intersection.size();
+            current_cell_vector = std::move(intersection);
+          }
+        }
+      }
+    }
+    if (not fail)
+    {
+      gene_sets.insert(current_pattern);  
+    }
+    
+  }
+  return 0;
+
+}
+
+
 std::set<Pattern> exhaustiveFrequentItemsetMining(const Rcpp::List& genes_results, const unsigned int min_support_cutoff)
 {
-  std::map<EliasFanoDB::CellTypeName, std::map<int, Transaction> > cells;
-  const std::vector<std::string> gene_names = Rcpp::as<std::vector<std::string>>(genes_results.names());
+
+  
+  std::set<Pattern> results;
+
+  // Boiler Plate code
+  const std::vector<std::string> gene_names = Rcpp::as<std::vector<std::string>>(genes_results.names());  
+  std::unordered_map<EliasFanoDB::CellTypeName,CellTypeID> celltype_ids;
+  CellVectors gene_cell_vector;
+  
   // Start inversing the list to a cell level
   for (auto const& gene_name : gene_names)
   {
+    
+    CellIDs cell_vector(gene_name);
+    auto& cells = cell_vector.cell_ids;
+
     // Gene hits contains the cell type hierarchy
     const Rcpp::List& gene_hits = genes_results[gene_name];
-    const Rcpp::CharacterVector& cell_type_names = gene_hits.names();
-    for (auto const& _ct : cell_type_names)
+    const Rcpp::CharacterVector& cell_types_in_gene = gene_hits.names();
+    for (auto const& celltype : cell_types_in_gene)
     {
-      const auto ct = Rcpp::as<std::string>(_ct);
-        
-      if (cells.find(ct) == cells.end())
-      {
-        cells[ct] = std::map<int, Transaction>();
-      }
-
-      std::vector<unsigned int> ids  = Rcpp::as<std::vector<unsigned int> >(gene_hits[ct]);
-      auto& cell_index = cells[ct];
-      // For all the hits
+      // Generate Cell Type ID 
+      auto celltype_name = Rcpp::as<std::string>(celltype);
+      CellTypeID ct_id = celltype_ids.insert(
+        std::make_pair(
+          celltype_name,
+          celltype_ids.size()
+                       )).first->second;
+      
+      std::vector<unsigned int> ids  = Rcpp::as<std::vector<unsigned int> >(gene_hits[celltype_name]);
       for (auto const& id : ids)
       {
-        // search for the id in the cell type space!
-        if (cell_index.find(id) == cell_index.end())
-        {
-          // insert new cell
-          cell_index[id] = Transaction();
-        }
-        // Add gene hit in the cell
-        cell_index[id].push_back(gene_name);
+        cells.push_back(CellID(ct_id, id));
       }
     }
+
+    // (Optimization) if genes have not a minimum support then remove them
+    if (not (cell_vector.cell_ids.size() < min_support_cutoff))
+    {
+      gene_cell_vector.push_back(cell_vector);
+    }
+    
+  }
+  for(auto& cell: gene_cell_vector)
+  {
+    auto& cell_vector = cell.cell_ids;
+    std::sort(cell_vector.begin(), cell_vector.end());
   }
 
-  return std::set<Pattern>();
+  findAllGeneSets(gene_cell_vector, results, min_support_cutoff);
+
+  return results;
 }
 
 

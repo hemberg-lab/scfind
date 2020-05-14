@@ -95,7 +95,21 @@ public:
     return (obj.cell_type == cell_type) && (obj.cell_id == cell_id);
 
   }
+  bool operator<(const CellID& other) const
+  {
+    if(other.cell_type != cell_type)
+    {
+      return other.cell_type > cell_type;
+    }
+    else
+    {
+      return other.cell_id > cell_id;
+    }
+  }
+  
+
 };
+
 
 namespace std
 {

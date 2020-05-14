@@ -502,7 +502,6 @@ EliasFanoDB::CellTypeIndex EliasFanoDB::getCellTypeIDs(const std::set<std::strin
         cts[ct.name] = this->cell_types.find(ct.name)->second;
       }
     }
-
   }
   return cts;
 }
