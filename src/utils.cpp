@@ -248,7 +248,10 @@ int findAllGeneSets(const CellVectors& query_results, std::set<Pattern>& gene_se
   {
     return 1;
   }
-
+  
+  Rcpp::Rcerr << "Starting Exhaustive search with " << gene_number << " genes" << std::endl;
+ 
+  
   // mask is a set of genes that each bit set states the gene presence
   for (unsigned long mask = 1; mask < gene_limit; ++mask)
   {

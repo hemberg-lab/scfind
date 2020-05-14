@@ -85,7 +85,7 @@ unsigned int QueryScore::geneSetCutoffHeuristic(const float percentile)
 
   if (not estimate_cutoff)
   {
-    Rcpp::Rcerr << "Cutoff set to 1 due because low number of genes (less than"<< min_genes << ")" <<std::endl;
+    Rcpp::Rcerr << "Cutoff set to 1 due because low number of genes (less than "<< min_genes << ")" <<std::endl;
     return 1;
   }
   
@@ -134,7 +134,7 @@ unsigned int QueryScore::geneSetCutoffHeuristic(const float percentile)
   
   unsigned int cutoff = gene_proposed_cutoffs[int((gene_proposed_cutoffs.size() * percentile)+0.5)];
 
-  Rcpp::Rcerr << "Cutoff for FP-growth estimated at the "<<percentile * 100 <<" of proposed cutoffs: " << cutoff << "cells" <<std::endl;
+  Rcpp::Rcerr << "Cutoff for FP-growth estimated at the "<<percentile * 100 <<" of proposed cutoffs: " << cutoff << " cells" <<std::endl;
   return cutoff;
 
 }
