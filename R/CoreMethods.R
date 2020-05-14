@@ -224,14 +224,15 @@ setMethod("mergeSCE",
 #' @param object SCFind object
 #' @param gene.list A list of nGenes existing in the database
 #' @param datasets the datasets of the objects to be considered
-#' @param log.message whether to print a verbose message
+#' @param exhaustive Use exhaustive search of gene sets instead of fp-growth
+#' @param support.cutoff minimum support in cells. By default is -1 which defaults in estimation of the cutoff given the gene set
 #'
 #' @name markerGenes
 #' @return hierarchical list of queries and their respective scores
-find.marker.genes <-  function(object, gene.list, datasets, log.message = 0)
+find.marker.genes <-  function(object, gene.list, datasets, exhaustive, user.cutoff)
 {
     datasets <- select.datasets(object, datasets)
-    results <- object@index$findMarkerGenes(as.character(caseCorrect(object, gene.list)), as.character(datasets), 5, log.message)
+    results <- object@index$findMarkerGenes(as.character(caseCorrect(object, gene.list)), as.character(datasets), exhaustive, support.cutoff)
     return(results)
 }
 
