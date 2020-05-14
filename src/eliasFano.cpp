@@ -72,7 +72,7 @@ int EliasFanoDB::loadByteStream(const Rcpp::RawVector& stream)
   return 0;
 }
 
-Rcpp::RawVector EliasFanoDB::getByteStream()
+Rcpp::RawVector EliasFanoDB::getByteStream() const
 {
   SerializationDB ser;
   return ser.getByteStream(*this);
@@ -436,7 +436,7 @@ Rcpp::List EliasFanoDB::geneSupportInCellTypes(const Rcpp::CharacterVector& gene
   return results;
 }
 
-Rcpp::List EliasFanoDB::total_genes()
+Rcpp::List EliasFanoDB::total_genes() const
 {
   Rcpp::List t; 
   for(auto & d : index)
@@ -558,7 +558,7 @@ Rcpp::NumericVector EliasFanoDB::getCellTypeSupport(Rcpp::CharacterVector& cell_
 }
   
 
-Rcpp::List EliasFanoDB::queryGenes(const Rcpp::CharacterVector& gene_names, const Rcpp::CharacterVector& datasets_active)
+Rcpp::List EliasFanoDB::queryGenes(const Rcpp::CharacterVector& gene_names, const Rcpp::CharacterVector& datasets_active) const
 {
   Rcpp::List t;
   for (Rcpp::CharacterVector::const_iterator it = gene_names.begin(); it != gene_names.end(); ++it)
@@ -575,7 +575,7 @@ Rcpp::List EliasFanoDB::queryGenes(const Rcpp::CharacterVector& gene_names, cons
       continue;
     }
     std::vector<std::string> datasets = Rcpp::as<std::vector<std::string>>(datasets_active);
-    const auto& gene_meta = index[gene_name];
+    const auto& gene_meta = index.at(gene_name);
     for (auto const& dat : gene_meta)
     {
       CellType current_cell_type = this->inverse_cell_type[dat.first];
@@ -597,7 +597,7 @@ Rcpp::List EliasFanoDB::queryGenes(const Rcpp::CharacterVector& gene_names, cons
   return t;
 }
   
-size_t EliasFanoDB::dataMemoryFootprint()
+size_t EliasFanoDB::dataMemoryFootprint() const
 {
   size_t bytes = 0;
   for(auto & d : ef_data)
@@ -611,7 +611,7 @@ size_t EliasFanoDB::dataMemoryFootprint()
   return bytes;
 }
 
-size_t EliasFanoDB::quantizationMemoryFootprint()
+size_t EliasFanoDB::quantizationMemoryFootprint() const
 {
   size_t bytes = 0;
   for (auto & d : ef_data)
@@ -623,7 +623,7 @@ size_t EliasFanoDB::quantizationMemoryFootprint()
 }
 
 
-size_t EliasFanoDB::dbMemoryFootprint()
+size_t EliasFanoDB::dbMemoryFootprint() const
 {
   size_t bytes = dataMemoryFootprint();
 
@@ -655,7 +655,7 @@ size_t EliasFanoDB::dbMemoryFootprint()
 }
 
 
-Rcpp::CharacterVector EliasFanoDB::getGenesInDB()
+Rcpp::CharacterVector EliasFanoDB::getGenesInDB() const
 {
   std::vector<std::string> gene_names;
   gene_names.reserve(this->genes.size());
@@ -750,7 +750,7 @@ Rcpp::List EliasFanoDB::_findCellTypes(const std::vector<GeneName>& gene_names, 
 
 
 // that casts the results into native R data structures
-Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_list, const Rcpp::CharacterVector datasets_active, bool exhaustive, const int user_cutoff)
+Rcpp::DataFrame EliasFanoDB::findMarkerGenes(const Rcpp::CharacterVector& gene_list, const Rcpp::CharacterVector datasets_active, bool exhaustive, const int user_cutoff) const 
 {
   
   std::vector<std::string> query;
@@ -1047,21 +1047,21 @@ const std::vector<EliasFanoDB::CellTypeName> EliasFanoDB::_getCellTypes() const
 }
 
 
-int EliasFanoDB::dbSize()
+int EliasFanoDB::dbSize() const
 {
   Rcpp::Rcout << index.size() << "genes in the DB" << std::endl;
   return ef_data.size();
     
 }
 
-std::vector<int> EliasFanoDB::decode(int index)
+std::vector<int> EliasFanoDB::decode(int index) const
 {
   if(index >= dbSize())
   {
     Rcpp::Rcerr << "Invalid index for database with size "<< dbSize() << std::endl;
     return std::vector<int>();
   }
-  return eliasFanoDecoding(ef_data[index]);
+  return eliasFanoDecoding(ef_data.at(index));
 }
 
   
