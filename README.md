@@ -80,7 +80,7 @@ __A__: Please use [this page](https://github.com/hemberg-lab/scfind/issues).
 
 __Q__: Is __scfind__ published?  
 
-__A__: Not yet, but a copy of __scmap__ manuscript is available on [bioRxiv](https://doi.org/10.1101/788596).
+__A__: Not yet, but a copy of __scfind__ manuscript is available on [bioRxiv](https://doi.org/10.1101/788596).
 
 __Q__: What is __scfind__ licence?
 
