@@ -1,4 +1,4 @@
-<img src=https://genat.uk/img/scfind2_colour.png height="200">
+<img src=https://scfind.sanger.ac.uk/img/scfind.png height="200">
 
 ## scfind - Fast searches of large collections of single cell data
 
