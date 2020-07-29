@@ -192,10 +192,10 @@ server.scfind <- function(object)
                     return(NULL)
                 } else if (input$selectall%%2 == 0)  {
                     updateCheckboxGroupInput(session, "datasetCheckbox", label = '', choices = datasets, selected = box.selection, inline = T)
-                    
+                    last.query.state("query_optimizer")
                 }  else {
                     updateCheckboxGroupInput(session, "datasetCheckbox", label = '', choices = datasets, inline = T)
-                    
+                    print('dataset not defined')
                 }
             })
             
@@ -305,8 +305,6 @@ server.scfind <- function(object)
                     gene.support <- data.frame()
                     gene.support$support <- c()
                     gene.support$genes <-  c()
-                    print('dataset not defined')
-                    
                 }
                 gene.support
             })
