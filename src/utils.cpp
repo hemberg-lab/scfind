@@ -198,7 +198,7 @@ std::set<Pattern> FPGrowthFrequentItemsetMining(const Rcpp::List& genes_results,
                                                        return sum + celltype.second.size();
                                                      });
   
-  Rcpp::Rcerr << "Query Results Transposed: found " << cells_present << " sets" << std::endl;
+  // Rcpp::Rcerr << "Query Results Transposed: found " << cells_present << " sets" << std::endl;
   
   // Collect all transactions for fp-growth
   std::vector<Transaction> transactions;
@@ -217,7 +217,7 @@ std::set<Pattern> FPGrowthFrequentItemsetMining(const Rcpp::List& genes_results,
     }
   }
 
-  Rcpp::Rcerr << transactions.size() << " transactions" << std::endl;
+  // Rcpp::Rcerr << transactions.size() << " transactions" << std::endl;
 
   const FPTree fptree{transactions, min_support_cutoff};
   return fptree_growth(fptree);

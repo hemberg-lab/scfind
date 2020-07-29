@@ -12,7 +12,7 @@ QueryScore::QueryScore()
 void QueryScore::estimateExpression(const Rcpp::List& gene_results, const EliasFanoDB& db, const Rcpp::CharacterVector& datasets)
 {
 
-  Rcpp::Rcout << "calculating tfidf for the reduced expression matrix... " << std::endl;
+  // Rcpp::Rcout << "calculating tfidf for the reduced expression matrix... " << std::endl;
 
 
   // Store temporarily the strings so we can insert those in the map
@@ -85,7 +85,7 @@ unsigned int QueryScore::geneSetCutoffHeuristic(const float percentile)
 
   if (not estimate_cutoff)
   {
-    Rcpp::Rcerr << "Cutoff set to 1 due because low number of genes (less than "<< min_genes << ")" <<std::endl;
+    // Rcpp::Rcerr << "Cutoff set to 1 due because low number of genes (less than "<< min_genes << ")" <<std::endl;
     return 1;
   }
   
@@ -119,10 +119,10 @@ unsigned int QueryScore::geneSetCutoffHeuristic(const float percentile)
     v.second.cartesian_product_sets *= mean_overlap;
   }
 
-  for (auto const& v : this->genes)
-  {  
-    Rcpp::Rcerr << "Cutoff proposed for gene " << v.first << ": " << v.second.cartesian_product_sets <<" with support " << v.second.support_in_datasets << std::endl;
-  }
+  // for (auto const& v : this->genes)
+  // {  
+  //   Rcpp::Rcerr << "Cutoff proposed for gene " << v.first << ": " << v.second.cartesian_product_sets <<" with support " << v.second.support_in_datasets << std::endl;
+  // }
 
   // Estimate cutoff using a heuristic
   std::vector<int> gene_proposed_cutoffs;
@@ -134,7 +134,7 @@ unsigned int QueryScore::geneSetCutoffHeuristic(const float percentile)
   
   unsigned int cutoff = gene_proposed_cutoffs[int((gene_proposed_cutoffs.size() * percentile)+0.5)];
 
-  Rcpp::Rcerr << "Cutoff for FP-growth estimated at the "<<percentile * 100 <<" of proposed cutoffs: " << cutoff << " cells" <<std::endl;
+  // Rcpp::Rcerr << "Cutoff for FP-growth estimated at the "<<percentile * 100 <<" of proposed cutoffs: " << cutoff << " cells" <<std::endl;
   return cutoff;
 
 }

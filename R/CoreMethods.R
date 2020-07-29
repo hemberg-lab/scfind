@@ -232,7 +232,13 @@ setMethod("mergeSCE",
 find.marker.genes <-  function(object, gene.list, datasets, exhaustive, support.cutoff)
 {
     datasets <- select.datasets(object, datasets)
-    results <- object@index$findMarkerGenes(as.character(caseCorrect(object, gene.list)), as.character(datasets), exhaustive, support.cutoff)
+    results <- tryCatch({
+        object@index$findMarkerGenes(as.character(caseCorrect(object, gene.list)), as.character(datasets), exhaustive, support.cutoff)
+    }, error = function(err) {
+        data.frame()
+    }, finally = {
+        data.frame()
+    })
     return(results)
 }
 
@@ -325,7 +331,7 @@ setMethod("cellTypeNames",
 evaluate.cell.type.markers <- function(object, gene.list, cell.types, background.cell.types, sort.field){
     if(missing(background.cell.types))
     {
-        message("Considering the whole DB..")
+        # message("Considering the whole DB..")
         background.cell.types <- cellTypeNames(object)
     }
     all.cell.types <- object@index$evaluateCellTypeMarkers(cell.types, caseCorrect(object, gene.list), background.cell.types)
@@ -781,6 +787,73 @@ setMethod("findSimilarGenes",
           signature(object = "SCFind",
                     gene.list = "character"), 
           similar.genes)
+
+
+#'  Load up dictionaries for free text search function
+#' 
+#' @param w2v the word2vec model
+#' @param dictionary valid dictionary generated from hemberg-lab
+#' @param priority setting priority of dictionary
+#' 
+#' @name scfindQ2loadDictionaries
+#' @return the list of dictionaries
+#' 
+read_all_dictionaries <- function(w2v, dictionary, priority)
+{
+    if(missing(dictionary)) stop("Please provide paths to dictionaries.")
+    dictionaries <- read_dictionaries(dictionary)
+    
+    default <- c("meshID2genename","chemicalmeshID2genename","gwastraits2genename","phrase2genename")
+    dictionary2genenames <- names(dictionaries)[!names(dictionaries) %in% c("priority", "stopwords", "variant2genename", "readme", grep("id$", names(dictionaries), value = T, ignore.case=T))]
+    
+    if(missing(priority))
+    {
+        
+        
+        if(any(grepl("^priority$", names(dictionaries))))
+        {
+            priority <- c(dictionaries$priority, setdiff(dictionary2genenames, dictionaries$priority))
+            message("Dictionaries priority by-default: ")
+        }
+        else
+        {
+            
+            priority <- c(default, setdiff(dictionary2genenames, default))
+            message("Dictionaries priority is set as: ")
+        }
+    }
+    else
+    {
+        priority <- c(priority, setdiff(default, priority))
+        message("Dictionaries priority is customised by user: ")
+    }
+    
+    message(cat(paste(names(dictionaries)[match( priority, names(dictionaries),nomatch = 0)], collapse = "\n")))
+    dictionaries[['priority']] <- priority
+    
+    if(missing(w2v))
+    {
+        warning('No word2vec file is provided. Only dictionary will be loaded.')
+    }
+    else
+    {
+        cat('\nReading word2vec file...')
+        dictionaries[['model']] <- read_w2v(w2v)
+    }
+    
+    message(paste0("Total object size : ", floor(object.size(dictionaries)/1024/1024), " MB"))
+    message(paste0("Species : ", dictionaries$readme$species))
+    return(dictionaries)
+}
+
+
+
+#' @rdname scfindQ2loadDictionaries
+#' @aliases scfindQ2loadDictionaries
+setMethod("scfindQ2loadDictionaries", 
+          signature( dictionary = "character"), 
+          read_all_dictionaries)
+
 
 
 
