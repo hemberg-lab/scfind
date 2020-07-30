@@ -138,7 +138,7 @@ server.scfind <- function(object)
                 datasets <- object@datasets
                 box.selection <-  input$datasetCheckbox
 
-                datasetName <- if(length(datasetName) != 0 && datasetName != '#' && datasetName != '') dataset_def_names[[datasetName]] else ''
+                datasetName <- if(any(names(dataset_def_names) %in% datasetName)) dataset_def_names[[datasetName]] else ''
                 
                 if(length(box.selection) == 0){
                     paste("Please select at least 1 dataset below:")
@@ -938,7 +938,7 @@ server.scfind.w2v <- function(object, dictionary)
                 datasets <- object@datasets
                 box.selection <-  input$datasetCheckbox
                 
-                datasetName <- if(length(datasetName) != 0 && datasetName != '#' && datasetName != '') dataset_def_names[[datasetName]] else ''
+                datasetName <- if(any(names(dataset_def_names) %in% datasetName)) dataset_def_names[[datasetName]] else ''
                 
                 if(length(box.selection) == 0){
                     paste("Please select at least 1 dataset below:")
