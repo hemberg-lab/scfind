@@ -280,6 +280,7 @@ ui.scfind <- function()
                  column(12, align="center",
                         tags$h3(uiOutput("title")),
                         tags$script(js),
+                        tags$script(inactivity),
                         textInput("geneList", label = "", value = "", placeholder = "Initialising. This may take a few minutes...")
                  )
         ),
