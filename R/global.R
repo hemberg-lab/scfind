@@ -53,7 +53,7 @@ plotCellNumberHisto <- function(gene.list, dataset, object)
     
 }
 
-# To avoid shiny app quit when idle, 1 day.
+# Reset timeout to prevent shiny app quit when idle, 12 hour.
 inactivity <- "function idleTimer() {
   var t = setTimeout(logout, 4.32e7);
   window.onmousemove = resetTimer; // catches mouse movements
