@@ -1,15 +1,15 @@
-#' `Kidney` metadata from The Tabula Muris Consortium.
+#' `ExampleIndex_TabulaMurisFACS` SCfind index created from The Tabula Muris Consortium.
 #'
-#' Dataframes from The Tabula Muris Consortium. https://doi.org/10.1038/s41586-018-0590-4
+#' SCfind index created from The Tabula Muris Consortium. https://doi.org/10.1038/s41586-018-0590-4
 #' that profiled every cell-type in the mouse using high-coverage FACS-sorted cells + Smartseq2 in the original publication 
 #'
 #' @docType data
 #'
-#' @usage data(kidney)
+#' @usage data(ExampleIndex_TabulaMurisFACS)
 #'
-#' @format Metadata for tabulamuris.
+#' @format url to download SCfind index.
 #'
-#' @keywords datasets
+#' @keywords index
 #'
 #' @references The Tabula Muris Consortium. (2018) 
 #' Single-cell transcriptomics of 20 mouse
@@ -19,4 +19,4 @@
 #'
 #' @source \href{https://figshare.com/articles/Single-cell_RNA-seq_data_from_Smart-seq2_sequencing_of_FACS_sorted_cells/5715040}{figshare}
 #'
-"kidney"
+"ExampleIndex_TabulaMurisFACS"

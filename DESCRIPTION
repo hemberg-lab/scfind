@@ -1,9 +1,9 @@
 Package: scfind
 Type: Package
 Title: A search tool for single cell RNA-seq data by gene lists
-Version: 4.0.0
-Author: Vladimir Kiselev
-Maintainer: Nikolaos Patikas <nik.patik@gmail.com>
+Version: 4.1.0
+Author: Jimmy Lee
+Maintainer: Jimmy Lee <thjimmylee@gmail.com>
 Authors@R: c(person("Vladimir", "Kiselev",
              email = "vladimir.yu.kiselev@gmail.com",
              role=c("cre", "aut")),
@@ -27,7 +27,7 @@ License: GPL-3
 Imports:
     SingleCellExperiment, methods, Rcpp (>= 0.8.5), SummarizedExperiment, shiny, data.table, DT, hash, ggplot2, stats
 LinkingTo: Rcpp, RcppArmadillo
-Depends: R(>= 3.4)
+Depends: R(>= 3.5)
 RcppModules: EliasFanoDB
 Encoding: UTF-8
 LazyLoad: yes
@@ -41,3 +41,18 @@ NeedsCompilation: yes
 URL: https://github.com/hemberg-lab/scfind
 BugReports: https://support.bioconductor.org/t/scfind/
 LazyData: true
+Collate: 
+    'AllGenerics.R'
+    'CoreFunctions.R'
+    'CoreMethods.R'
+    'ExampleIndex_TabulaMuris10X.R'
+    'ExampleIndex_TabulaMurisFACS.R'
+    'ShinyMethods.R'
+    'Utils.R'
+    'scfind-package.R'
+    'tm10x.R'
+    'tmfacs.R'
+    'global.R'
+    'server.R'
+    'ui.R'
+    'zzz.R'

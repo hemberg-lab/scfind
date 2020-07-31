@@ -34,16 +34,48 @@ contigency.table <- function(query.results)
     
 }
 
+# caseCorrect <- function(object, gene.list)
+# {
+#     ## Filtering malicious inputs
+#     if (is.character(gene.list))
+#     {
+#         ## TODO Maybe all of this can happen once and it can be persistent with the object?
+#         db.genes <- object@index$genes()
+# 
+#         ## Convert to lowercase
+#         normalized.query.genes <- tolower(gene.list)
+#         normalized.db.genes <- tolower(db.genes)
+#         no.match.id <- 0
+#         indices <- match(normalized.query.genes, tolower(db.genes), nomatch = no.match.id)
+#         ## Split to matches and misses
+#         matches <- indices[ indices > no.match.id]
+#         misses <- indices[ indices == no.match.id]
+#         
+#         if (length(matches) > 0)
+#         {
+#             ## Get the original gene names
+#             gene.corr <- db.genes[matches]
+#             # if (length(misses) > 0)
+#             # {
+#             #     message(paste0("Ignoring ", toString(misses), ". Not valid gene name(s)"))
+#             # }
+#             return(unique(gene.corr))
+#         }
+#     }
+#     return(c())
+# }
+
+
 caseCorrect <- function(object, gene.list)
 {
     gene.list <- gene.list[gene.list != ""]
-
+    
     if(length(gene.list) != 0)
     {
         gene.corr <- object@index$genes()[match(tolower(gene.list), tolower(object@index$genes()), nomatch = 0)]
         
         if(length(setdiff(tolower(gene.list), tolower(gene.corr))) != 0) message(paste0("Ignored ", toString(setdiff(gene.list, gene.list[match(tolower(gene.corr), tolower(gene.list), nomatch=0)])), ". Not found in the index"))
-
+        
         return(unique(gene.corr))
     }
     else
@@ -51,8 +83,6 @@ caseCorrect <- function(object, gene.list)
         return(c())
     }
 }
-
-
 
 #' @importFrom stats aggregate p.adjust phyper setNames
 phyper.test <- function(object, result, datasets)
@@ -139,7 +169,7 @@ pair.id <- function(cell.list = list()){
 find.signature <- function(object, cell.type, max.genes=1000, min.cells=10, max.pval=0) {
     # Use this method to find a gene signature for a cell-type. 
     # We do this by ranking genes by recall and then adding genes to the query until we exceed a target p-value threshold or until a minimum number of cells is returned from the query
-    df <- cellTypeMarkers(object, cell.type, top.k=max.genes, sort.field="recall", message=F)
+    df <- cellTypeMarkers(object, cell.type, top.k = max.genes, sort.field = "recall")
     genes <- as.character(df$genes)
     genes.list <- c()
     thres = max(c(min.cells, object@index$getCellTypeMeta(cell.type)$total_cells))
@@ -160,6 +190,9 @@ find.signature <- function(object, cell.type, max.genes=1000, min.cells=10, max.
     }
     return( genes.list )
 }
+
+
+
 
 ## Free Text Search
 
@@ -596,7 +629,15 @@ query2genes <- function(object, dictionary, query, strict = F, automatch = T, gr
 {
     model <- if(any(grepl("model", names(dictionary)))) dictionary[['model']] else warning('No word2vec model is provided in your dictionaries.')
     priority <- if(missing(priority)) NULL else priority
-    query <- tokenize(object, query, strict)
+
+    if(all(grepl("[[:punct:]]", strsplit(query, "")[[1]])))
+    {
+        warning("Only symbol is detected")
+        return(list())
+    } else {
+        query <- tokenize(object, query, strict)
+    }
+
     gene.list <- NULL 
     raw.genes <- NULL
     genes <- NULL
@@ -872,7 +913,9 @@ query2CellTypes <- function(object, dictionary, query, datasets, optimize = T, a
     } 
     else 
     {
-        message("No Cell Is Found!")
+
+        # message("No Cell Is Found!")
+
         return(result)
     }
     message(paste0("Found ", nrow(q2CT), " celltypes for your search '", sub(',.*', '', query), "...'."))
@@ -922,6 +965,8 @@ hackCellTypeIndex.SCESet <- function(matrix, annotation, qb = 2)
         non.zero.cell.types <- c()
         index <- hash()
 
+        
+
         exprs <- matrix
         
         ef <- new(EliasFanoDB)
@@ -958,4 +1003,5 @@ hackCellTypeIndex.SCESet <- function(matrix, annotation, qb = 2)
     
     return(index)
 }
+
 
