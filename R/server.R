@@ -174,7 +174,7 @@ server.scfind <- function(object)
                 progress <- Progress$new(session, min=0)
                 on.exit(progress$close())
                 progress$set(message = 'Initialising index...',
-                             detail = 'This may take a few minutes')
+                             detail = 'This may take a few minutes. Please be noted that the app may be disconnected due to server time out if remain idle.')
                 
                 exampleCT <- sample(cellTypeNames(object), 1)
                 exampleQuery <- cellTypeMarkers(object, exampleCT)$genes
@@ -977,7 +977,7 @@ server.scfind.w2v <- function(object, dictionary)
                 progress <- Progress$new(session, min=0)
                 on.exit(progress$close())
                 progress$set(message = 'Initialising index...',
-                             detail = 'This may take a few minutes')
+                             detail = 'This may take a few minutes. Please be noted that the app may be disconnected due to server time out if remain idle.')
                 
                 updateTextInput(session, "geneList", value = "", placeholder = sample(exampleQuery,1))
             })
