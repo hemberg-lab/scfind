@@ -345,7 +345,7 @@ server.scfind <- function(object)
                 
                 df <- cell.types()
                 
-                if(!is.null(df$cell_type) && nrow(df) != 0 && !is.null(input$datasetCheckbox)) { #!#
+                if(!is.null(df$cell_type) && nrow(df) != 0 && !is.null(input$datasetCheckbox) && !is.null(selection)) { #!#
                     rdt <- phyper.test(object, df, input$datasetCheckbox)
                     mge <- if(length(unique(df$cell_type)) < 2) evaluateMarkers(object, selection, as.character(unique(df$cell_type))) else evaluateMarkers(object, selection, rdt$cell_type[s])
                     if(nrow(mge) != 0){
@@ -434,11 +434,18 @@ server.scfind <- function(object)
                         }
                         else
                         {
-                            paste0(
-                                "<p>Hmm,<br>", "There's no cell type representing your query in<br>",
-                                toString(input$datasetCheckbox), ".<br></p>",
-                                "<p>Please try other datasets or gene combinations</p>"
-                            )
+                            if(sum(gene.support()$support) == 0)
+                            {
+                                paste0(
+                                    "<p>Hmm,<br>", "There's no cell type representing your query in<br>",
+                                    toString(input$datasetCheckbox), ".<br></p>",
+                                    "<p>Please try other datasets or gene combinations</p>"
+                                )
+                            }
+                            else
+                            {
+                                ""
+                            }
                         }
                     } else {
                         ""
@@ -1246,7 +1253,7 @@ server.scfind.w2v <- function(object, dictionary)
                 
                 df <- cell.types()
                 
-                if(!is.null(df$cell_type) && nrow(df) != 0 && length(gene.list) != 0 && !is.null(input$datasetCheckbox)) { #!#
+                if(!is.null(df$cell_type) && nrow(df) != 0 && length(gene.list) != 0 && !is.null(input$datasetCheckbox) && !is.null(selection)) { #!#
                     rdt <- phyper.test(object, df, input$datasetCheckbox)
                     rdt <- data.frame(rdt[order(rdt$pval, decreasing = F), ])
                     
@@ -1339,11 +1346,18 @@ server.scfind.w2v <- function(object, dictionary)
                         } 
                         else
                         {
-                            paste0(
-                                "<p>Hmm,<br>", "There's no cell type representing your query in<br>",
-                                toString(input$datasetCheckbox), ".<br></p>",
-                                "<p>Please try other datasets or gene combinations</p>"
-                            )
+                            if(sum(gene.support()$support) == 0)
+                            {
+                                paste0(
+                                    "<p>Hmm,<br>", "There's no cell type representing your query in<br>",
+                                    toString(input$datasetCheckbox), ".<br></p>",
+                                    "<p>Please try other datasets or gene combinations</p>"
+                                )
+                            }
+                            else
+                            {
+                                ""
+                            }
                         }
                     } 
                     else 
