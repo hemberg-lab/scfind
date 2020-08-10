@@ -231,7 +231,15 @@ setMethod("mergeSCE",
 find.marker.genes <-  function(object, gene.list, datasets, log.message = 0)
 {
     datasets <- select.datasets(object, datasets)
-    results <- object@index$findMarkerGenes(as.character(caseCorrect(object, gene.list)), as.character(datasets), 5, log.message)
+    
+    results <- tryCatch({
+        object@index$findMarkerGenes(as.character(caseCorrect(object, gene.list)), as.character(datasets), 5, log.message)
+    }, error = function(err) {
+        data.frame()
+    }, finally = {
+        data.frame(Genes = c(), Query = c(), tfidf = c(), Cells = c())
+    })
+    
     return(results)
 }
 

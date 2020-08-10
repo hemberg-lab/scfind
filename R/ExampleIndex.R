@@ -1,13 +1,13 @@
-#' `ExampleIndex_TabulaMurisFACS` SCfind index created from The Tabula Muris Consortium.
+#' `ExampleIndex` SCfind index created from The Tabula Muris Consortium.
 #'
-#' SCfind index created from The Tabula Muris Consortium. https://doi.org/10.1038/s41586-018-0590-4
+#' SCfind indexes created from The Tabula Muris Consortium. https://doi.org/10.1038/s41586-018-0590-4
 #' that profiled every cell-type in the mouse using high-coverage FACS-sorted cells + Smartseq2 in the original publication 
 #'
 #' @docType data
 #'
-#' @usage data(ExampleIndex_TabulaMurisFACS)
+#' @usage data(ExampleIndex)
 #'
-#' @format url to download SCfind index.
+#' @format url to retrieve SCfind indexes.
 #'
 #' @keywords index
 #'
@@ -19,4 +19,4 @@
 #'
 #' @source \href{https://figshare.com/articles/Single-cell_RNA-seq_data_from_Smart-seq2_sequencing_of_FACS_sorted_cells/5715040}{figshare}
 #'
-"ExampleIndex_TabulaMurisFACS"
+"ExampleIndex"
