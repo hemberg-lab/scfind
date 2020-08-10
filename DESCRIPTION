@@ -1,9 +1,9 @@
 Package: scfind
 Type: Package
 Title: A search tool for single cell RNA-seq data by gene lists
-Version: 3.5.1
-Author: Vladimir Kiselev
-Maintainer: Nikolaos Patikas <nik.patik@gmail.com>
+Version: 3.6.0
+Author: Jimmy Lee
+Maintainer: Jimmy Lee <thjimmylee@gmail.com>
 Authors@R: c(person("Vladimir", "Kiselev",
              email = "vladimir.yu.kiselev@gmail.com",
              role=c("cre", "aut")),
@@ -45,11 +45,13 @@ Collate:
     'AllGenerics.R'
     'CoreFunctions.R'
     'CoreMethods.R'
-    'ExampleIndex_TabulaMuris10X.R'
-    'ExampleIndex_TabulaMurisFACS.R'
+    'ExampleIndex.R'
     'ShinyMethods.R'
     'Utils.R'
     'scfind-package.R'
     'tm10x.R'
     'tmfacs.R'
+    'global.R'
+    'server.R'
+    'ui.R'
     'zzz.R'
