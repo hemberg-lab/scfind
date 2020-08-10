@@ -25,7 +25,6 @@ buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name = 'counts', 
 
     if (grepl(dataset.name,'.'))
     {
-        stop("The dataset name should not contain any dots")
     }
     
     
@@ -677,12 +676,12 @@ house.keeping.genes <- function(object, cell.types, min.recall=.5, max.genes=100
     if(min.recall >= 1 || min.recall <= 0) stop("min.recall reached limit, please use values > 0 and < 1.0.") 
     if(max.genes > length(object@index$genes())) stop(paste("max.genes exceeded limit, please use values > 0 and < ", length(object@index$genes()))) else message("Searching for house keeping genes...")
     df <- cellTypeMarkers(object, cell.types[1], top.k=max.genes, sort.field="recall")
-    house.keeping.genes <- df$genes[which(df$recall>min.recall)]
+    house.keeping.genes <- df$`genes`[which(df$recall>min.recall)]
     
     for (i in 2:length(cell.types)) {
         setTxtProgressBar(txtProgressBar(1, length(cell.types), style = 3), i) 
         df <- cellTypeMarkers(object, cell.types[i], top.k=max.genes, sort.field="recall")
-        house.keeping.genes <- intersect(house.keeping.genes, df$genes[which(df$recall>min.recall)])
+        house.keeping.genes <- intersect(house.keeping.genes, df$`genes`[which(df$recall>min.recall)])
         if (length(house.keeping.genes)==0) { stop("No house keeping gene is found.") }
     }
     cat('\n')

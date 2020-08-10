@@ -170,7 +170,7 @@ find.signature <- function(object, cell.type, max.genes=1000, min.cells=10, max.
     # Use this method to find a gene signature for a cell-type. 
     # We do this by ranking genes by recall and then adding genes to the query until we exceed a target p-value threshold or until a minimum number of cells is returned from the query
     df <- cellTypeMarkers(object, cell.type, top.k = max.genes, sort.field = "recall")
-    genes <- as.character(df$genes)
+    genes <- as.character(df$`genes`)
     genes.list <- c()
     thres = max(c(min.cells, object@index$getCellTypeMeta(cell.type)$total_cells))
     for (j in 1:dim(df)[1]) {

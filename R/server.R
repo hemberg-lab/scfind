@@ -209,10 +209,10 @@ server.scfind <- function(object)
                     histoHeight = 100 + (number.of.choices-4) * 30
                 }
                 
-                if (nrow(df) != 0 && any(df$genes %in% object@index$genes()))
+                if (nrow(df) != 0 && any(df$`genes` %in% object@index$genes()))
                 {
                     tabsetPanel(type = "tabs",
-                                tabPanel(paste(if(all(startsWith(tolower(df$genes), "chr"))) "Peaks" else "Genes", "Summary"),
+                                tabPanel(paste(if(all(startsWith(tolower(df$`genes`), "chr"))) "Peaks" else "Genes", "Summary"),
                                          uiOutput("geneCheckbox"),
                                          plotOutput("geneSupportHisto", width = 250, height = histoHeight)
                                 )
@@ -434,17 +434,13 @@ server.scfind <- function(object)
                         }
                         else
                         {
-                            if(sum(gene.support()$support) == 0)
+                            if(nrow(cell.types()) == 0)
                             {
                                 paste0(
                                     "<p>Hmm,<br>", "There's no cell type representing your query in<br>",
                                     toString(input$datasetCheckbox), ".<br></p>",
                                     "<p>Please try other datasets or gene combinations</p>"
                                 )
-                            }
-                            else
-                            {
-                                ""
                             }
                         }
                     } else {
@@ -541,20 +537,20 @@ server.scfind <- function(object)
             output$geneSupportHisto <- renderPlot({
                 df <- gene.support()
                 
-                if (nrow(df) != 0 && length(grep(TRUE, (df$genes %in% object@index$genes()))) != 0)
+                if (nrow(df) != 0 && length(grep(TRUE, (df$`genes` %in% object@index$genes()))) != 0)
                 {
                     max.axis <- max(df$support)
                     g <- ggplot(df, aes(x = genes, y = support), colour = support) +
                         xlab("") +
                         ylab("Cells") +
                         ylim(0, max.axis) +
-                        geom_text(aes(label=df$genes), vjust = "inward", hjust = "inward", size = 4) +
-                        geom_col(fill = rainbow(length(df$genes)), position = "dodge", width = 1, alpha = .5, colour = "black") +
+                        geom_text(aes(label=df$`genes`), vjust = "inward", hjust = "inward", size = 4) +
+                        geom_col(fill = rainbow(length(df$`genes`)), position = "dodge", width = 1, alpha = .5, colour = "black") +
                         theme_minimal() +
                         coord_flip() +
                         theme(panel.grid.minor = element_blank(), axis.text.y = element_blank(),
                               panel.background = element_blank(), axis.line = element_line(colour = "black")) +
-                        scale_x_discrete(limits = rev(df$genes))
+                        scale_x_discrete(limits = rev(df$`genes`))
                 }
                 else
                 {
@@ -1019,7 +1015,7 @@ server.scfind.w2v <- function(object, dictionary)
                 df <- gene.support()
                 
                 
-                if (nrow(df) != 0 && any(df$genes %in% object@index$genes()))
+                if (nrow(df) != 0 && any(df$`genes` %in% object@index$genes()))
                 {
                     tabsetPanel(type = "tabs",
                                 tabPanel("Query",
@@ -1346,17 +1342,13 @@ server.scfind.w2v <- function(object, dictionary)
                         } 
                         else
                         {
-                            if(sum(gene.support()$support) == 0)
+                            if(nrow(cell.types()) == 0)
                             {
                                 paste0(
                                     "<p>Hmm,<br>", "There's no cell type representing your query in<br>",
                                     toString(input$datasetCheckbox), ".<br></p>",
                                     "<p>Please try other datasets or gene combinations</p>"
                                 )
-                            }
-                            else
-                            {
-                                ""
                             }
                         }
                     } 
