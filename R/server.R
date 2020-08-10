@@ -126,10 +126,6 @@ server.scfind <- function(object)
                 if(length(gene.list()) != 0  && sum(gene.support()$support) != 0 && !is.null(input$datasetCheckbox)) {
                     checkboxGroupInput("geneCheckbox", label='', choices = genes.in.list , selected = selection, inline = F)
                 }
-                # else
-                # {
-                #           checkboxGroupInput("geneCheckbox", label='', choices = c() , selected = c(), inline = F)
-                # }
             })
             
             
@@ -223,7 +219,7 @@ server.scfind <- function(object)
             })
             
             output$evaluateSum <- renderUI ({
-                s = input$cellTypesData_rows_selected # return row number, NULL
+                s = input$cellTypesData_rows_selected
                 
                 if(!is.null(s) && length(object@metadata) != 0){
                     tabsetPanel(type = "tabs",
@@ -241,14 +237,14 @@ server.scfind <- function(object)
             
             
             observe({
-                s = input$cellTypesData_rows_selected # return row number, NULL
+                s = input$cellTypesData_rows_selected
                 df <- cell.types()
                 if(!is.null(s) && length(object@metadata) != 0 && nrow(df) != 0 && !is.null(input$datasetCheckbox)){ 
                     
                     rdt <- phyper.test(object, df, input$datasetCheckbox)
                     
                     selectedCellTypes <- as.character(rdt$cell_type[s])
-                    subdataset <- unique(sub("\\..*", "", selectedCellTypes)) # get datasetName. from datasetName.cellType
+                    subdataset <- unique(sub("\\..*", "", selectedCellTypes))
                     
                     if(length(subdataset) > 1){
                         updateSelectInput(session, 'subdataset', label = 'Datasets', choices = subdataset,  selected = subdataset[length(subdataset)])
@@ -554,7 +550,7 @@ server.scfind <- function(object)
                 }
                 else
                 {
-                    g <- plot(0,type='n',axes=FALSE,ann=FALSE)
+                    g <- 0
                 }
                 g
                 
@@ -562,7 +558,7 @@ server.scfind <- function(object)
             
             
             output$cellUMAP <- renderPlot({
-                s = input$cellTypesData_rows_selected # return row number, NULL
+                s = input$cellTypesData_rows_selected
                 selection <- if(all(startsWith(object@index$genes(), "chr") == T)) gsub(":|-", "_", input$geneCheckbox) else caseCorrect(object, input$geneCheckbox)
                 
                 umap_highlight <- data.frame()
@@ -766,10 +762,6 @@ server.scfind.w2v <- function(object, dictionary)
                 if(length(gene.list()) != 0  && sum(gene.support()$support) != 0 && !is.null(input$datasetCheckbox)) {
                     checkboxGroupInput("geneCheckbox", label = '', choices = genes.in.list , selected = selection, inline = F)
                 } 
-                # else 
-                # {
-                #     checkboxGroupInput("geneCheckbox", label='', choices = c() , selected = c(), inline = F)
-                # }
             })
             
             
@@ -1061,7 +1053,7 @@ server.scfind.w2v <- function(object, dictionary)
             
             
             output$evaluateSum <- renderUI ({
-                s = input$cellTypesData_rows_selected # return row number, NULL
+                s = input$cellTypesData_rows_selected
                 
                 if(!is.null(s) && length(object@metadata) != 0 ){
                     tabsetPanel(type = "tabs",
@@ -1141,7 +1133,7 @@ server.scfind.w2v <- function(object, dictionary)
             })
             
             observe({
-                s = input$cellTypesData_rows_selected # return row number, NULL
+                s = input$cellTypesData_rows_selected
                 df <- cell.types()
                 if(!is.null(s) && length(object@metadata) != 0 && nrow(df) != 0 && !is.null(input$datasetCheckbox)){ #!#
                     
@@ -1149,7 +1141,7 @@ server.scfind.w2v <- function(object, dictionary)
                     rdt <- data.frame(rdt[order(rdt$pval, decreasing = F), ])
                     
                     selectedCellTypes <- as.character(rdt$cell_type[s])
-                    subdataset <- unique(sub("\\..*", "", selectedCellTypes)) # get datasetName. from datasetName.cellType
+                    subdataset <- unique(sub("\\..*", "", selectedCellTypes))
                     
                     if(length(subdataset) > 1){
                         updateSelectInput(session, 'subdataset', label = 'Datasets', choices = subdataset,  selected = subdataset[length(subdataset)])
