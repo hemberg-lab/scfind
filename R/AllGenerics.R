@@ -104,7 +104,7 @@ setGeneric(name = "hyperQueryCellTypes", function(object,
 #'
 #' @export
 
-setGeneric(name = "markerGenes", function(object, gene.list, datasets, log.message = 0)
+setGeneric(name = "markerGenes", function(object, gene.list, datasets, exhaustive = FALSE, support.cutoff = -1)
 {
     standardGeneric("markerGenes")
 })

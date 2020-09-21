@@ -36,20 +36,33 @@ contigency.table <- function(query.results)
 
 caseCorrect <- function(object, gene.list)
 {
-    gene.list <- gene.list[gene.list != ""]
-
-    if(length(gene.list) != 0)
+    ## Filtering malicious inputs
+    if (is.character(gene.list))
     {
-        gene.corr <- object@index$genes()[match(tolower(gene.list), tolower(object@index$genes()), nomatch = 0)]
+        ## TODO Maybe all of this can happen once and it can be persistent with the object?
+        db.genes <- object@index$genes()
+
+        ## Convert to lowercase
+        normalized.query.genes <- tolower(gene.list)
+        normalized.db.genes <- tolower(db.genes)
+        no.match.id <- 0
+        indices <- match(normalized.query.genes, tolower(db.genes), nomatch = no.match.id)
+        ## Split to matches and misses
+        matches <- indices[ indices > no.match.id]
+        misses <- indices[ indices == no.match.id]
         
-        if(length(setdiff(tolower(gene.list), tolower(gene.corr))) != 0) message(paste0("Ignored ", toString(setdiff(gene.list, gene.list[match(tolower(gene.corr), tolower(gene.list), nomatch=0)])), ". Not found in the index"))
-
-        return(unique(gene.corr))
+        if (length(matches) > 0)
+        {
+            ## Get the original gene names
+            gene.corr <- db.genes[matches]
+            if (length(misses) > 0)
+            {
+                message(paste0("Ignoring ", toString(misses), ". Not valid gene name(s)"))
+            }
+            return(unique(gene.corr))
+        }
     }
-    else
-    {
-        return(c())
-    }
+    return(c())
 }
 
 

@@ -1,12 +1,12 @@
 Package: scfind
 Type: Package
 Title: A search tool for single cell RNA-seq data by gene lists
-Version: 3.6.0
-Author: Jimmy Lee
-Maintainer: Jimmy Lee <thjimmylee@gmail.com>
+Version: 3.7.0
+Author: Jimmy Lee, Nikolaos Patikas
+Maintainer: Jimmy Lee <thjimmylee@gmail.com>, Nikolaos Patikas <nik.patik@gmail.com>
 Authors@R: c(person("Vladimir", "Kiselev",
              email = "vladimir.yu.kiselev@gmail.com",
-             role=c("cre", "aut")),
+             role=c("aut")),
              person("Martin", "Hemberg",
              role=c("aut")),
              person("Nikolaos","Patikas",

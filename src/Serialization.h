@@ -1,11 +1,13 @@
 #pragma once
 
-#include "EliasFano.h"
-
 #include <Rcpp.h>
 #include <iostream>
 #include <cassert>
 #include <vector>
+
+
+#include "EliasFano.h"
+
 
 
 class SerializationDB
