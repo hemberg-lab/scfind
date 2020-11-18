@@ -47,7 +47,12 @@ buildCellTypeIndex.SCESet <- function(sce, dataset.name, assay.name = 'counts', 
         {
             message(paste("Generating index for", dataset.name, "from '", assay.name, "' assay"))
         }
-        exprs <- "[["(sce@assays$data, assay.name)
+        ## To deal with the version compability of SingleCellExperiment versions
+        exprs <- tryCatch({
+            "[["(sce@assays$data, assay.name)
+        }, error = function(err) {
+            "[["(sce@assays@data, assay.name)
+        })
 
         ef <- new(EliasFanoDB)
        
