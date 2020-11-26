@@ -1190,5 +1190,3 @@ RCPP_MODULE(EliasFanoDB)
     .method("evaluateCellTypeMarkers", &EliasFanoDB::evaluateCellTypeMarkers)
     .method("getCellTypeSupport", &EliasFanoDB::getCellTypeSupport);
 }
-
-
