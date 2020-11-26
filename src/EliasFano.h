@@ -11,6 +11,9 @@
 #include "const.h"
 #include "typedef.h"
 
+
+
+
 //' @export EliasFanoDB 
 class EliasFanoDB
 {
@@ -163,4 +166,5 @@ class EliasFanoDB
 
 };
 
+RCPP_EXPOSED_CLASS(EliasFanoDB)
 
