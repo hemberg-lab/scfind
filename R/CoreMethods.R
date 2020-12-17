@@ -765,7 +765,7 @@ similar.genes <- function(object, gene.list, datasets, top.k=5) {
         ms <- rep(0, length(gene.names))
         for (i in 1:length(gene.names)) {
             setTxtProgressBar(txtProgressBar(1, length(gene.names), style = 3), i) 
-            f <- findCellTypes.geneList(gene.names[i], datasets) #find expression pattern of other gene
+            f <- findCellTypes.geneList(object, gene.names[i], datasets) #find expression pattern of other gene
             if (length(f)>0) {
                 m <- rep(0, length(e))
                 for (j in 1:length(names(e))) {
