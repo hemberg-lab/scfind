@@ -759,7 +759,7 @@ similar.genes <- function(object, gene.list, datasets, top.k=5) {
     e <- findCellTypes.geneList(object, gene.list, datasets) #the cells expressing the genes in gene.list
     n.e <- length(unlist(e))
     if (n.e>0) {
-        gene.names <- setdiff(object@index$genes(), caseCorrect(gene.list))
+        gene.names <- setdiff(object@index$genes(), caseCorrect(object, gene.list))
         similarities <- rep(0, length(gene.names))
         ns <- rep(0, length(gene.names))
         ms <- rep(0, length(gene.names))
