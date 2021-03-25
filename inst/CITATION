@@ -7,12 +7,12 @@ citEntry(entry="article",
              as.person("Nikolaos Patikas"),
              as.person("Vladimir Yu. Kiselev"),
              as.person("Martin Hemberg")),
-         year = 2019,
-         journal = "bioRxiv",
-         url = "https://doi.org/10.1101/788596",
+         year = 2021,
+         journal = "Nature Methods",
+         url = "https://doi.org/10.1038/s41592-021-01076-9",
          textVersion = 
              paste(
-                 "Jimmy Tsz Hang Lee, Nikolaos Patikas, Vladimir Yu. Kiselev, Martin Hemberg (2019): ", 
+                 "Jimmy Tsz Hang Lee, Nikolaos Patikas, Vladimir Yu. Kiselev, Martin Hemberg (2021): ", 
                  "Fast searches of large collections of single cell data using scfind",
                  "github,",
                  "URL: https://github.com/hemberg-lab/scfind" )

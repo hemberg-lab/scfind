@@ -95,7 +95,11 @@ __A__: Please use [this page](https://github.com/hemberg-lab/scfind/issues).
 
 __Q__: Is __scfind__ published?  
 
-__A__: Not yet, but a copy of __scfind__ manuscript is available on [bioRxiv](https://doi.org/10.1101/788596).
+__A__: The preprint of `scfind` is available on [bioRxiv](https://doi.org/10.1101/788596). The final version of the article is available on [Nature Methods](https://doi.org/10.1038/s41592-021-01076-9). The press release of `scfind` can be found on [Wellcome Sanger Institute](https://www.sanger.ac.uk/news_item/new-search-engine-for-single-cell-atlases/). To cite this paper, article: 
+
+```
+Lee, J.T.H., Patikas, N., Kiselev, V.Y. et al. Fast searches of large collections of single-cell data using scfind. Nat Methods 18, 262–271 (2021). https://doi.org/10.1038/s41592-021-01076-9
+```
 
 __Q__: What is __scfind__ licence?
 

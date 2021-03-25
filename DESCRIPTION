@@ -39,7 +39,7 @@ biocViews: SingleCell, Software, RNASeq, Transcriptomics,
             GeneExpression
 NeedsCompilation: yes
 URL: https://github.com/hemberg-lab/scfind
-BugReports: https://support.bioconductor.org/t/scfind/
+BugReports: https://github.com/hemberg-lab/scfind/issues
 LazyData: true
 Collate: 
     'AllGenerics.R'
