@@ -1,5 +1,6 @@
 
 #include <vector>
+#include <cmath>
 #include "EliasFano.h"
 #include "utils.h"
 
@@ -66,7 +67,7 @@ float inverf(float x)
    x = (1 - x)*(1 + x);        // x = 1 - x*x;uo
    lnx = logf(x);
 
-   tt1 = 2 / (PI * 0.147) + 0.5f * lnx;
+   tt1 = 2 / (M_PI * 0.147) + 0.5f * lnx;
    tt2 = 1 / 0.147 * lnx;
    
    return(sgn*sqrtf(-tt1 + sqrtf(tt1*tt1 - tt2)));
