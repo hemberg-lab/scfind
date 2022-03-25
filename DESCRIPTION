@@ -1,7 +1,7 @@
 Package: scfind
 Type: Package
 Title: A search tool for single cell RNA-seq data by gene lists
-Version: 3.7.0
+Version: 3.7.1
 Author: Jimmy Lee, Nikolaos Patikas
 Maintainer: Jimmy Lee <thjimmylee@gmail.com>, Nikolaos Patikas <nik.patik@gmail.com>
 Authors@R: c(person("Jimmy Tsz Hang","Lee",
