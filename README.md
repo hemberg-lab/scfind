@@ -23,7 +23,7 @@ library("scfind")
 # Please install the latest version of Rtools at https://cran.r-project.org/bin/windows/Rtools/ prior to installation of scfind
 ```
 
-__Update__ The latest version (`3.7.0`) of __scfind__ is released on 26th November 2020. It has provided 2 datasets and 3 pre-processed __scfind__ indexes as examples. The stability of the __scfind__ interactive session has been enhanced. To update the latest version:
+__Update__ The latest version (`3.7.1`) of __scfind__ is released on 8th August 2022. This update enables user to build scfind index using the new function `buildAnnDataCellTypeIndex()` from `anndata` object with `.h5ad` file format. To update the latest version:
 
 ```
 install.packages("devtools")
@@ -75,6 +75,15 @@ scfind.index.tm10x <- loadObject(file = url(ExampleIndex["TabulaMuris10X"]))
 scfind.index.tm10x <- loadObject(file = url(ExampleIndex["TabulaMurisSuperIndex"]))
 ```
 
+The build __scfind__ index from `anndata` object, please make sure the desired count matrix is saved in `.X` slot of your anndata: 
+
+```
+scfind.ad.index <-  buildCellTypeIndex(path = '/path/to/anndata.h5ad', 
+                             cell.type.label = "cell_type1",
+                             dataset.name = "Dataset1")
+```
+
+
 __Q__: How to start the interactive interface?
 
 __A__: To use the interactive interface of the __scfind__ search engine, you are welcome to play around with one of our [collections](https://scfind.sanger.ac.uk) or try with your own __scfind__ index in the R session:
@@ -87,7 +96,7 @@ scfindShiny(object = object)
 
 __Q__: How can I use the __scfind__ "free text" search engine mentioned in the [manuscript](https://doi.org/10.1101/788596)?
 
-__A__: The prototype of __scfind__ that features Natural Language Process can be found at this [website](https://scfind.sanger.ac.uk). To keep the standard version (`3.7.0`) of __scfind__ streamlined and computer-friendly, we've decided not to include the NLP feature since it requires more dependencies.
+__A__: The prototype of __scfind__ that features Natural Language Process can be found at this [website](https://scfind.sanger.ac.uk). To keep the standard version (`3.7.1`) of __scfind__ streamlined and computer-friendly, we've decided not to include the NLP feature since it requires more dependencies.
 
 __Q__: Where can I report bugs, comments, issues or suggestions?
 
