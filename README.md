@@ -78,9 +78,9 @@ scfind.index.tm10x <- loadObject(file = url(ExampleIndex["TabulaMurisSuperIndex"
 The build __scfind__ index from `anndata` object, please make sure the desired count matrix is saved in `.X` slot of your anndata: 
 
 ```
-scfind.ad.index <-  buildCellTypeIndex(path = '/path/to/anndata.h5ad', 
-                             cell.type.label = "cell_type1",
-                             dataset.name = "Dataset1")
+scfind.ad.index <-  buildAnnDataCellTypeIndex(path = '/path/to/anndata.h5ad', 
+                                             cell.type.label = "cell_type1",
+                                             dataset.name = "Dataset1")
 ```
 
 
