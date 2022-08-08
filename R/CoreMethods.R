@@ -91,6 +91,90 @@ setMethod("buildCellTypeIndex",
           signature(sce = "SingleCellExperiment"),
           buildCellTypeIndex.SCESet)
 
+#' Builds an \code{SCFind} object from a \code{AnnData} object
+#'
+#' This function will index a \code{AnnData} as an SCFind index.
+#'
+#' @param path path to AnnData object
+#' @param dataset.name name of the dataset that will be prepended in each cell_type
+#' @param cell.type.label the cell.type metadata of the obs of AnnData that will be used for the index
+#' @param qb number of bits per cell that are going to be used for quantile compression of the expression data
+#' 
+#' @name buildAnnDataCellTypeIndex
+#'
+#' @return an SCFind object
+#'
+#' @importFrom anndata read_h5ad
+#' @importFrom hash hash
+#' @importFrom methods new
+#' 
+#' @importFrom Rcpp cpp_object_initializer
+#' @useDynLib scfind 
+#' 
+buildCellTypeIndex.anndata <- function(path, dataset.name, cell.type.label = 'cell_type1', qb = 2)
+{
+
+    if (grepl(dataset.name,'.'))
+    {
+        stop("The dataset name should not contain any dots")
+    }
+    
+    anndata <- read_h5ad(path)
+    
+    cell.types.all <- as.factor(anndata$obs[,cell.type.label])
+    cell.types <- levels(cell.types.all)
+    new.cell.types <- hash(keys = cell.types, values = paste0(dataset.name, '.', cell.types))
+    genenames <- unique(rownames(anndata$var))
+    
+    if (length(cell.types) > 0)
+    {
+        non.zero.cell.types <- c()
+        index <- hash()
+        ## print(paste("Found", length(cell.types), "clusters on", ncol(sce), "cells"))
+        message(paste("Generating index for", dataset.name, "from AnnData" ))
+
+        exprs <- anndata$X
+        exprs <- t(exprs[rownames(anndata$obs), rownames(anndata$var)])
+
+        ef <- new(EliasFanoDB)
+       
+        qb.set <- ef$setQB(qb)
+        if (qb.set == 1)
+        {
+            stop("Setting the quantization bits failed")
+        }
+        for (cell.type in cell.types) {
+            inds.cell <- which(cell.type == cell.types.all)
+            if(length(inds.cell) < 2)
+            {
+                ## print(paste('Skipping', cell.type))
+                next
+            }
+            non.zero.cell.types <- c(non.zero.cell.types, cell.type)
+            message(paste("\tIndexing", cell.type, "as", new.cell.types[[cell.type]], " with ", length(inds.cell), " cells."))
+            cell.type.exp <- exprs[,inds.cell]
+            if(is.matrix(exprs))
+            {
+                ef$indexMatrix(new.cell.types[[cell.type]], cell.type.exp)
+            }
+            else
+            {
+                ef$indexMatrix(new.cell.types[[cell.type]], as.matrix(cell.type.exp))
+            }
+        }
+    }
+    index <- new("SCFind", index = ef, datasets = dataset.name)
+    return(index)
+
+                
+#     return(0)
+}
+
+#' @rdname buildAnnDataCellTypeIndex
+#' @aliases buildAnnDataCellTypeIndex
+setMethod("buildAnnDataCellTypeIndex",
+          definition =  buildCellTypeIndex.anndata)
+
 #' This function serializes the DB and save the object as an rds file
 #'
 #' This function can be used to enable the user save the loaded file in a database

@@ -15,13 +15,23 @@ setClass("SCFind",
 setGeneric(name = "buildCellTypeIndex",
            def = function(sce,
                           dataset.name = '',
-                          assay.name = 'logcounts',
+                          assay.name = 'counts',
                           cell.type.label = 'cell_type1',
                           qb = 2)
            {
                standardGeneric("buildCellTypeIndex")
            })
 
+#' 
+#' @export
+setGeneric(name = "buildAnnDataCellTypeIndex",
+           def = function(path,
+                          dataset.name = '',
+                          cell.type.label = 'cell_type1',
+                          qb = 2)
+           {
+               standardGeneric("buildAnnDataCellTypeIndex")
+           })
 
 #' @export 
 setGeneric(name = "mergeDataset", def = function(object, new.object) {
