@@ -134,7 +134,7 @@ buildCellTypeIndex.anndata <- function(path, dataset.name, cell.type.label = 'ce
         message(paste("Generating index for", dataset.name, "from AnnData" ))
 
         exprs <- anndata$X
-        exprs <- t(exprs[rownames(anndata$obs), rownames(anndata$var)])
+        exprs <- t(exprs)
 
         ef <- new(EliasFanoDB)
        
