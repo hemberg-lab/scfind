@@ -1,5 +1,5 @@
-scmap News
+scfind News
 
-scmap 0.99.0:
+scfind 3.7.0:
     
-    * The first version of scmap is submitted to Bioconductor.
+    * The first version of scfind is submitted to Bioconductor.

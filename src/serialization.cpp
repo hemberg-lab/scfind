@@ -1,5 +1,6 @@
 #include "Serialization.h"
-
+#include "typedef.h"
+#include "utils.h"
 
 SerializationDB::SerializationDB(): byte_pointer(0)
 {}

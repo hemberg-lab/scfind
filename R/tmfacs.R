@@ -1,13 +1,13 @@
-#' `Kidney` metadata from The Tabula Muris Consortium.
+#' `tmfacs` SCE objects created from The Tabula Muris Consortium.
 #'
-#' Dataframes from The Tabula Muris Consortium. https://doi.org/10.1038/s41586-018-0590-4
+#' SCE objects created from The Tabula Muris Consortium. https://doi.org/10.1038/s41586-018-0590-4
 #' that profiled every cell-type in the mouse using high-coverage FACS-sorted cells + Smartseq2 in the original publication 
 #'
 #' @docType data
 #'
-#' @usage data(kidney)
+#' @usage data(tmfacs)
 #'
-#' @format Metadata for tabulamuris.
+#' @format list of url to download SCE objects.
 #'
 #' @keywords datasets
 #'
@@ -19,4 +19,4 @@
 #'
 #' @source \href{https://figshare.com/articles/Single-cell_RNA-seq_data_from_Smart-seq2_sequencing_of_FACS_sorted_cells/5715040}{figshare}
 #'
-"kidney"
+"tmfacs"

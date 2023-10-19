@@ -1,26 +1,24 @@
 #pragma once
 
-#include <bitset>
+
+#include <map>
+#include <set>
 #include <Rcpp.h>
 
 
-#define BITS 32
-#define ALL 1
-#define AND 2
+#include "const.h"
+#include "typedef.h"
+#include "EliasFano.h"
 
 
-typedef std::pair<unsigned short, std::bitset<BITS> > BitSet32;
-typedef std::vector<bool> BoolVec;
-
-// struct that holds the quantization vector
-typedef struct
-{
-  double mu;
-  double sigma;
-  std::vector<bool> quantile;
-} Quantile;
+std::map< EliasFanoDB::CellTypeName, std::map<int, Transaction> >  transposeResultToCell(const Rcpp::List& genes_results);
 
 
+std::set<Pattern> FPGrowthFrequentItemsetMining(const Rcpp::List& genes_results, const unsigned int min_support_cutoff);
+std::set<Pattern> exhaustiveFrequentItemsetMining(const Rcpp::List& gene_results, const unsigned int min_support_cutoff);
+
+
+// helper functions
 
 std::string str_join( const std::vector<std::string>& elements, const char* const separator);
 
@@ -49,8 +47,6 @@ inline BitSet32 int2bin(unsigned int id)
   return make_pair(__builtin_clz(id), int2bin_core(id));
 }
 
-
-
 inline double normalCDF(const double& x, const double& mu, const double& sigma)
 {
   // this is an inline function for the cdm of the normal distribution
@@ -72,4 +68,6 @@ int getSizeBoolVector(const std::vector<bool>& v);
 
 
 std::vector<double> decompressValues(const Quantile& q, const unsigned char& quantization_bits);
+
+
 

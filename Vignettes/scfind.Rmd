@@ -12,7 +12,7 @@ vignette: >
 ---
 
 ```{r knitr-options, echo=FALSE, message=FALSE, warning=FALSE, cache=TRUE}
-library(knitr)
+library("knitr")
 opts_chunk$set(fig.align = 'center', fig.width = 6, fig.height = 5, dev = 'png')
 op <- options(gvis.plot.tag='chart')
 ```
@@ -21,47 +21,33 @@ op <- options(gvis.plot.tag='chart')
 
 The number of cell atlases is growing rapidly, as a result of advances in single-cell sequencing techniques and cheaper sequencing cost. To search through these large single-cell datasets for analysis, however, is time-consuming and inefficient because these types of dataset usually take up large amounts of memory. `scfind` has adopted an efficient compression strategy which makes it suitable for real-time queries of millions of cells.
 
-`scfind` is a method for searching specific cell types from large single-cell datasets by a query of gene list, in which `scfind` can suggest subquries score by TF-IDF method. `scfind` can perform hypergeometric test which allows the evaluation of marker genes specific to each cell type within a dataset.
+`scfind` is a method for searching specific cell types from large single-cell datasets by a query of gene list, in which `scfind` can suggest subquries score by TF-IDF method. `scfind` can perform hypergeometric test which allows the evaluation of marker genes specific to each cell type within a dataset. A manuscript describing `scfind` in details is available in [bioRxiv](https://doi.org/10.1101/788596)
 
 # `SingleCellExperiment` class
 
-`scfind` is built on top of the Bioconductor’s [SingleCellExperiment](https://bioconductor.org/packages/SingleCellExperiment) class. `scfind` operates on objects of class `SingleCellExperiment` and writes all of its results back to an object. Please read corresponding vignettes on how to create a `SingleCellExperiment` from your own data. Here we will show a small example on how to do that but note that it is not a comprehensive guide. 
-
-# `scfind` Input
-
 If you already have an `SingleCellExperiment` object, then proceed to the next chapter.
 
-If you have a matrix or a data frame containing expression data then you first need to create a `SingleCellExperiment` object containing your data. For illustrative purposes we will use an example expression matrix provided with `scfind`. The abstract dataset (`Tabula Muris (FACS)`) represents __CPM__ gene expression of 517 and 4897 cells derived from mouse kidney and marrow, respectively. The investigators ([The Tabula Muris Consortium](https://doi.org/10.1038/s41586-018-0590-4)) have profiled almost every cell-type in the mouse using high-coverage FACS-sorted cells + Smartseq2. in the original publication. We will combine the indices of `kidney` and `marrow` into a super-index later
+`scfind` is built on top of the Bioconductor’s [SingleCellExperiment](https://bioconductor.org/packages/SingleCellExperiment) class. `scfind` operates on objects of class `SingleCellExperiment` and writes all of its results back to an object. Please read corresponding vignettes on how to create a `SingleCellExperiment` from your own data. For illustrative purposes, a list of `SingleCellExperiment` objects of the `Tabula Muris (FACS)` and the `Tabula Muris (10X)` datasets are provided. The investigators ([The Tabula Muris Consortium](https://doi.org/10.1038/s41586-018-0590-4)) have profiled almost every cell-type in the mouse using high-coverage FACS-sorted cells + Smartseq2. in the original publication. We will combine the indices of 18 tissues into a super-index.
 
-```{r , warning=FALSE, message=FALSE}
-data(kidney)
-data(tabulamuris)
-
-library(SingleCellExperiment)
-library(scfind)
-
-head(kidney)
-tabulamuris[1:3, 1:3]
-```
-
-Note that the cell type information has to be stored in the `cell_type1` column of the `rowData` slot of the `SingleCellExperiment` object.
-
-Now let's create a `SingleCellExperiment` object of the `tabulamuris` dataset:
 ```{r}
-sce <- SingleCellExperiment(assays = list(normcounts = as.matrix(tabulamuris)), colData = kidney)
-# this is needed to calculate dropout rate for feature selection
-# important: normcounts have the same zeros as raw counts (cpm)
-counts(sce) <- normcounts(sce)
-logcounts(sce) <- log2(normcounts(sce) + 1)
-# use gene names as feature symbols
-rowData(sce)$feature_symbol <- rownames(sce)
-isSpike(sce, "ERCC") <- grepl("^ERCC-", rownames(sce))
-# remove features with duplicated names
-sce <- sce[!duplicated(rownames(sce)), ]
-sce
+library("scfind")
+suppressPackageStartupMessages(library("SingleCellExperiment"))
+
+# List of `Tabula Muris (FACS)` `SingleCellExperiment` objects
+data(tmfacs)
+# List of `Tabula Muris (10X)` `SingleCellExperiment` objects
+data(tm10x)
+
+# Download and load `SingleCellExperiment` object of the `Heart` dataset
+sce.heart <- readRDS(url(tmfacs["Heart"]))
+
+sce.heart
+
+colData(sce.heart)
 ```
 
-# Cell Type Search
+
+# `scfind` Input
 
 ## Index
 
@@ -70,81 +56,265 @@ Once we have a `SingleCellExperiment` object, we can run `scfind`. Firstly, we n
 By default `scfind` uses the `cell_type1` column of the `colData` slot in the reference to identify cell type names. 
 
 ```{r}
-kidneyIndex <- buildCellTypeIndex(sce, "Kidney")
+scfind.index <- buildCellTypeIndex(sce = sce.heart, 
+                             cell.type.label = "cell_type1", # If you have your own clustering result or manually defined groups, you may change this parameters with the corresponding column name of the `colData`
+                             dataset.name = "Heart", 
+                             assay.name = "counts")
 
 # if the dataset contains more than one category, users can build index for each tissue individually and merge all indices into 1 super-index using `mergeDataset` as following:
-data(sce_tmfacs)
-marrowIndex <- buildCellTypeIndex(sce.marrow, "Bone Marrow")
-geneIndex <- mergeDataset(kidneyIndex, marrowIndex)
-geneIndex
+sce.thymus <- readRDS(url(tmfacs["Thymus"]))
+
+scfind.index.new <- buildCellTypeIndex(sce = sce.thymus, 
+                             cell.type.label = "cell_type1", # If you have your own clustering result or manually defined groups, you may change this parameters with the corresponding column name of the `colData`
+                             dataset.name = "Thymus", 
+                             assay.name = "counts")
+
+merged.index <- mergeDataset(scfind.index, scfind.index.new)
+merged.index
 ```
 
 ```{r eval=FALSE, include=FALSE}
 # The `scfind` index can be saved as a RDS object 
-saveObject(geneIndex, file = "scfindIndex.rds")
+saveObject(object = merged.index, 
+           file = "scfindIndex.rds")
 ```
 
+# Retrieve quantized expression matrix
+
+```{r}
+merged.index@index$getCellTypeExpression("Thymus.T cell")[1:5, 1:5]
+```
+
+# Cell Type Search
 
 Once the `scfind` index is built, one can view all existing genes in the datasets using `scfindGenes`
 
 ```{r}
-head(scfindGenes(geneIndex))
+sample(scfindGenes(merged.index), 20)
 ```
 
 or view all existing cell type names in the database using `cellTypeNames`
 
 ```{r}
-cellTypeNames(geneIndex)
+cellTypeNames(merged.index)
+
+# To specify the dataset
+cellTypeNames(merged.index, "Thymus")
 ```
 
 
 ## Evaluate Marker Genes
 
-Once we have a `scfind` index, we can find the cell types that most likely represent your list of genes (highest expression) from your dataset very quickly:
-```{r eval=FALSE, include=FALSE}
-geneIndex <- loadObject(file = "scfindIndex.rds")
-
-```
-
+Once we have a `scfind` index, we can find the cell types that most likely represent your gene set from your dataset very quickly:
+For illustrative purposes, we will use a preprocessed scfind index of the `Tabula Muris (FACS)`. 
 ```{r}
-initialList <- c("Aif1", "4930578C19Rik", "Arhgef9", "9430076C15Rik", "C1qtnf2", "Ccdc109b")
+# `scfind` indexes of the `Tabula Muris (FACS)` & `Tabula Muris (10X)` datasets
+data(ExampleIndex)
 
-scoreGenes <- markerGenes(geneIndex, initialList)
-scoreGenes
-barplot(scoreGenes$tfidf, main = "TF-IDF score", names.arg = as.character(scoreGenes$Query), ylab="TF-IDF score", cex.names = 0.65, las = 2)
-barplot(scoreGenes$Cells, main = "No. of cells", names.arg = as.character(scoreGenes$Query), ylab="no. of cells", cex.names = 0.65, las = 2)
-# In which, `scfind` will suggest subqueries for the initial gene sets along with number of cells and cell types that express the genes
 
-bestQuery <- strsplit(as.character(scoreGenes$Query[tail(order(scoreGenes$Genes),1)]), ',')[[1]]
-bestQuery
-# By ranking the tfidf score, the best subquery can be used to search for cell types that is enriched. The result is reflected by the p-value
+geneIndex <- loadObject(file = url(ExampleIndex["TabulaMurisFACS"]))
 
-enrichedCellTypes <- hyperQueryCellTypes(geneIndex, bestQuery)
-enrichedCellTypes
-# The calculation above shows that a list of genes containing `Aif1` and `Ccdc109b` is specific for the `Kidney.leukocyte` cell type with the lowest p-value.
+# try `geneIndex <- loadObject(file = url(ExampleIndex["TabulaMuris10X"]))` for another Tabula Muris Dataset
 
-# To further evaluate a specific query by calculating the precision recall metrics
-evaluateGenes <- evaluateMarkers(geneIndex, bestQuery, "Kidney.leukocyte")
-evaluateGenes
-data1 <- t(evaluateGenes[, c(7,6,8)])
-colnames(data1) <- evaluateGenes$genes
-barplot(data1 , main = paste("Evaluation of markers in Kidney.leukocyte"), beside=T, legend=rownames(data1), ylab="Arbitrary unit", ylim = c(0, 1.1))
-
+geneIndex@datasets
 ```
 
+`scfind` is a search engine for single cell datasets.  The central operation carried out by `scfind` is to identify the set of cells that express a set of genes or peaks (i.e. the query) specified by the user.
+```{r}
+query <- c("Il2ra", "Ptprc", "Il7r", "Ctla4")
 
+# The p-values is calculated by hypergeometric test
+hyperQueryCellTypes(object = geneIndex, 
+                    gene.list = query)
+
+# Use the `datasets` argument to specify the datasets
+result <- hyperQueryCellTypes(object = geneIndex,
+                    gene.list = query,
+                    datasets = c("Marrow", "Thymus", "Fat"))
+
+# The calculation shows that the query gene set is specific for the `Marrow.T cell` cell type with the lowest p-value.
+barplot(-log10(result$pval), ylab = "-log10(pval)", las = 2, names.arg = result$cell_type)
+```
+
+## Query optimisation routine for long query
+
+To allow search of enriched cell type from a long list of gene query, `scfind` features a query optimization routin. First, the function `markerGenes` will counter suggest subqueries with the highest support in the dataset. The TF-IDF score for each gene set allows user to identify the best subquery for finding the most relevant cell type. We will use the marker genes identified in an original publication Yanbin et al. 2015. Cardiomyocyte-specific markers used in immunostaining.
+```{r}
+long.query <- c("Mef2c", "Gata4", "Nkx2.5", "Myh6", "tnnt2", "tnni3", "CDH2", "Cx43", "GJA1")
+
+# In which, `scfind` will suggest subqueries for the initial gene sets along with number of cells and cell types that express the genes
+result <- markerGenes(object = geneIndex,
+                      gene.list = long.query)
+
+# Showing first 10 rows of the subqueries
+head(result, 10)
+
+subQueriesTfidf <- setNames(result$tfidf, gsub(",", "&", result$Query))
+UpSetR::upset(UpSetR::fromExpression(subQueriesTfidf), mainbar.y.label = "TFIDF score", order.by = "freq", show.numbers = FALSE)
+
+subQueriesCells <- setNames(result$Cells, gsub(",", "&", result$Query))
+UpSetR::upset(UpSetR::fromExpression(subQueriesCells), mainbar.y.label = "No. of cells", order.by = "freq", show.numbers = FALSE)
+```
+
+By ranking the tfidf score, the best subquery can be used to search for cell types that is enriched. 
+```{r}
+bestQuery <- strsplit(as.character(result[which.max(result$tfidf),'Query']), ",")[[1]]
+bestQuery
+
+# The calculation above shows that a list of genes containing `Myh6` and `Tnni3` is specific for the `Heart.cardiac muscle cell` cell type with the lowest p-value.
+enrichedCellTypes <- hyperQueryCellTypes(object = geneIndex, 
+                                         gene.list = bestQuery)
+
+# Showing first 10 rows of the enriched cell types
+head(enrichedCellTypes, 10)
+```
+
+To further evaluate a specific query by calculating the precision recall metrics
+```{r}
+evaluateGenes <- evaluateMarkers(object = geneIndex, 
+                                 gene.list = bestQuery, 
+                                 cell.types = "Heart.cardiac muscle cell")
+evaluateGenes
+
+ggplot2::qplot(precision, recall, data = evaluateGenes,colour = f1, label = genes) + 
+  ggplot2::geom_text(vjust = 0, nudge_y = 5e-3, colour = "black", check_overlap = T)
+```
 
 # Marker Gene Search
 
 If one is more interested in finding out which marker genes best represent a cell type in the dataset, `cellTypeMarkers` function should be used for searching the index:
 ```{r}
 interestedCellType <- c("Kidney.leukocyte")
-findMarkers <- cellTypeMarkers(geneIndex, interestedCellType)
-data2 <- t(findMarkers[, c(7,6,8)])
-colnames(data2) <- findMarkers$genes
-barplot(data2 , main = paste("Marker genes of ", interestedCellType), font.axis=1, beside=T, legend=rownames(data2), ylab="Arbitrary unit", ylim = c(0, 1.1))
+
+findMarkers <- cellTypeMarkers(object = geneIndex, 
+                               cell.types = interestedCellType)
+
+ggplot2::qplot(precision, recall, data = findMarkers,colour = f1, label = genes) + 
+  ggplot2::geom_text(vjust = 0, nudge_y = 5e-3, colour = "black", check_overlap = T)
+
+# You can also specify the background cell types
+
+findMarkers <- cellTypeMarkers(object = geneIndex, 
+                               cell.types = interestedCellType,
+                               background.cell.types = cellTypeNames(object = geneIndex,
+                                                                     datasets = "Kidney"))
+
+ggplot2::qplot(precision, recall, data = findMarkers,colour = f1, label = genes) + 
+  ggplot2::geom_text(vjust = 0, nudge_y = 5e-3, colour = "black", check_overlap = T)
+```
+
+# *In silico* cell sorting with logical operators 
+
+`scfind` keeps track on individual cells. This allows cell sorting by adding the logical operators ("*" as OR, "-" as NOT) in front of each gene name.
+```{r}
+## To find cells that has the expression pattern of NOT expressing the gene `Il2ra` and OR expressing the gene `Ptprc` in the Thymus dataset
+findCellTypes(object = geneIndex, 
+              gene.list = c("-Il2ra", "*Ptprc", "Il7r"), 
+              datasets = "Thymus")
+
+hyperQueryCellTypes(object = geneIndex,
+                    gene.list = c("-Il2ra", "*Ptprc", "Il7r"), 
+                    datasets = "Thymus")
+
+## Without logical operators
+findCellTypes(object = geneIndex, 
+              gene.list = c("Il2ra", "Ptprc", "Il7r"), 
+              datasets = "Thymus")
+
+hyperQueryCellTypes(object = geneIndex,
+                    gene.list = c("Il2ra", "Ptprc", "Il7r"), 
+                    datasets = "Thymus")
 
 ```
+
+# Super Index
+
+With the function `mergeDataset`, users can build a super index which contains multiple datasets for analysis. The example in [bioRxiv](https://doi.org/10.1101/788596) shows that `scfind` is an ideal tool for multimodal analysis. Here, we are using the example super index to demonstrate how one can perform analysis on multi-datasets at the same time. 
+
+```{r}
+superIndex <- loadObject(url(ExampleIndex["TabulaMurisSuperIndex"]))
+
+## Now you could view all tissues from both datasets here
+superIndex@datasets
+```
+
+```{r}
+## And view the cell types here
+sample(cellTypeNames(superIndex), 20)
+```
+
+Let's use our long query as example again to perform search with the super index.
+```{r}
+long.query <- c("Mef2c", "Gata4", "Nkx2.5", "Myh6", "tnnt2", "tnni3", "CDH2", "Cx43", "GJA1")
+
+result.superIndex <- markerGenes(object = superIndex,
+                      gene.list = long.query)
+
+head(result.superIndex, 10)
+
+subQueriesTfidf.superIndex <- setNames(result.superIndex$tfidf, gsub(",", "&", result.superIndex$Query))
+UpSetR::upset(UpSetR::fromExpression(subQueriesTfidf.superIndex), mainbar.y.label = "TFIDF score", order.by = "freq", show.numbers = FALSE)
+
+subQueriesCells.superIndex <- setNames(result.superIndex$Cells, gsub(",", "&", result.superIndex$Query))
+UpSetR::upset(UpSetR::fromExpression(subQueriesCells.superIndex), mainbar.y.label = "No. of cells", order.by = "freq", show.numbers = FALSE)
+```
+
+
+To do analysis with multiple cell types, users are allow to select background datasets or cell types as following. For example, we can narrow down our analysis to one of the dataset `TMFACS` only.
+```{r}
+## Obtain all cell type names in `TM10X`
+select.dataset <- grep("TM10X-", superIndex@datasets, value = T)
+select.celltypes <- cellTypeNames(superIndex, select.dataset)
+
+## Run query optimization routine
+result.superIndex.tm10x <- markerGenes(object = superIndex,
+                      gene.list = long.query,
+                      dataset = select.dataset)
+
+head(result.superIndex.tm10x, 10)
+
+subQueriesTfidf.superIndex.tm10x <- setNames(result.superIndex.tm10x$tfidf, gsub(",", "&", result.superIndex.tm10x$Query))
+UpSetR::upset(UpSetR::fromExpression(subQueriesTfidf.superIndex.tm10x), mainbar.y.label = "TFIDF score", order.by = "freq", show.numbers = FALSE)
+
+subQueriesCells.superIndex.tm10x <- setNames(result.superIndex.tm10x$Cells, gsub(",", "&", result.superIndex.tm10x$Query))
+UpSetR::upset(UpSetR::fromExpression(subQueriesCells.superIndex.tm10x), mainbar.y.label = "No. of cells", order.by = "freq", show.numbers = FALSE)
+```
+
+Here, with the super index, we can now evaluate the genes in both `TM10X` and `TMFACS` simultaneously.
+```{r}
+## Obtain all cell type names in `TM10X`
+select.dataset <- grep("TM10X-", superIndex@datasets, value = T)
+select.celltypes <- cellTypeNames(superIndex, select.dataset)
+
+evaluate.genes.tm10x <- evaluateMarkers(object = superIndex,
+                gene.list = long.query,
+                cell.types = "TM10X-Heart.cardiac muscle cell",
+                background.cell.types = select.celltypes) ## using all cells in `TMFACS` as background cell types
+
+## Obtain all cell type names in `TMFACS`
+select.dataset <- grep("TMFACS-", superIndex@datasets, value = T)
+select.celltypes <- cellTypeNames(superIndex, select.dataset)
+
+evaluate.genes.tmfacs <- evaluateMarkers(object = superIndex,
+                gene.list = long.query,
+                cell.types = "TMFACS-Heart.cardiac muscle cell",
+                background.cell.types = select.celltypes) ## using all cells in `TMFACS` as background cell types
+
+evaluate.result <- rbind(
+  data.frame(evaluate.genes.tm10x, dataset = "TM10X"),
+  data.frame(evaluate.genes.tmfacs, dataset = "TMFACS")
+)
+
+ggplot2::qplot(precision, recall, data = evaluate.result,colour = dataset, size = f1, label = genes) + 
+  ggplot2::geom_text(vjust = 0, nudge_y = 5e-3, colour = "black", check_overlap = T) 
+```
+
+# Interactive Session
+__Note__ `scfind` can also be run in an interactive `Shiny` session:
+```{r eval=FALSE, include=TRUE}
+scfindShiny(object = geneIndex)
+```
+To enhancer user experience, the [Hemberg-lab](https://scfind.sanger.ac.uk/) has an interactive website of 9 collections of `scfind` indexes.
 
 
 # sessionInfo()

@@ -1,174 +1,18 @@
 #pragma once
 #include <iostream>
-
+#include <Rcpp.h>
 #include <algorithm>
-
 #include <utility>
 #include <map>
 #include <vector>
 #include <set>
 #include <unordered_map>
 
-
-#include "functions.h"
-
-#define SERIALIZATION_VERSION 6
-
-
-typedef struct
-{
-  BoolVec H;
-  BoolVec L;
-  int l;
-  float idf; // tfidf
-  Quantile expr;
-  int getSize() const
-  {
-    return L.size() / l;
-  }
-} EliasFano;
-
-typedef struct
-{
-  int gene;
-  int cell_type;
-  int index;
-} IndexRecord;
-
-//' @export
-class EliasFanoDB;
-RCPP_EXPOSED_CLASS(EliasFanoDB)
-
-typedef int EliasFanoID;
-typedef int CellTypeID;
+#include "const.h"
+#include "typedef.h"
 
 
 
-class GeneMeta
-{
-public:
-  int total_reads;
-  GeneMeta();
-  void merge(const GeneMeta& other);
-};
-
-class CellMeta
-{
-public:                                               
-  int reads;
-  int features;
-  int getReads() const 
-  {
-    return reads;
-  }
-  
-  int getFeatures() const
-  {
-    return features;
-  }
-  CellMeta();
-};
-
-class CellID
-{
-public:
-  CellTypeID cell_type;
-  int cell_id;
-  CellID(CellTypeID, int);
-  bool operator==(const CellID& obj) const
-  {
-    return (obj.cell_type == cell_type) && (obj.cell_id == cell_id);
-
-  }
-};
-
-namespace std
-{
-  template<>
-  struct hash<CellID>
-  {
-    inline size_t operator()(const CellID& cid) const
-    {
-      return hash<CellTypeID>()(cid.cell_type) ^ hash<int>()(cid.cell_id);
-    }
-  };
-
-}
-
-
-class QueryScore
-{
-public:
-  typedef struct 
-  {
-    double tfidf;
-    size_t index;
-    int cartesian_product_sets;
-  } GeneScore;
-  friend class EliasFanoDB;
-  int cells_in_query;
-  int cell_types_in_query;
-  double query_score;
-  std::map<std::string, GeneScore> genes;
-  // CellID (cell type , cell number)
-  std::unordered_map<CellID , std::pair<std::vector<double>, int> > tfidf;
-
-  
-  
-
-  
-  QueryScore();
-  void reset();
-  void cell_type_relevance(const EliasFanoDB&, const Rcpp::List&, const std::set<std::string>&);
-  void cell_tfidf(const EliasFanoDB&, const std::set<std::string>&);
-  void estimateExpression(const Rcpp::List& gene_results, const EliasFanoDB& db, const Rcpp::CharacterVector& datasets, bool concsole_message);
-  int calculate_cell_types(const std::set<std::string>&gene_set);
-};
-
-
-
-
-class CellType
-{
-public:
-  std::string name;
-  int total_cells;
-  int getTotalCells()const 
-  {
-    return total_cells;
-  }
-};
-
-typedef struct
-{
-  int tp;
-  int fp;
-  int tn;
-  int fn;
-  float inv_precision() const
-  {
-    return  (tp + fp) / float(tp);
-  }
-  float inv_recall() const
-  {
-    return (fn + tp) /  float(tp);
-  }
-
-  float recall() const
-  {
-    return 1 / inv_recall();
-  }
-
-  float precision() const
-  {
-    return 1 / inv_precision();
-  }
-
-  float f1() const
-  {
-    return 2/(inv_precision() + inv_recall());
-  }
-} CellTypeMarker;
 
 //' @export EliasFanoDB 
 class EliasFanoDB
@@ -203,8 +47,10 @@ class EliasFanoDB
   
 
   EliasFanoDB();
+
+  EliasFanoDB(SEXPREC*&);
   
-  void dumpGenes();
+  void dumpGenes() const;
 
   void clearDB();
  
@@ -216,7 +62,7 @@ class EliasFanoDB
  
   int loadByteStream(const Rcpp::RawVector& stream);
 
-  Rcpp::RawVector getByteStream();
+  Rcpp::RawVector getByteStream() const;
 
   long eliasFanoCoding(const std::vector<int>& ids, const Rcpp::NumericVector& values);
   
@@ -228,13 +74,13 @@ class EliasFanoDB
   long encodeMatrix(const std::string& cell_type_name, const Rcpp::NumericMatrix& gene_matrix);
 
 
-  Rcpp::List total_genes();
+  Rcpp::List total_genes() const;
   
   // Get a vector that represents support for a set of genes with respect to a specific dataset
   Rcpp::IntegerVector totalCells(const Rcpp::CharacterVector&, const Rcpp::CharacterVector&) const;
   
   // 
-  Rcpp::CharacterVector getGenesInDB();
+  Rcpp::CharacterVector getGenesInDB() const;
   
   int getTotalCells(const Rcpp::CharacterVector&) const;
 
@@ -253,13 +99,13 @@ class EliasFanoDB
   
   Rcpp::NumericVector getCellTypeSupport(Rcpp::CharacterVector& cell_types);
   
-  Rcpp::List queryGenes(const Rcpp::CharacterVector& gene_names, const Rcpp::CharacterVector& datasets_active);
+  Rcpp::List queryGenes(const Rcpp::CharacterVector& gene_names, const Rcpp::CharacterVector& datasets_active) const;
   
-  size_t dataMemoryFootprint();
+  size_t dataMemoryFootprint() const;
 
-  size_t quantizationMemoryFootprint();
+  size_t quantizationMemoryFootprint() const;
   
-  size_t dbMemoryFootprint();
+  size_t dbMemoryFootprint() const;
 
   // And query
   Rcpp::List findCellTypes(const Rcpp::CharacterVector& gene_names, const Rcpp::CharacterVector& datasets_active) const;
@@ -268,7 +114,7 @@ class EliasFanoDB
 
   // TODO(Nikos) this function can be optimized.. It uses the native quering mechanism
   // that casts the results into native R data structures
-  Rcpp::DataFrame findMarkerGenes(const Rcpp::CharacterVector& gene_list, const Rcpp::CharacterVector datasets_active, unsigned int min_support_cutoff, bool console_message);
+  Rcpp::DataFrame findMarkerGenes(const Rcpp::CharacterVector& gene_list, const Rcpp::CharacterVector datasets_active, bool exhaustive = false, const int user_cutoff = -1) const;
   
 
   Rcpp::DataFrame _findCellTypeMarkers(const Rcpp::CharacterVector& cell_types, 
@@ -306,14 +152,12 @@ class EliasFanoDB
 
   Rcpp::List getCellTypeMeta(const std::string&) const;
 
-  std::map<std::string, std::vector<int> > intersect_cells(std::set<std::string> gene_set, Rcpp::List genes_results) const ;
-
-  int dbSize();
+  int dbSize() const;
   
-  void dumpEFsize(int);
-  int sample(int index);
+  void dumpEFsize(int) const;
+  int sample(int index) const;
 
-  std::vector<int> decode(int index);
+  std::vector<int> decode(int index) const;
   
   int insertNewCellType(const CellType& cell_type);
   
@@ -322,4 +166,5 @@ class EliasFanoDB
 
 };
 
+RCPP_EXPOSED_CLASS(EliasFanoDB)
 

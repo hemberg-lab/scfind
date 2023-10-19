@@ -7,18 +7,22 @@
 \alias{markerGenes,SCFind,character-method}
 \title{Performs query optimization and return the best candidate gene sets}
 \usage{
-markerGenes(object, gene.list, datasets)
+markerGenes(object, gene.list, datasets, exhaustive = FALSE, support.cutoff = -1)
 
-find.marker.genes(object, gene.list, datasets)
+find.marker.genes(object, gene.list, datasets, exhaustive, support.cutoff)
 
-\S4method{markerGenes}{SCFind,character}(object, gene.list, datasets)
+\S4method{markerGenes}{SCFind,character}(object, gene.list, datasets, exhaustive = FALSE, support.cutoff = -1)
 }
 \arguments{
 \item{object}{SCFind object}
 
-\item{gene.list}{A list of Genes existing in the database}
+\item{gene.list}{A list of nGenes existing in the database}
 
 \item{datasets}{the datasets of the objects to be considered}
+
+\item{exhaustive}{use bootstrap method instead of the default frequent pattern growth}
+
+\item{support.cutoff}{define result cutoff}
 }
 \value{
 hierarchical list of queries and their respective scores

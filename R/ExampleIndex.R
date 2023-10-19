@@ -1,15 +1,15 @@
-#' `tabulamuris` dataframe from The Tabula Muris Consortium.
+#' `ExampleIndex` SCfind index created from The Tabula Muris Consortium.
 #'
-#' Dataframe from The Tabula Muris Consortium. https://doi.org/10.1038/s41586-018-0590-4
+#' SCfind indexes created from The Tabula Muris Consortium. https://doi.org/10.1038/s41586-018-0590-4
 #' that profiled every cell-type in the mouse using high-coverage FACS-sorted cells + Smartseq2 in the original publication 
 #'
 #' @docType data
 #'
-#' @usage data(tabulamuris)
+#' @usage data(ExampleIndex)
 #'
-#' @format Dataframe of CPM counts.
+#' @format url to retrieve SCfind indexes.
 #'
-#' @keywords datasets
+#' @keywords index
 #'
 #' @references The Tabula Muris Consortium. (2018) 
 #' Single-cell transcriptomics of 20 mouse
@@ -19,4 +19,4 @@
 #'
 #' @source \href{https://figshare.com/articles/Single-cell_RNA-seq_data_from_Smart-seq2_sequencing_of_FACS_sorted_cells/5715040}{figshare}
 #'
-"tabulamuris"
+"ExampleIndex"
