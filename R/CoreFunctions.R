@@ -508,7 +508,8 @@ read_dictionaries <-  function(paths)
     return(dictionary)
 }
 
-# scfindQ2ReadWordVectors
+#' @name scfindQ2ReadWordVectors
+#' @export
 read_w2v <- function(path)
 {
     julia_install_package_if_needed("Word2Vec")
@@ -517,9 +518,8 @@ read_w2v <- function(path)
     return(model)
 }
 
-# scfindQ2Wordcloud
-
-
+#' @name scfindQ2Wordcloud
+#' @export
 gene2wordcloud <- function(dictionary, gene.list, word.window, not.genes = F, max.words = 100, return = F, page, any_id = c("MESH", "CHEBI", "OMIM"))
 {
     word.window <- if(missing(word.window)) length(gene.list) * 10 else word.window# needs optimization
@@ -839,8 +839,8 @@ query2genes <- function(object, dictionary, query, strict = F, automatch = T, gr
     
 }
 
-# scfindQ2CellTypes
-
+#' @name scfindQ2CellTypes
+#' @export
 query2CellTypes <- function(object, dictionary, query, datasets, optimize = T, abstract = T, strict = F, greedy = 0.6, priority, spell.tolerate = T )
 {
     

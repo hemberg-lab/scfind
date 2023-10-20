@@ -3,7 +3,6 @@
 \docType{package}
 \name{scfind}
 \alias{scfind}
-\alias{scfind-package}
 \title{Minimal Rcpp Module Example}
 \description{
 scfind

@@ -31,7 +31,7 @@ Depends: R(>= 3.5)
 RcppModules: EliasFanoDB
 Encoding: UTF-8
 LazyLoad: yes
-RoxygenNote: 6.1.1
+RoxygenNote: 7.2.3
 Suggests: knitr, rmarkdown
 VignetteBuilder: knitr
 biocViews: SingleCell, Software, RNASeq, Transcriptomics, 
@@ -48,10 +48,10 @@ Collate:
     'ExampleIndex.R'
     'ShinyMethods.R'
     'Utils.R'
+    'global.R'
     'scfind-package.R'
+    'server.R'
     'tm10x.R'
     'tmfacs.R'
-    'global.R'
-    'server.R'
     'ui.R'
     'zzz.R'

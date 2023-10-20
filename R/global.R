@@ -1,5 +1,5 @@
-#' Global variables and functions for the shiny app of scfind
-#'
+## Global variables and functions for the shiny app of scfind
+
 utils::globalVariables(c("support", "Progress", "renderUI", "updateTextInput", "updateSelectInput", "shape", "x", "y"))
 
 dataset_def_names <- setNames(c("Mouse Cell Atlas ", "Tabula Muris - 10X ", "Tabula Muris - FACS ", "Mouse Brain Atlas ", "Malaria Cell Atlas ", "Human Liver Atlas ", "Mouse Spinal Cord Atlas ", "Mouse sci-ATAC-seq Atlas ", "Human Kidney Atlas "), c("mca", "tm-10X", "tm-facs", "brain", "malaria", "liver", "spinalcord", "atacseq", "kidney"))
